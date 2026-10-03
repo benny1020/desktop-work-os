@@ -1,6 +1,6 @@
 # Local completion work
 
-2026-10-03. Original direction: keep development local, then publish to a private GitHub repository. The user has now explicitly requested that private-repository step.
+2026-10-03. Original direction: keep development local, then publish to a private GitHub repository. The private repository was created first. The user subsequently authorized publishing the source and curated README media and switching the repository to Public.
 
 ## Acceptance scope
 
@@ -61,15 +61,15 @@ Evidence:
 
 ### What these results do not establish
 
-Fixtures test actual UI, transport construction and local runtime boundaries; they are **not successful connections to HMG Atlassian, a company GitLab or the user's Claude endpoint**. Those require user-entered company credentials/VPN and an eventual tenant-specific acceptance run. No real external issues, pages, comments or approvals were created while testing.
+Fixtures test actual UI, transport construction and local runtime boundaries; they are **not successful connections to an organization’s Atlassian, a company GitLab or the user's Claude endpoint**. Those require user-entered company credentials/VPN and an eventual tenant-specific acceptance run. No real external issues, pages, comments or approvals were created while testing.
 
 Existing document rich-text editing, company-specific required Jira custom fields, automatic service synchronization, installer signing and runtime dependency tracing are outside this implementation. Detailed resource caps and behavior are in `INTEGRATIONS_AND_REVIEW.md`. Personal plan/draft/recent data is local plain text; only integration credentials/configuration use the encrypted vault.
 
 ## Private repository scope
 
-Repository created: https://github.com/benny1020/desktop-work-os — visibility verified as PRIVATE.
+Repository: https://github.com/benny1020/desktop-work-os. Initially created as Private; the owner has now authorized Public visibility.
 
-The user authorized creating one **private** GitHub repository. Publish source, dependency locks, test code and documentation. Keep `node_modules`, `dist`, generated screenshots/test outputs, downloaded upstream sources, `.env`, tokens and encryption files local. `.gitignore` excludes these classes. Evidence paths in this document refer to the original local workspace; regenerate them with the documented commands after cloning.
+The user authorized creating one **private** GitHub repository, then explicitly authorized making it **public** with screenshots and GIFs. Publish source, dependency locks, test code, documentation and curated synthetic media. Keep `node_modules`, `dist`, generated screenshots/test outputs, downloaded upstream sources, `.env`, tokens and encryption files local. `.gitignore` excludes these classes. Evidence paths in this document refer to the original local workspace; regenerate them with the documented commands after cloning.
 
 ## Official API contracts reviewed for this extension
 

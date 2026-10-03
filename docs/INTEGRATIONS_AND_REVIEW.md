@@ -74,7 +74,7 @@ Claude 모델 ID는 해당 엔드포인트가 제공하는 값을 사용합니�
 
 Adapter 테스트는 로컬 HTTP fixture 서버를 사용해 실제 요청 메서드·경로·인증 헤더·본문과 오류 처리를 검증합니다. 브라우저 연결 테스트는 bridge fixture를 사용합니다. Electron 테스트는 실제 OS 암호화 저장소와 main/preload/renderer 경계를 통과합니다. HTTPS protocol fixture로 Electron net.fetch까지 호출해 인증 헤더를 확인하며, 회사 서버에 접속한 테스트는 아닙니다.
 
-**사용자의 회사 도메인·실제 토큰이 제공되지 않았으므로, HMG Atlassian·사내 GitLab·사용자 Claude 엔드포인트와의 실제 왕복 호출은 아직 검증하지 않았습니다.** 테스트 성공을 실서비스 연결 완료로 표현하지 않습니다.
+**사용자의 회사 도메인·실제 토큰이 제공되지 않았으므로, Atlassian Cloud·사내 GitLab·사용자 Claude 엔드포인트와의 실제 왕복 호출은 아직 검증하지 않았습니다.** 테스트 성공을 실서비스 연결 완료로 표현하지 않습니다.
 
 ## 연결 워크플로와 지원 경계
 

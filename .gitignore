@@ -14,3 +14,4 @@ test-results/
 research/*
 !research/SOURCE_REVIEW.md
 coverage/
+.venv*/
