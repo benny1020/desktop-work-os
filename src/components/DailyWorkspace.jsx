@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import "../daily-workflow.css";
 import {
   Check,
   ChevronLeft,
@@ -27,6 +28,10 @@ import {
   moveTask,
   planChange,
 } from "../lib/planning";
+// Keep the personal planning position and reversible local actions across app navigation.
+// This is renderer memory only, matching the lifetime of the undo controls.
+const planningSessions = new Map();
+let planningUndo = { removed: null, scheduleUndo: null };
 function PlanTask({ task, tasks, today, act, onOpen, onEdit }) {
   const siblings = tasks.filter((item) => item.date === task.date && (item.time || "") === (task.time || ""));
   const index = siblings.findIndex((item) => item.id === task.id);
@@ -137,7 +142,12 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit }) {
   );
 }
 
-export default function DailyWorkspace({
+export default function DailyWorkspace(props) {
+  const planningKey = props.section === "Home" ? "Home" : "My Work";
+  return <PlanningWorkspace key={planningKey} {...props} planningKey={planningKey} />;
+}
+
+function PlanningWorkspace({
   section,
   view,
   configs,
@@ -147,23 +157,31 @@ export default function DailyWorkspace({
   focusDate,
   focusTaskId,
   focusRequestId,
+  planningKey,
 }) {
   const plan = usePlan(),
     today = dayKey();
+  const planningSession = planningSessions.get(planningKey);
   const [editing, setEditing] = useState(null);
-  const [removed, setRemoved] = useState(null);
+  const [removed, setRemoved] = useState(() => planningUndo.removed);
+  const [scheduleUndo, setScheduleUndo] = useState(() => planningUndo.scheduleUndo);
+  const [returnRange, setReturnRange] = useState(() => planningSession?.returnRange || null);
   const quickInput = useRef(null);
   const rootRef = useRef(null);
-  const [quickDate, setQuickDate] = useState(null);
-  const [date, setDate] = useState(today),
-    [mode, setMode] = useState("Week"),
-    [quick, setQuick] = useState(""),
-    [kind, setKind] = useState("task"),
+  const [quickDate, setQuickDate] = useState(() => planningSession?.quickDate || null);
+  const [date, setDate] = useState(() => planningSession?.date || today),
+    [mode, setMode] = useState(() => planningSession?.mode || "Week"),
+    [quick, setQuick] = useState(() => planningSession?.quick || ""),
+    [kind, setKind] = useState(() => planningSession?.kind || "task"),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [feed, setFeed] = useState({ issues: [], mrs: [], errors: [] }),
     [refresh, setRefresh] = useState(0),
     [loading, setLoading] = useState(false);
+  useEffect(() => {
+    planningSessions.set(planningKey, { date, mode, quick, kind, quickDate, returnRange });
+    planningUndo = { removed, scheduleUndo };
+  }, [planningKey, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo]);
   useEffect(() => {
     if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) setDate(focusDate);
     if (!focusTaskId) return;
@@ -203,7 +221,11 @@ export default function DailyWorkspace({
       alive = false;
     };
   }, [configs, refresh]);
-  useEffect(() => { setQuickDate(null); }, [date, view]);
+  const previousRange = useRef({ date, view });
+  useEffect(() => {
+    if (previousRange.current.date !== date || previousRange.current.view !== view) setQuickDate(null);
+    previousRange.current = { date, view };
+  }, [date, view]);
   const act = (fn) => {
     try {
       fn();
@@ -226,6 +248,42 @@ export default function DailyWorkspace({
       addPlanTask({ title: o.title, object: o, date: today });
       setNotice("Added to Today");
     });
+  }
+  function scheduleTasks(items, targetDate, message) {
+    const moves = items.map((task) => ({ id: task.id, from: task.date, to: targetDate, done: task.done }));
+    const ids = new Set(moves.map((move) => move.id));
+    planChange((p) => ({
+      ...p,
+      tasks: p.tasks.map((task) => ids.has(task.id) ? { ...task, date: targetDate } : task),
+      activity: [...p.tasks.filter((task) => ids.has(task.id)).map((task) => ({ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${task.title}: Scheduled ${targetDate}` })), ...p.activity].slice(0, 100),
+    }));
+    setScheduleUndo({ moves, fromView: date, toView: targetDate });
+    setNotice(message);
+  }
+  function undoSchedule() {
+    act(() => {
+      let restored = 0;
+      planChange((p) => {
+        const activity = [];
+        const tasks = p.tasks.map((task) => {
+          const move = scheduleUndo.moves.find((item) => item.id === task.id);
+          if (!move || task.date !== move.to || task.done !== move.done) return task;
+          restored++;
+          activity.push({ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${task.title}: Restored schedule ${move.from || "Backlog"}` });
+          return { ...task, date: move.from };
+        });
+        return { ...p, tasks, activity: [...activity, ...p.activity].slice(0, 100) };
+      });
+      if (date === scheduleUndo.toView) setDate(scheduleUndo.fromView);
+      setScheduleUndo(null);
+      setNotice(`${restored} ${restored === 1 ? "task" : "tasks"} restored. Items changed since the move were kept as they are.`);
+    });
+  }
+  function openDay(day) {
+    if (!(view === "Calendar" && mode === "Day")) setReturnRange({ date, view, mode, selectedDay: day });
+    setDate(day);
+    setMode("Day");
+    if (view !== "Calendar") onNavigate("My Work", "Calendar");
   }
   const issueObject = (i) => ({
     type: "issue",
@@ -258,6 +316,9 @@ export default function DailyWorkspace({
     weekly = view === "This Week" || view === "Calendar",
     tasks =
       view === "Backlog" ? plan.tasks.filter((t) => !t.date) : dayTasks(date);
+  const carryover = plan.tasks.filter((task) => !task.done && task.kind !== "event" && task.date && task.date < today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const showCarryover = date === today && (home || view === "Today") && carryover.length > 0;
   const due = feed.issues.filter(
     (i) => i.fields.duedate && i.fields.duedate <= shiftDay(today, 1),
   );
@@ -266,6 +327,11 @@ export default function DailyWorkspace({
   const connected = Boolean(configs.jira?.tokenConfigured || configs.gitlab?.tokenConfigured);
   const nextReview = feed.mrs[0];
   const nextIssue = !nextReview && due[0];
+  const carryoverRow = (task) => <div className="carryover-row" key={task.id}>
+    <button className="carryover-title" onClick={() => task.object ? onOpen(task.object) : setEditing({ ...task })}>{task.title}</button>
+    <time dateTime={task.date}>{task.date}</time>
+    <button className="btn" onClick={() => act(() => scheduleTasks([task], today, `Brought ${task.title} to Today.`))}>Bring to Today</button>
+  </div>;
   return (
     <div ref={rootRef} className={`page daily-connected ${home ? "daily-command-center" : ""}`}>
 
@@ -312,6 +378,18 @@ export default function DailyWorkspace({
             ),
           )}
         </div>
+        {returnRange && view === "Calendar" && mode === "Day" && <button className="quiet-button planning-return" onClick={() => {
+          setDate(returnRange.date); setMode(returnRange.mode);
+          if (returnRange.view !== "Calendar") onNavigate("My Work", returnRange.view);
+          const selectedDay = returnRange.selectedDay;
+          setReturnRange(null);
+          requestAnimationFrame(() => {
+            const button = [...(rootRef.current?.querySelectorAll("[data-plan-day]") || [])].find((item) => item.dataset.planDay === selectedDay);
+            button?.focus({ preventScroll: true });
+            button?.scrollIntoView({ block: "nearest" });
+          });
+        }}><ChevronLeft size={13} />Back to {returnRange.view === "This Week" ? "week" : returnRange.mode.toLowerCase()}</button>}
+        {date !== today && <button className="btn" aria-label="Return to today" onClick={() => { setDate(today); setReturnRange(null); }}>Today</button>}
         <button
           className="icon-button"
           aria-label="Previous planning period"
@@ -387,6 +465,11 @@ export default function DailyWorkspace({
           {notice}
         </p>
       )}
+      {scheduleUndo && <div role="status" className="plan-undo schedule-undo">
+        <span>Moved {scheduleUndo.moves.length} {scheduleUndo.moves.length === 1 ? "task" : "tasks"} · local schedule only</span>
+        <button className="quiet-button" onClick={undoSchedule}><Undo2 size={13} />Undo schedule move</button>
+        <button className="quiet-button" aria-label="Dismiss schedule undo" onClick={() => setScheduleUndo(null)}>Dismiss</button>
+      </div>}
       {removed && <div role="status" className="plan-undo">
         <span>Removed <b>{removed.task.title}</b> from your plan.</span>
         <button className="quiet-button" onClick={() => act(() => {
@@ -406,6 +489,13 @@ export default function DailyWorkspace({
           {e} <button onClick={onSettings}>Settings</button>
         </div>
       ))}
+      {showCarryover && <section className="plan-carryover" aria-label="Unfinished from earlier days">
+        <header><div><h2>Unfinished from earlier days <span className="pill">{carryover.length}</span></h2><p>Earlier local schedule dates · Jira deadlines are unchanged</p></div>
+          {carryover.length > 1 && <button className="btn" onClick={() => act(() => scheduleTasks(carryover, today, `Brought ${carryover.length} tasks to Today.`))}>Bring all {carryover.length} to Today</button>}
+        </header>
+        {carryover.slice(0, 3).map(carryoverRow)}
+        {carryover.length > 3 && <details><summary>Show {carryover.length - 3} more earlier tasks</summary>{carryover.slice(3).map(carryoverRow)}</details>}
+      </section>}
       {view === "My Activity" ? (
         <div className="plan-activity">
           {plan.activity.length ? (
@@ -436,12 +526,10 @@ export default function DailyWorkspace({
                   );
                 }}
               >
-                <h3>
-                  {new Date(d + "T12:00:00").toLocaleDateString(undefined, {
-                    weekday: "short",
-                    day: "numeric",
-                  })}
-                </h3>
+                <h3 className="planning-day-heading"><button data-plan-day={d} aria-label={`Open day ${d}`} onClick={() => openDay(d)}>
+                  {new Date(d + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}
+                  {dayTasks(d).length > 0 && <span title="Planned items">{dayTasks(d).length}</span>}
+                </button></h3>
                 {dayTasks(d).map(taskRow)}
                 <button
                   className="day-add"
@@ -488,25 +576,15 @@ export default function DailyWorkspace({
                 <small>Try “Review retry policy tomorrow 2pm”</small>
               </div>
             )}
-            {tasks.some((t) => !t.done) && (
-              <button
-                className="btn"
-                onClick={() =>
-                  act(() => {
-                    const ids = new Set(tasks.filter((t) => !t.done).map((t) => t.id));
-                    const nextDate = shiftDay(date, 1);
-                    planChange((p) => ({
-                      ...p,
-                      tasks: p.tasks.map((task) => ids.has(task.id) ? { ...task, date: nextDate } : task),
-                      activity: [...p.tasks.filter((task) => ids.has(task.id)).map((task) => ({ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${task.title}: Scheduled ${nextDate}` })), ...p.activity].slice(0, 100),
-                    }));
-                    setDate(shiftDay(date, 1));
-                    setNotice("Unfinished work moved to the next day.");
-                  })
-                }
-              >
-                Move unfinished to next day
-              </button>
+            {tasks.some((t) => !t.done && t.kind !== "event") && (
+              <div className="plan-rollover">
+                <button className="btn" onClick={() => act(() => {
+                  const nextDate = shiftDay(date, 1);
+                  scheduleTasks(tasks.filter((task) => !task.done && task.kind !== "event"), nextDate, "Unfinished tasks moved to the next day.");
+                  setDate(nextDate);
+                })}>Move unfinished to next day</button>
+                <small>Unfinished tasks only · events keep their date</small>
+              </div>
             )}
           </section>
           <aside className="daily-brief">

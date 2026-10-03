@@ -1,0 +1,16 @@
+.live-command .search-result-text {display:flex;flex-direction:column;gap:4px;min-width:0;}
+.live-command .search-result-text > span {overflow-wrap:anywhere;}
+.search-source-status {border-top:1px solid var(--line);padding:8px 0;font-size:10px;color:var(--secondary);display:flex;flex-wrap:wrap;gap:7px 15px;}
+.search-source-status > div {display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.search-source-status .search-source-error {flex-basis:100%;}
+.search-source-error small {max-width:300px;overflow-wrap:anywhere;}
+.search-source-error button {color:var(--accent);font-size:10px;}
+.create-draft-note {display:flex;gap:12px;align-items:center;justify-content:space-between;color:var(--secondary);font-size:10px;}
+.create-draft-note .quiet-button {font-size:10px;}
+.live-command:has(.live-create) {display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;}
+.live-command .live-create {min-height:0;overflow:auto;overscroll-behavior:contain;}
+.live-create .create-actions {position:sticky;bottom:0;z-index:1;background:var(--surface);padding:12px 0 18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px;}
+.live-create .create-actions > .btn {align-self:flex-end;}
+.live-create textarea {resize:vertical;min-height:80px;}
+.live-command .live-create {padding-inline:3px;margin-inline:-3px;}
+.live-create .create-destination {font-size:10px;margin:0;overflow-wrap:anywhere;}

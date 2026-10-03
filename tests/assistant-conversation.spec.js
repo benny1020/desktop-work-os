@@ -57,7 +57,8 @@ test('Assistant follows navigation and restores underlying issue after nested pr
   await page.getByRole('button',{name:'Home',exact:true}).click();
   await page.getByLabel('Ask Claude').fill('And now?');
   await page.getByRole('button',{name:'Send to Claude'}).click();
-  await expect(page.locator('.live-chat-message.assistant')).toHaveCount(2);
+  await expect(page.locator('.live-chat-message.assistant')).toHaveCount(1);
+  expect(await page.evaluate(() => window.__fixture.calls.filter(c=>c.action==='claude.chat').at(-1).args.history)).toEqual([]);
   expect(JSON.parse(await selected())).toEqual({section:'Home',view:'Home'});
 });
 

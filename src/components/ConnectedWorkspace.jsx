@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import DOMPurify from "dompurify";
+import DocumentReader from "./DocumentReader";
 import {
   ArrowRight,
   BookOpen,
@@ -56,7 +56,9 @@ export default function ConnectedWorkspace({
   focusDate,
   focusTaskId,
   focusRequestId,
+  onReviewPendingChange,
 }) {
+  const [reviewPending, setReviewPending] = useState("");
   const [configs, setConfigs] = useState(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
@@ -221,6 +223,9 @@ export default function ConnectedWorkspace({
         });
         onContext?.(
           JSON.stringify({
+            type: "doc",
+            id: data.id,
+            origin: configs.confluence.url,
             title: data.title,
             body: data.body?.storage?.value?.slice(0, 16000),
           }),
@@ -261,16 +266,19 @@ export default function ConnectedWorkspace({
       <div className="context-mr">
         <MRLinks
           mr={snapshot.mr}
+          pending={!!reviewPending}
           origin={configs.gitlab?.url}
           onOpen={onOpen}
         />
         <ReviewWorkbench
           key={`${snapshot.mr.project_id}:${snapshot.mr.iid}:${snapshot.mr.diff_refs.head_sha}`}
           snapshot={snapshot}
+          onPendingChange={(pending) => { setReviewPending(pending); onReviewPendingChange?.(pending); }}
           externalError={error}
           refreshing={loading}
           live
           onBack={() => {
+            if (reviewPending) return;
             requestId.current++;
             setLoading(false);
             setError("");
@@ -290,23 +298,6 @@ export default function ConnectedWorkspace({
         : section === "My Work"
           ? "My Jira issues"
           : "Project issues";
-  const cleanHtml = page
-    ? DOMPurify.sanitize(page.body?.storage?.value || "", {
-        USE_PROFILES: { html: true },
-        FORBID_TAGS: [
-          "img",
-          "iframe",
-          "form",
-          "input",
-          "style",
-          "video",
-          "audio",
-          "source",
-          "link",
-        ],
-        FORBID_ATTR: ["style", "src", "srcset", "href", "action"],
-      })
-    : "";
   return (
     <div
       className={`connected-workspace ${selected && section !== "Docs" ? "has-selection" : ""}`}
@@ -466,10 +457,8 @@ export default function ConnectedWorkspace({
                         : "Favorite"}
                     </button>
                   </div>
-                  <div
-                    className="remote-document"
-                    dangerouslySetInnerHTML={{ __html: cleanHtml }}
-                  />
+                  <DocumentReader key={page.id} html={page.body?.storage?.value} onOpen={onOpen}
+                    jiraOrigin={configs.jira?.url} jiraConfigured={configs.jira?.tokenConfigured} />
                 </>
               ) : (
                 <div className="connected-empty">

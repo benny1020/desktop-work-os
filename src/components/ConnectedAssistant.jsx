@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { assistantContextKey, assistantEndpointScope, useAssistantSession } from "../lib/assistant-session";
 import { X, Focus, ArrowUpRight } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import { usePlan, updateTask, dayKey, shiftDay } from "../lib/planning";
@@ -24,16 +25,50 @@ function Pending() {
 export default function ConnectedAssistant({ context, onClose, onSettings }) {
   const plan = usePlan();
   const inputRef = useRef(null);
+  const bodyRef = useRef(null);
+  const followLatest = useRef(true);
   const currentContext = describeContext(context);
-  const [proposal, setProposal] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [input, setInput] = useState(""),
-    [messages, setMessages] = useState([]),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const panelRef = useRef(null);
+  const [endpointScope, setEndpointScope] = useState(null);
+  const [configError, setConfigError] = useState("");
+  const [configAttempt, setConfigAttempt] = useState(0);
+  useEffect(() => {
+    let current = true;
+    setConfigError("");
+    invoke("config.list").then(configs => {
+      if (current) setEndpointScope(assistantEndpointScope(configs));
+    }).catch(error => { if (current) setConfigError(error.message); });
+    return () => { current = false; };
+  }, [configAttempt]);
+  const sessionKey = `${endpointScope || "loading"}:${assistantContextKey(context)}`;
+  const { state, set, isBusy } = useAssistantSession(sessionKey);
+  const { proposal, history, input, messages, busy, error } = state;
+  const setProposal = value => set("proposal", value);
+  const setHistory = value => set("history", value);
+  const setInput = value => set("input", value);
+  const setMessages = value => set("messages", value);
+  const setBusy = value => set("busy", value);
+  const setError = value => set("error", value);
+  useLayoutEffect(() => {
+    const previous = document.activeElement;
+    const fallback = panelRef.current?.closest('.object-panel')?.querySelector('.object-panel-header .btn')
+      || document.querySelector('button[title^="Assistant"]');
+    return () => {
+      requestAnimationFrame(() => {
+        if (document.activeElement && ![document.body, previous].includes(document.activeElement) && document.activeElement.isConnected) return;
+        (previous?.isConnected && previous !== document.body ? previous : fallback)?.focus();
+      });
+    };
+  }, []);
+  useEffect(() => { if (endpointScope) inputRef.current?.focus(); }, [endpointScope]);
+  useLayoutEffect(() => { followLatest.current = true; }, [sessionKey]);
+  useLayoutEffect(() => {
+    if (followLatest.current && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [sessionKey, messages, busy, error, proposal]);
   async function send(e) {
     e.preventDefault();
-    if (!input.trim() || busy) return;
+    if (!endpointScope || !input.trim() || isBusy()) return;
+    followLatest.current = true;
     const question = input;
     setProposal(null);
     if (
@@ -109,7 +144,7 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
     }
   }
   return (
-    <aside className="assistant-panel live-assistant">
+    <aside ref={panelRef} className="assistant-panel live-assistant">
       <div className="inspector-header">
         <b>Claude assistant</b>
         <span className="pill">On demand</span>
@@ -124,11 +159,14 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
       <div className="assistant-context" aria-label="Assistant selected context">
         <Focus size={13} /><span title={currentContext.label}>{currentContext.label}</span><span className="pill">Read & draft</span>
       </div>
-      <div className="live-assistant-body">
-        <p className="form-note">Ask about the work in front of you. You decide what happens next.</p>
+      <div className="live-assistant-body" ref={bodyRef} onScroll={event => {
+        const body = event.currentTarget;
+        followLatest.current = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+      }}>
+        <p className="form-note">Ask about the work in front of you. You decide what happens next. Conversation and drafts stay in memory for this app session, separately for each work item.</p>
         <details className="form-note"><summary>What is shared with Claude?</summary><p>Your question, up to three recent exchanges, selected work, and personal plan are sent to your configured endpoint. The assistant does not post comments or change external services. Local rescheduling requires confirmation.</p></details>
         {!messages.length && <div className="assistant-suggestions" aria-label="Suggested assistant prompts">
-          {currentContext.prompts.map((prompt) => <button key={prompt} type="button" disabled={busy} onClick={() => { setInput(prompt); inputRef.current?.focus(); }}>{prompt}<ArrowUpRight size={12} /></button>)}
+          {currentContext.prompts.map((prompt) => <button key={prompt} type="button" disabled={!endpointScope || busy} onClick={() => { setInput(prompt); inputRef.current?.focus(); }}>{prompt}<ArrowUpRight size={12} /></button>)}
         </div>}
         {messages.map((m, i) => (
           <div key={i} className={`live-chat-message ${m.role}`}>
@@ -175,10 +213,12 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
             </div>
           </div>
         )}
+        {!endpointScope && !configError && <p role="status">Loading assistant settings…</p>}
         {busy && <Pending />}
-        {error && (
+        {(error || configError) && (
           <div className="connection-error" role="alert">
-            {error}
+            {error || configError}
+            {configError && <button className="quiet-button" onClick={() => setConfigAttempt(value => value + 1)}>Retry assistant</button>}
             <button className="quiet-button" onClick={onSettings}>
               Integration settings
             </button>
@@ -190,10 +230,11 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
           ref={inputRef}
           aria-label="Ask Claude"
           value={input}
+          disabled={!endpointScope}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about this code or your work…"
         />
-        <button className="btn primary" disabled={!input.trim() || busy}>
+        <button className="btn primary" disabled={!endpointScope || !input.trim() || busy}>
           Send to Claude
         </button>
       </form>

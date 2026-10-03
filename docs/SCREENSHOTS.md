@@ -52,3 +52,15 @@ Local tasks and events share Today, Week, Backlog and Calendar. They do not sile
 ## Dependency review
 
 ![Review map and source](media/visual-review.png)
+
+## Plan and investigate with fewer detours
+
+![Unfinished work with original dates and local carryover](media/daily-carryover.png)
+
+![Related MR and wiki candidates in the issue](media/issue-related-work.png)
+
+![Document sections and referenced issues](media/wiki-reading-context.png)
+
+![Available search results remain usable when another provider fails](media/search-progressive.png)
+
+See the [workflow convenience review](WORKFLOW_CONVENIENCE.md) for interactions and validation boundaries.

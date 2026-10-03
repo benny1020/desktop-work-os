@@ -101,3 +101,7 @@ The subsequent [four-cycle review](UX_REVIEW_CYCLES.md) supersedes the browser c
 ## AI collaborative review — 2026-10-03
 
 The [AI collaborative review pass](AI_COLLABORATIVE_REVIEW.md) supersedes the latest counts above: **131/131 browser**, **30/30 adapter**, and **7/7 native connected** checks passed. The production build passed; native connected validation recorded 37 requests and zero renderer console errors. Diagram, code and persistent AI checkpoints now share one workspace, with editable human drafts and explicit posting. Independent review and narrow-window resize regression are recorded in that pass. Remote responses remain synthetic fixtures.
+
+## Workflow convenience expansion — 2026-10-03
+
+The [workflow convenience review](WORKFLOW_CONVENIENCE.md) supersedes the current counts: **170/170 browser**, **30/30 adapter**, **7/7 native connected workflows** passed. The native run used 39 adapter requests and had zero renderer console errors; the production build passed. Three agents and the primary implementer performed implementation and independent cross-review of planning, documents/issues, search/creation and Assistant sessions. Later rounds corrected menu-return state loss, Home date leakage, same-URL credential-session reuse and a pending MR submission/navigation duplicate-post path. Tests use synthetic service responses; live organization authentication and model quality remain unverified.

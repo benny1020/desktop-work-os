@@ -61,3 +61,5 @@
   .review-change-summary { border-right: 0; }
   .reading-path-files { width: 100%; }
 }
+
+.review-pending-notice { margin: 0; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--accent-soft); color: var(--text); font-size: 12px; flex-shrink: 0; }

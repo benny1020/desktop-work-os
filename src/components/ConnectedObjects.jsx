@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import DOMPurify from "dompurify";
+import DocumentReader from "./DocumentReader";
+import PipelineSummary from "./PipelineSummary";
 import { X, ChevronLeft, Star } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import {
@@ -13,7 +14,7 @@ import {
 import JiraIssue from "./LiveIssue";
 import ReviewWorkbench from "./ReviewWorkbench";
 import ConnectedAssistant from "./ConnectedAssistant";
-export function MRLinks({ mr, onOpen, origin }) {
+export function MRLinks({ mr, onOpen, origin, pending = false }) {
   const [pipelines, setPipelines] = useState(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -48,18 +49,20 @@ export function MRLinks({ mr, onOpen, origin }) {
         <button
           className="linked-chip"
           key={key}
+          disabled={pending}
           onClick={() => onOpen({ type: "issue", key, title: key })}
         >
           {key}
         </button>
       ))}
-      <button className="linked-chip" disabled={busy} onClick={load}>
+      <button className="linked-chip" disabled={busy || pending} onClick={load}>
         Pipeline {busy ? "…" : ""}
       </button>
       {pipelines?.map((p) => (
         <button
           className="linked-chip"
           key={p.id}
+          disabled={pending}
           onClick={() =>
             onOpen({
               type: "pipeline",
@@ -101,7 +104,7 @@ export function MRLinks({ mr, onOpen, origin }) {
     </div>
   );
 }
-function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
+function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, initialReviewState, onReviewState, pending, onPendingChange }) {
   const [data, setData] = useState(null),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0),
@@ -115,6 +118,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
           ? "jira"
           : "gitlab";
   const mismatch = object.origin && configs[service]?.url !== object.origin;
+  useEffect(() => { if (data && object.type !== "mr") onReady?.(); }, [data]);
   useEffect(() => {
     let alive = true;
     setData(null);
@@ -169,6 +173,9 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
           if (object.type === "doc")
             onContext?.(
               JSON.stringify({
+                type: "doc",
+                id: d.id,
+                origin: configs.confluence.url,
                 title: d.title,
                 body: d.body?.storage?.value?.slice(0, 16000),
               }),
@@ -195,17 +202,21 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
         origin={configs.jira?.url}
         configs={configs}
         onOpen={onOpen}
-        onContext={onContext}
+        onContext={(value) => { onContext?.(value); onReady?.(); }}
         onClose={onBack}
       />
     );
   if (object.type === "mr" && data)
     return (
       <div className="context-mr">
-        <MRLinks mr={data.mr} origin={configs.gitlab?.url} onOpen={onOpen} />
+        <MRLinks mr={data.mr} origin={configs.gitlab?.url} onOpen={onOpen} pending={pending} />
         <ReviewWorkbench
           key={data.mr.diff_refs.head_sha}
           snapshot={data}
+          initialReviewState={initialReviewState}
+          onReviewState={onReviewState}
+          onPendingChange={onPendingChange}
+          onReady={onReady}
           live
           onBack={onBack}
           onRefresh={() => setRefresh((x) => x + 1)}
@@ -254,26 +265,8 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
             </button>
           </div>
           <h1>{data.title}</h1>
-          <div
-            className="remote-document"
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(data.body?.storage?.value || "", {
-                USE_PROFILES: { html: true },
-                FORBID_TAGS: [
-                  "img",
-                  "iframe",
-                  "form",
-                  "input",
-                  "style",
-                  "video",
-                  "audio",
-                  "source",
-                  "link",
-                ],
-                FORBID_ATTR: ["style", "src", "srcset", "href", "action"],
-              }),
-            }}
-          />
+          <DocumentReader key={data.id} html={data.body?.storage?.value} onOpen={onOpen}
+            jiraOrigin={configs.jira?.url} jiraConfigured={configs.jira?.tokenConfigured} />
         </>
       )}
       {object.type === "pipeline" && data && (
@@ -283,27 +276,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
           <p>
             {data.ref} · <code>{data.sha?.slice(0, 12)}</code>
           </p>
-          <div className="pipeline-stages">
-            {[...new Set((data.jobs || []).map((j) => j.stage))].map(
-              (stage) => (
-                <section key={stage}>
-                  <h3>{stage}</h3>
-                  {data.jobs
-                    .filter((j) => j.stage === stage)
-                    .map((j) => (
-                      <div className="pipeline-job" key={j.id}>
-                        <b>{j.name}</b>
-                        <span className="pill">{j.status}</span>
-                        <small>
-                          {j.duration == null ? "—" : `${j.duration}s`}
-                        </small>
-                      </div>
-                    ))}
-                </section>
-              ),
-            )}
-          </div>
-          {data.truncated && <p>First 300 jobs shown.</p>}
+          <PipelineSummary pipeline={data} />
         </>
       )}
       {object.type === "repository" && data && (
@@ -406,8 +379,51 @@ export default function ConnectedObjects({
     [error, setError] = useState("");
   const [assistant, setAssistant] = useState(false),
     [context, setContext] = useState("");
+  const [reviewPending, setReviewPending] = useState("");
+  useEffect(() => {
+    if (!reviewPending) return;
+    // Disabling the clicked post button can move focus to body. Capture at the
+    // document so command shortcuts still cannot replace a pending review.
+    const guardCommands = (event) => {
+      if ((event.metaKey || event.ctrlKey) && ["k", "n"].includes(event.key.toLowerCase())) {
+        event.preventDefault(); event.stopPropagation();
+      }
+    };
+    document.addEventListener("keydown", guardCommands, true);
+    return () => document.removeEventListener("keydown", guardCommands, true);
+  }, [reviewPending]);
   const assistantTrigger = useRef(null);
+  const viewport = useRef(null);
+  const scrollPositions = useRef(new Map());
+  const reviewStates = useRef(new Map());
+  const pendingRestore = useRef(null);
+  const scrollSelectors = [".object-detail", ".live-inspector", ".visual-code-scroll", ".visual-code-panel", ".visual-map-panel", ".diagram-scroll"];
   const current = stack.at(-1);
+  const contextKey = (item) => item.type === "related" ? `related:${item.query || ""}` : objectKey(item);
+  function saveScroll() {
+    const root = viewport.current;
+    if (!root) return;
+    scrollPositions.current.set(contextKey(current), {
+      main: [root.scrollLeft, root.scrollTop],
+      children: Object.fromEntries(scrollSelectors.map((selector) => {
+        const element = root.querySelector(selector);
+        return [selector, element ? [element.scrollLeft, element.scrollTop] : null];
+      })),
+    });
+  }
+  function restoreScroll() {
+    const key = contextKey(current);
+    requestAnimationFrame(() => {
+      if (pendingRestore.current !== key || !viewport.current) return;
+      const saved = scrollPositions.current.get(key);
+      viewport.current.scrollTo(...(saved?.main || [0, 0]));
+      for (const [selector, position] of Object.entries(saved?.children || {})) {
+        if (position) viewport.current.querySelector(selector)?.scrollTo(...position);
+      }
+      pendingRestore.current = null;
+    });
+  }
+  function openContext(item) { if (reviewPending) return; saveScroll(); setStack((items) => [...items, item]); }
   function receiveContext(value) {
     setContext(value);
     onContext?.(value);
@@ -423,14 +439,15 @@ export default function ConnectedObjects({
     };
   }, []);
   useEffect(() => {
+    if (reviewPending) return;
+    if (contextKey(current) !== contextKey(object)) saveScroll();
     setStack((items) => {
-      const key = (item) => item.type === "related"
-        ? `related:${item.query || ""}`
-        : objectKey(item);
-      return key(items.at(-1)) === key(object) ? items : [...items, object];
+      return contextKey(items.at(-1)) === contextKey(object) ? items : [...items, object];
     });
   }, [object]);
   useEffect(() => {
+    pendingRestore.current = contextKey(current);
+    viewport.current?.scrollTo(0, 0);
     setContext(JSON.stringify(current));
     if (current.type !== "related") {
       try {
@@ -441,16 +458,18 @@ export default function ConnectedObjects({
     }
   }, [current]);
   function back() {
-    if (stack.length > 1) setStack((s) => s.slice(0, -1));
+    if (reviewPending) return;
+    if (stack.length > 1) { saveScroll(); setStack((s) => s.slice(0, -1)); }
     else onClose();
   }
   return (
-    <Dialog.Root open onOpenChange={(v) => !v && onClose()}>
+    <Dialog.Root open onOpenChange={(v) => !v && !reviewPending && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="object-overlay" />
         <Dialog.Content
           className={`object-panel ${current.type === "mr" || assistant ? "wide" : ""}`}
           onEscapeKeyDown={(event) => {
+            if (reviewPending) { event.preventDefault(); return; }
             if (assistant) {
               event.preventDefault();
               setAssistant(false);
@@ -464,6 +483,7 @@ export default function ConnectedObjects({
             }
           }}
           onKeyDown={(e) => {
+            if (reviewPending && (e.metaKey || e.ctrlKey) && ["k", "n"].includes(e.key.toLowerCase())) { e.preventDefault(); e.stopPropagation(); return; }
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
               e.preventDefault();
               e.stopPropagation();
@@ -476,6 +496,7 @@ export default function ConnectedObjects({
             <button
               className="icon-button"
               aria-label="Back in context"
+              disabled={!!reviewPending}
               onClick={back}
             >
               <ChevronLeft size={16} />
@@ -490,6 +511,7 @@ export default function ConnectedObjects({
             <Dialog.Close
               className="icon-button"
               aria-label="Close context preview"
+              disabled={!!reviewPending}
             >
               <X size={16} />
             </Dialog.Close>
@@ -505,15 +527,25 @@ export default function ConnectedObjects({
           <div
             className={`object-content-grid ${assistant ? "with-assistant" : ""}`}
           >
-            <div className="object-content-main">
+            <div className="object-content-main" ref={viewport}>
               {configs && (
                 <RemoteObject
-                  key={objectKey(current) || current.query}
+                  key={contextKey(current)}
                   object={current}
                   configs={configs}
-                  onOpen={(o) => setStack((s) => [...s, o])}
+                  onOpen={openContext}
                   onContext={receiveContext}
                   onBack={back}
+                  onReady={restoreScroll}
+                  pending={!!reviewPending}
+                  onPendingChange={setReviewPending}
+                  initialReviewState={reviewStates.current.get(contextKey(current))}
+                  onReviewState={(state) => {
+                    const key = contextKey(current);
+                    const previous = reviewStates.current.get(key);
+                    if (previous && previous.version !== state.version) scrollPositions.current.delete(key);
+                    reviewStates.current.set(key, state);
+                  }}
                 />
               )}
             </div>
@@ -522,6 +554,7 @@ export default function ConnectedObjects({
                 context={context || JSON.stringify(current)}
                 onClose={() => setAssistant(false)}
                 onSettings={() => {
+                  if (reviewPending) return;
                   onClose();
                   onSettings?.();
                 }}

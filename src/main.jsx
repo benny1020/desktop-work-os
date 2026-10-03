@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Command } from "cmdk";
 import * as Dialog from "@radix-ui/react-dialog";
 import { createRoot } from "react-dom/client";
@@ -292,7 +292,8 @@ function Btn({
     </button>
   );
 }
-import ConnectedCommands from "./components/ConnectedCommands";
+import ConnectedCommands, { advanceCommandCredentialScope } from "./components/ConnectedCommands";
+import { advanceAssistantCredentialScope } from "./lib/assistant-session";
 import ConnectedObjects from "./components/ConnectedObjects";
 import ConnectedAttention from "./components/ConnectedAttention";
 import {usePlan} from "./lib/planning";
@@ -304,8 +305,23 @@ function App() {
   const [workspaceMode, setWorkspaceMode] = useState(()=>persisted("workspaceMode","demo"));
   const [liveObject,setLiveObject]=useState(null);
   const liveObjectFocus = useRef(null);
+  const pendingReviewRef = useRef("");
+  const [pendingReview, setPendingReview] = useState("");
+  const onReviewPendingChange = useCallback((value) => {
+    pendingReviewRef.current = value;
+    setPendingReview(value);
+  }, []);
+  function reviewNavigationBlocked() {
+    if (!pendingReviewRef.current) return false;
+    notify("Your review is being submitted. Navigation returns when the request finishes.");
+    return true;
+  }
+  function openPalette(mode) {
+    if (!reviewNavigationBlocked()) setPalette(mode);
+  }
   const planningNavigationRequest = useRef(0);
   function openLiveObject(object) {
+    if (reviewNavigationBlocked()) return;
     if (!liveObject) {
       const active = document.activeElement;
       liveObjectFocus.current = active?.closest('.connected-attention')
@@ -460,6 +476,7 @@ function App() {
     prefs,
   ]);
   function navigate(section, view, scope) {
+    if (reviewNavigationBlocked()) return;
     setLiveContext("");
     setLiveObject(null);
     if (scope?.project) setProject(scope.project);
@@ -487,6 +504,7 @@ function App() {
     setActivePop(null);
   }
   function goHistory(delta) {
+    if (reviewNavigationBlocked()) return;
     const n = historyIndex + delta;
     if (n >= 0 && n < history.length) {
       setHistoryIndex(n);
@@ -685,7 +703,7 @@ function App() {
       ) {
         e.preventDefault();
         if (e.key.toLowerCase() === "j") { if (!palette) setAssistant((a) => !a); }
-        else setPalette(e.key.toLowerCase() === "k" ? "search" : "create");
+        else openPalette(e.key.toLowerCase() === "k" ? "search" : "create");
         return;
       }
       if (e.key === "Escape") {
@@ -996,7 +1014,7 @@ function App() {
                 <button
                   className="icon-button"
                   aria-label="Add task"
-                  onClick={() => setPalette("create")}
+                  onClick={() => openPalette("create")}
                 >
                   <I name="Plus" />
                 </button>
@@ -1019,7 +1037,7 @@ function App() {
             {tasks.slice(2).map((t) => taskRow(t))}
             <button
               className="add-task-line"
-              onClick={() => setPalette("create")}
+              onClick={() => openPalette("create")}
             >
               <I name="Plus" size={15} /> Add a task to your day <kbd>⌘ N</kbd>
             </button>
@@ -1112,7 +1130,7 @@ function App() {
               ? "My activity"
               : "My work",
           "A clear plan. One connected place.",
-          <Btn icon="Plus" primary onClick={() => setPalette("create")}>
+          <Btn icon="Plus" primary onClick={() => openPalette("create")}>
             New task
           </Btn>,
         )}
@@ -1358,7 +1376,7 @@ function App() {
                     </button>
                   </div>
                 ))}
-              <button className="week-add" onClick={() => setPalette("create")}>
+              <button className="week-add" onClick={() => openPalette("create")}>
                 <I name="Plus" size={14} /> Add task
               </button>
             </div>
@@ -1582,7 +1600,7 @@ function App() {
                   ? "Sprint 24"
                   : "Projects",
           "Shared priorities, connected to the work.",
-          <Btn primary icon="Plus" onClick={() => setPalette("create-issue")}>
+          <Btn primary icon="Plus" onClick={() => openPalette("create-issue")}>
             New issue
           </Btn>,
         )}
@@ -2977,7 +2995,7 @@ function App() {
           <>
             <div className="view-toolbar">
               <span>{incidents.length} active incidents</span>
-              <Btn icon="Plus" onClick={() => setPalette("create-incident")}>
+              <Btn icon="Plus" onClick={() => openPalette("create-incident")}>
                 Create incident
               </Btn>
             </div>
@@ -3136,7 +3154,7 @@ function App() {
             <button
               className="icon-button"
               aria-label="New document"
-              onClick={() => setPalette("create-document")}
+              onClick={() => openPalette("create-document")}
             >
               <I name="Plus" size={14} />
             </button>
@@ -3324,7 +3342,7 @@ function App() {
         </div>
         {route.view === "Integrations" ? (
           <IntegrationSettings
-            onChange={() => setConfigVersion((v) => v + 1)}
+            onChange={() => { advanceAssistantCredentialScope(); advanceCommandCredentialScope(); setConfigVersion((v) => v + 1); }}
           />
         ) : route.view === "Notifications" ? (
           Object.entries(prefs).map(([k, v]) => (
@@ -4188,7 +4206,7 @@ function App() {
         )}
         <button
           className="sidebar-search"
-          onClick={() => setPalette("search")}
+          onClick={() => openPalette("search")}
           aria-label="Global search"
         >
           <I name="Search" size={16} />
@@ -4411,11 +4429,14 @@ function App() {
             )}
           </div>
           <div className="topbar-right">
+            {pendingReview && <span className="form-note" role="status">Submitting review…</span>}
             <select
               className="workspace-mode"
               aria-label="Workspace data mode"
               value={workspaceMode}
+              disabled={!!pendingReview}
               onChange={(e) => {
+                if (reviewNavigationBlocked()) return;
                 setWorkspaceMode(e.target.value);
                 setInspector(null);
                 setPanelHistory([]);
@@ -4434,7 +4455,7 @@ function App() {
               className="icon-button"
               aria-label="Quick create"
               title="Quick create · ⌘ N"
-              onClick={() => setPalette("create")}
+              onClick={() => openPalette("create")}
             >
               <I name="Plus" size={17} />
             </button>
@@ -4517,6 +4538,7 @@ function App() {
                 configVersion={configVersion}
                 onOpen={openLiveObject}
                 onContext={setLiveContext}
+                onReviewPendingChange={onReviewPendingChange}
                 onSettings={() => navigate("Settings", "Integrations")}
                 onNavigate={navigate}
               />
@@ -4540,6 +4562,7 @@ function App() {
           {assistant &&
             (workspaceMode === "connected" ? (
               <ConnectedAssistant
+                key={`assistant-${configVersion}`}
                 context={
                   liveContext ||
                   JSON.stringify({ section: route.section, view: route.view })

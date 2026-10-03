@@ -44,7 +44,9 @@ Solid dependency edges represent resolved imports; dashed relationships and sequ
 
 ![Follow a Jira issue through its wiki, MR and pipeline, then return home](docs/media/connected-context.gif)
 
-Issue-key search results are presented as related candidates, not automatically verified relationships. Open the assistant beside a preview to ask about the selected work.
+Related MR and wiki candidates appear directly in the issue inspector. Documents include a heading outline and issue references; pipeline failures can be filtered and focused without abandoning the MR. Issue-key matches are candidates, not automatically verified relationships.
+
+The assistant keeps a separate conversation and draft for each work item during the app session, including responses that finish while its panel is closed.
 
 ## Plan once, use every view
 
@@ -58,7 +60,10 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 - Click a calendar date to focus quick add without losing the current month.
 - A clear next review from real requests, daily planning summaries and undo for local task deletion.
 - Review requests and imminent deadlines collected in an attention center.
-- Global search across local tasks, Jira, GitLab and Confluence.
+- Earlier unfinished tasks with original dates, one-click carryover and guarded undo.
+- Day drilldown with a return to the exact calendar range; meetings stay put when unfinished tasks move.
+- Global search across local tasks, Jira, GitLab and Confluence, with progressive results and per-service retry.
+- Separate quick-create text drafts survive closing the palette during the app session.
 
 Personal planning changes stay local. Checking a task or moving its date does **not** change a Jira status or deadline.
 
@@ -79,6 +84,12 @@ Personal planning changes stay local. Checking a task or moving its date does **
 
 ### Contextual assistant
 ![Claude assistant beside a diagram and source review — fixture response](docs/media/contextual-assistant.png)
+
+### Issue evidence at hand
+![Related MR and wiki previews beside the issue](docs/media/issue-related-work.png)
+
+### Read with context
+![Document outline and referenced issues](docs/media/wiki-reading-context.png)
 
 ### Wiki without losing the issue
 ![Confluence page preview over a Jira issue](docs/media/wiki-preview.png)
@@ -162,7 +173,7 @@ npm run test:connected-desktop   # Native UI → IPC → service adapters
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **131 browser tests**, **30 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **170 browser tests**, **30 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI
@@ -181,6 +192,6 @@ Background synchronization, offline external writes, rich-text editing of existi
 
 ## References and licensing
 
-Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [iterative team review](docs/UX_REVIEW_CYCLES.md) records reproduced defects and validation.
+Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md) records reproduced defects, independent review and validation.
 
 DM Sans and IBM Plex Mono are bundled locally under their SIL Open Font Licenses; the app makes no external font requests. Dependencies retain their respective licenses. **No project-wide license has been selected for Worklane yet**; making this repository public does not grant a new open-source license.

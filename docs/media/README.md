@@ -13,6 +13,8 @@ These files are curated recordings and screenshots of the actual Worklane UI. Al
 
 The AI answer/guide in these recordings is a deterministic fixture. Posting a comment in the animation invokes only the test bridge.
 
+Additional convenience captures (`daily-carryover.png`, `issue-related-work.png`, `wiki-reading-context.png`, `search-progressive.png`) come from `node scripts/capture-convenience.mjs`, using a fixed sample day and synthetic service responses.
+
 ## Reproduce
 
 Start the development server in one terminal:

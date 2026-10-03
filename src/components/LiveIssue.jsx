@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import { addPlanTask } from "../lib/planning";
+import CrossToolContext from "./CrossToolContext";
 function Pending() {
   return <p className="form-note">Loading issue…</p>;
 }
@@ -231,6 +232,7 @@ export default function JiraIssue({
           <p className="live-description">
             {adfText(issue.fields.description) || "No description"}
           </p>
+          {onOpen && <CrossToolContext issueKey={item.key} configs={configs} onOpen={onOpen} />}
           <label>
             Status transition
             <select
@@ -408,21 +410,9 @@ export default function JiraIssue({
               {notice}
             </p>
           )}
-          {onOpen && (
+          {onOpen && issue.fields.issuelinks?.length > 0 && (
             <section className="issue-related">
-              <h3>Related context</h3>
-              <button
-                className="btn"
-                onClick={() =>
-                  onOpen({
-                    type: "related",
-                    query: item.key,
-                    title: `Related to ${item.key}`,
-                  })
-                }
-              >
-                Find linked MR & wiki
-              </button>
+              <h3>Linked Jira issues</h3>
               {issue.fields.issuelinks?.map((l, i) => {
                 const target = l.outwardIssue || l.inwardIssue;
                 return (

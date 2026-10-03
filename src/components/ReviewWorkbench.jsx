@@ -348,28 +348,38 @@ export default function ReviewWorkbench({
   onContext,
   onDemoComment,
   onDemoApprove,
+  initialReviewState,
+  onReviewState,
+  onPendingChange,
+  onReady,
 }) {
   const { mr, files } = snapshot;
-  const [tab, setTab] = useState(initialTab === "Sequence" ? "Sequence" : "Dependency flow");
+  const viewVersion = JSON.stringify([live, mr.web_url || mr.project_id, mr.iid,
+    mr.diff_refs.base_sha, mr.diff_refs.start_sha, mr.diff_refs.head_sha]);
+  // Session view state is valid only for this exact MR diff. Drafts have their
+  // own durable storage; pending requests and approval confirmations never resume.
+  const restored = initialReviewState?.version === viewVersion &&
+    files.some((item) => item.path === initialReviewState.selected) ? initialReviewState : null;
+  const [tab, setTab] = useState(restored?.tab || (initialTab === "Sequence" ? "Sequence" : "Dependency flow"));
   const [guideBusy, setGuideBusy] = useState(false);
   const [guideError, setGuideError] = useState("");
-  const [activeFinding, setActiveFinding] = useState(null);
+  const [activeFinding, setActiveFinding] = useState(restored?.activeFinding || null);
   const commentInput = useRef(null);
-  const [selected, setSelected] = useState(files[0]?.path);
-  const [line, setLine] = useState(null);
-  const [side, setSide] = useState("new");
-  const [codeMode, setCodeMode] = useState("Diff");
+  const [selected, setSelected] = useState(restored?.selected || files[0]?.path);
+  const [line, setLine] = useState(restored?.line ?? null);
+  const [side, setSide] = useState(restored?.side || "new");
+  const [codeMode, setCodeMode] = useState(restored?.codeMode || "Diff");
   const [source, setSource] = useState({});
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState("");
   const [sourceAttempt, setSourceAttempt] = useState(0);
-  const [guide, setGuide] = useState(snapshot.guide || null);
-  const [guidelines, setGuidelines] = useState("");
+  const [guide, setGuide] = useState(restored?.guide || snapshot.guide || null);
+  const [guidelines, setGuidelines] = useState(restored?.guidelines || "");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [zoom, setZoom] = useState(0.85);
-  const [autoFit, setAutoFit] = useState(true);
+  const [zoom, setZoom] = useState(restored?.zoom || 0.85);
+  const [autoFit, setAutoFit] = useState(restored?.autoFit ?? true);
   const mapPanel = useRef(null);
   const [discussions, setDiscussions] = useState(snapshot.discussions || []);
   const [configs, setConfigs] = useState({});
@@ -428,6 +438,13 @@ export default function ReviewWorkbench({
   const file = files.find((f) => f.path === selected) || files[0];
   const sourceRef = file?.deleted_file ? mr.diff_refs.base_sha : mr.diff_refs.head_sha;
   const sourceKey = JSON.stringify([sourceRef, file?.deleted_file ? file?.old_path : file?.path]);
+  useEffect(() => {
+    onReviewState?.({ version: viewVersion, selected, line, side, tab, codeMode,
+      guide, guidelines, activeFinding, zoom, autoFit });
+  }, [viewVersion, selected, line, side, tab, codeMode, guide, guidelines, activeFinding, zoom, autoFit]);
+  useEffect(() => {
+    if (codeMode === "Diff" || source[sourceKey] !== undefined || sourceError) onReady?.();
+  }, [codeMode, source, sourceKey, sourceError]);
   const legacyDraftKey = `${file?.path}:${side}:${line || "file"}`;
   const diffVersion = JSON.stringify([mr.diff_refs.base_sha, mr.diff_refs.start_sha, mr.diff_refs.head_sha]);
   const currentDiffVersion = useRef(diffVersion);
@@ -651,8 +668,9 @@ ${finding.reason}`;
     const submittedKey = draftKey;
     const submittedDraft = draft;
     const text = draft.trim();
-    if (!text) return;
+    if (!text || busy) return;
     setBusy("comment");
+    if (live) onPendingChange?.("comment");
     setError("");
     setNotice("");
     try {
@@ -699,10 +717,13 @@ ${finding.reason}`;
       if (alive.current) setError(e.message);
     } finally {
       if (alive.current) setBusy("");
+      if (live) onPendingChange?.("");
     }
   }
   async function approve() {
+    if (busy) return;
     setBusy("approve");
+    if (live) onPendingChange?.("approve");
     setError("");
     try {
       if (live)
@@ -723,6 +744,7 @@ ${finding.reason}`;
       setError(e.message);
     } finally {
       setBusy("");
+      if (live) onPendingChange?.("");
     }
   }
   const notes = discussions
@@ -751,7 +773,7 @@ ${finding.reason}`;
     <div className="visual-review review-workbench">
       <header className="visual-review-heading">
         <div className="inline">
-          <button className="quiet-button" onClick={onBack}>
+          <button className="quiet-button" disabled={!!busy} onClick={onBack}>
             <ArrowLeft size={14} />{" "}
             {live ? "Merge requests" : "Review overview"}
           </button>
@@ -811,6 +833,7 @@ ${finding.reason}`;
           </div>
         </div>
       </header>
+      {live && busy && <p className="review-pending-notice" role="status">{busy === "comment" ? "Posting review comment…" : "Submitting approval…"} Keep this review open until GitLab responds. You can keep reading and editing your draft.</p>}
       {externalError && (
         <div role="alert" className="connection-error">
           {externalError}

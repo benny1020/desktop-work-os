@@ -1,0 +1,17 @@
+.plan-carryover{margin:18px 0 22px;border:1px solid var(--line);border-left:2px solid var(--accent);border-radius:4px;background:var(--surface);padding:12px 16px}
+.plan-carryover>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+.daily-connected .plan-carryover h2{font-size:12px;margin:0;display:flex;align-items:center;gap:7px}
+.plan-carryover header p{font-size:10px;color:var(--secondary);margin:5px 0 7px}
+.carryover-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:15px;border-top:1px solid var(--line);padding:9px 0;font-size:11px}
+.carryover-title{text-align:left;min-width:0;overflow-wrap:anywhere;line-height:1.5}
+.carryover-row time{font-size:10px;font-variant-numeric:tabular-nums;color:var(--secondary)}
+.plan-carryover summary{font-size:10px;color:var(--secondary);padding:9px 0 2px;cursor:pointer}
+.planning-return{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-size:11px}
+.planning-day-heading>button{display:flex;align-items:center;justify-content:space-between;width:100%;font:inherit;color:inherit;text-align:left;border-radius:3px;gap:6px}
+.planning-day-heading>button:hover{color:var(--accent)}
+.planning-day-heading>button>span{font-size:9px;font-weight:500;color:var(--secondary);border:1px solid var(--line);border-radius:3px;padding:1px 4px;line-height:1.2}
+.plan-rollover{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.plan-rollover small{color:var(--secondary);font-size:10px}
+@media(max-width:1050px){.plan-carryover>header{align-items:flex-start}.carryover-row{gap:10px}.plan-carryover{padding:12px}.plan-rollover{gap:7px}.schedule-undo{flex-wrap:wrap}}
+.carryover-row>.btn{min-height:26px;padding:5px 8px;font-size:10px}
+.carryover-row{padding:6px 0}
