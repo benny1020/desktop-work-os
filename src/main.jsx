@@ -4613,7 +4613,7 @@ function App() {
         </footer>
       </div>
       {showGuide && <ProductGuide onClose={()=>setShowGuide(false)} onPick={id=>{setShowGuide(false);requestAnimationFrame(()=>{if(id==="review")review("381");else if(id==="incident")preview("alert","alert-1");else preview("issue","PAY-382");});}}/>}
-      {notifications && workspaceMode === "connected" && <ConnectedAttention onClose={()=>dismissPopover(true)} onOpen={openLiveObject} onSettings={()=>navigate("Settings","Integrations")}/>}
+      {notifications && workspaceMode === "connected" && <ConnectedAttention key={`attention-${configVersion}`} onClose={()=>dismissPopover(true)} onOpen={openLiveObject} onSettings={()=>navigate("Settings","Integrations")}/>}
       {notifications && workspaceMode === "demo" && (
         <div className="notification-popover" id="attention-popover" tabIndex={-1}>
           <div className="section-title">
@@ -4653,7 +4653,7 @@ function App() {
           </details>
         </div>
       )}
-      {liveObject && workspaceMode === "connected" && <ConnectedObjects object={liveObject} returnFocusRef={liveObjectFocus} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>setLiveObject(null)}/>}
+      {liveObject && workspaceMode === "connected" && <ConnectedObjects key={`objects-${configVersion}`} object={liveObject} returnFocusRef={liveObjectFocus} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>setLiveObject(null)}/>}
       {palette && workspaceMode === "connected" && <ConnectedCommands mode={palette} onClose={()=>setPalette(null)} onOpen={openLiveObject} onNavigate={navigate}/>}
       {palette && workspaceMode === "demo" && (
         <Palette

@@ -28,7 +28,7 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 
 - Dependency-layer layout and a clickable reading path, with separate sequence views and exact source references.
 - Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.
-- Code and diffs come from an app-managed local Git repository and isolated MR checkout. File browsing makes no GitLab code API requests; Refresh explicitly fetches updates.
+- Code and diffs come from an app-managed local Git repository and isolated MR checkout. File browsing makes no GitLab code API requests. New revisions are fetched automatically and staged without replacing the code you are reviewing.
 - Old/new diff positions and commit SHA checks before posting comments or approving.
 - Per-file **Viewed** state, commit-scoped progress, and **Next unreviewed** navigation.
 - Per-file and per-line local drafts, retained after failed submissions and edits during posting.
@@ -44,6 +44,8 @@ Solid dependency edges represent resolved imports; dashed relationships and sequ
 **Issue → wiki → merge request → pipeline → back to your day.** Related items open in a context stack, preserving the original workspace.
 
 ![Follow a Jira issue through its wiki, MR and pipeline, then return home](docs/media/connected-context.gif)
+
+Connected Jira, GitLab and Confluence views **sync automatically** every minute while visible, when returning after a stale interval, after a relevant change, and on reconnect. Failed reads keep the last data and retry with backoff; drafts, applied filters and loaded pages stay intact. New MR revisions are prepared locally, then offered with **Review new revision** so the code cannot move beneath an unfinished review. [Synchronization behavior and validation](docs/AUTO_SYNC.md).
 
 Related MR and wiki candidates appear directly in the issue inspector. Documents include a heading outline and issue references; pipeline failures can be filtered and focused without abandoning the MR. Issue-key matches are candidates, not automatically verified relationships.
 
@@ -98,7 +100,7 @@ Personal planning changes stay local. Checking a task or moving its date does **
 ![Month calendar using the same personal task dataset](docs/media/calendar.png)
 
 ### Local source, connected review
-![Real local Git source, sequence diagram and a fixture AI guide](docs/media/local-git-review.png)
+![Automatically synchronized local Git source, dependency diagram and a fixture AI guide](docs/media/local-git-review.png)
 
 ### Contextual assistant
 ![Claude assistant beside a diagram and source review — fixture response](docs/media/contextual-assistant.png)
@@ -193,7 +195,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **192 browser tests**, **72 adapter tests**, **8 native connected workflow checks** and **5 native memory lifecycle checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **211 browser tests**, **74 adapter tests**, **9 native connected workflow checks** and **5 native memory lifecycle checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

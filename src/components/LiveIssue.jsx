@@ -3,6 +3,8 @@ import { X } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import { addPlanTask } from "../lib/planning";
 import CrossToolContext from "./CrossToolContext";
+import { useAutoSync } from "../lib/use-auto-sync";
+import SyncStatus from "./SyncStatus";
 function Pending() {
   return <p className="form-note">Loading issue…</p>;
 }
@@ -24,15 +26,23 @@ export default function JiraIssue({
   configs,
 }) {
   const draftKey = `worklane:jira-comment:${origin || "unconfigured"}:${item.key}`;
+  const scopeKey = `${origin || "unconfigured"}:${configs?.jira?.email || ""}:${item.key}`;
   const mounted = useRef(false);
-  const activeKey = useRef(item.key);
+  const activeKey = useRef(scopeKey);
+  const requestVersion = useRef(0);
+  const mutationBusy = useRef(false);
+  const peopleRequest = useRef(0);
+  const planningRequest = useRef(0);
+  const draftOwner = useRef(draftKey);
   const sprintRequest = useRef(0);
   const fieldSnapshot = useRef(null);
-  activeKey.current = item.key;
+  activeKey.current = scopeKey;
+  const isActive = (scope = scopeKey) => mounted.current && activeKey.current === scope;
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      requestVersion.current++;
     };
   }, []);
   const [issue, setIssue] = useState(null),
@@ -42,13 +52,16 @@ export default function JiraIssue({
       try { return localStorage.getItem(draftKey) || ""; } catch { return ""; }
     }),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [readError, setReadError] = useState(""),
+    [initialSettled, setInitialSettled] = useState(false);
   const [people, setPeople] = useState([]),
     [personQuery, setPersonQuery] = useState(""),
     [account, setAccount] = useState(""),
     [due, setDue] = useState(""),
     [notice, setNotice] = useState("");
   useEffect(() => {
+    if (draftOwner.current !== draftKey) return;
     try {
       if (text) localStorage.setItem(draftKey, text);
       else localStorage.removeItem(draftKey);
@@ -59,38 +72,52 @@ export default function JiraIssue({
   useEffect(() => {
     if (issue) {
       const previous = fieldSnapshot.current;
-      const next = { account: issue.fields.assignee?.accountId || "", due: issue.fields.duedate || "" };
+      const next = { account: issue.fields.assignee?.accountId || "", due: issue.fields.duedate || "", priority: issue.fields.priority?.id || "" };
       // A comment/status refresh may finish while another field is being edited.
       // Only pristine fields follow the server; pending user edits stay intact.
       setAccount((current) => !previous || current === previous.account ? next.account : current);
       setDue((current) => !previous || current === previous.due ? next.due : current);
+      setPriority((current) => !previous || current === previous.priority ? next.priority : current);
       fieldSnapshot.current = next;
     }
   }, [issue]);
   async function searchPeople() {
+    const ticket = ++peopleRequest.current;
     try {
-      setPeople(
-        await invoke("jira.assignees", { key: item.key, query: personQuery }),
-      );
+      const result = await invoke("jira.assignees", { key: item.key, query: personQuery });
+      if (isActive() && ticket === peopleRequest.current) setPeople(result);
     } catch (e) {
-      setError(e.message);
+      if (isActive() && ticket === peopleRequest.current) setError(e.message);
     }
   }
-  async function editField(field) {
+  function beginMutation() {
+    if (mutationBusy.current) return false;
+    mutationBusy.current = true;
+    requestVersion.current++; // An older background response must never overwrite a confirmed mutation.
     setBusy(true);
     setError("");
     setNotice("");
+    return true;
+  }
+  function endMutation() {
+    if (!isActive()) return;
+    mutationBusy.current = false;
+    setBusy(false);
+  }
+  async function editField(field) {
+    if (!beginMutation()) return;
     try {
       await invoke("jira.edit", {
         key: item.key,
         ...(field === "assignee" ? { accountId: account } : { due }),
       });
+      if (!isActive()) return;
       setNotice("Saved in Jira");
-      if (await load()) onChanged?.();
+      if (await load(() => true, true)) onChanged?.();
     } catch (e) {
-      setError(e.message);
+      if (isActive()) setError(e.message);
     } finally {
-      setBusy(false);
+      endMutation();
     }
   }
   const [meta, setMeta] = useState(null),
@@ -99,6 +126,7 @@ export default function JiraIssue({
     [sprint, setSprint] = useState(""),
     [priority, setPriority] = useState("");
   async function loadPlanning() {
+    const ticket = ++planningRequest.current;
     setError("");
     try {
       const [m, b] = await Promise.all([
@@ -107,16 +135,16 @@ export default function JiraIssue({
           project: issue.fields.project?.key || item.key.split("-")[0],
         }),
       ]);
+      if (!isActive() || ticket !== planningRequest.current) return;
       setMeta(m);
       setBoards(b.values || []);
-      setPriority(issue.fields.priority?.id || "");
     } catch (e) {
-      setError(e.message);
+      if (isActive() && ticket === planningRequest.current) setError(e.message);
     }
   }
   async function chooseBoard(id) {
     const ticket = ++sprintRequest.current;
-    const key = item.key;
+    const key = scopeKey;
     setSprints([]);
     setSprint("");
     setError("");
@@ -131,71 +159,85 @@ export default function JiraIssue({
     }
   }
   async function savePlanning(kind) {
-    setBusy(true);
-    setError("");
-    setNotice("");
+    if (!beginMutation()) return;
     try {
       if (kind === "sprint")
         await invoke("jira.moveSprint", { key: item.key, sprintId: sprint });
       else await invoke("jira.edit", { key: item.key, priorityId: priority });
+      if (!isActive()) return;
       setNotice(
         kind === "sprint"
           ? "Sprint updated in Jira"
           : "Priority updated in Jira",
       );
-      if (await load()) onChanged?.();
+      if (await load(() => true, true)) onChanged?.();
     } catch (e) {
-      setError(e.message);
+      if (isActive()) setError(e.message);
     } finally {
-      setBusy(false);
+      endMutation();
     }
   }
-  async function load() {
-    const key = item.key;
-    if (!mounted.current || activeKey.current !== key) return false;
+  async function load(isCurrent = () => true, afterMutation = false) {
+    if (!isActive() || (mutationBusy.current && !afterMutation)) return false;
+    const ticket = ++requestVersion.current;
     const [i, t] = await Promise.all([
-      invoke("jira.issue", { key }),
-      invoke("jira.transitions", { key }),
+      invoke("jira.issue", { key: item.key }),
+      invoke("jira.transitions", { key: item.key }),
     ]);
-    if (!mounted.current || activeKey.current !== key) return false;
+    if (!isActive() || !isCurrent() || ticket !== requestVersion.current || (mutationBusy.current && !afterMutation)) return false;
     setIssue(i);
     setTransitions(t);
+    setReadError("");
+    sync.markSynced();
     onContext?.(JSON.stringify({ key: i.key, ...i.fields }));
     return true;
   }
+  const sync = useAutoSync({
+    key: `jira-issue:${scopeKey}`,
+    services: ["jira"],
+    enabled: initialSettled && !busy,
+    refresh: (isCurrent) => load(isCurrent),
+  });
   useEffect(() => {
     let alive = true;
-    Promise.all([
-      invoke("jira.issue", { key: item.key }),
-      invoke("jira.transitions", { key: item.key }),
-    ])
-      .then(([i, t]) => {
-        if (alive) {
-          setIssue(i);
-          setTransitions(t);
-          onContext?.(JSON.stringify({ key: i.key, ...i.fields }));
-        }
-      })
-      .catch((e) => {
-        if (alive) setError(e.message);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [item.key]);
-  async function update(kind) {
-    setBusy(true);
+    fieldSnapshot.current = null;
+    mutationBusy.current = false;
+    setBusy(false);
+    setInitialSettled(false);
+    setIssue(null);
+    setTransitions([]);
+    setTransition("");
+    setPeople([]);
+    setMeta(null);
+    setBoards([]);
+    setSprints([]);
+    setSprint("");
     setError("");
+    setReadError("");
     setNotice("");
+    if (draftOwner.current !== draftKey) {
+      draftOwner.current = draftKey;
+      try { setText(localStorage.getItem(draftKey) || ""); } catch { setText(""); }
+    }
+    load(() => alive).catch((e) => {
+      if (alive && isActive()) setReadError(e.message);
+    }).finally(() => {
+      if (alive && isActive()) setInitialSettled(true);
+    });
+    return () => { alive = false; requestVersion.current++; };
+  }, [scopeKey]);
+  async function update(kind) {
+    if (!beginMutation()) return;
     try {
       if (kind === "comment") {
         const submittedText = text;
         await invoke("jira.comment", { key: item.key, body: submittedText });
-        if (mounted.current) setNotice("Comment posted to Jira.");
+        if (!isActive()) return;
+        setNotice("Comment posted to Jira.");
         try {
           if (localStorage.getItem(draftKey) === submittedText) localStorage.removeItem(draftKey);
         } catch {
-          if (mounted.current) setError("Your comment was posted, but its saved draft could not be cleared.");
+          if (isActive()) setError("Your comment was posted, but its saved draft could not be cleared.");
         }
         setText((current) => (current === submittedText ? "" : current));
       } else
@@ -203,11 +245,11 @@ export default function JiraIssue({
           key: item.key,
           transitionId: transition,
         });
-      if (await load()) onChanged?.();
+      if (await load(() => true, true)) onChanged?.();
     } catch (e) {
-      setError(e.message);
+      if (isActive()) setError(e.message);
     } finally {
-      setBusy(false);
+      endMutation();
     }
   }
   return (
@@ -224,6 +266,7 @@ export default function JiraIssue({
       </div>
       {issue ? (
         <div className="live-inspector-body">
+          <SyncStatus sync={sync} />
           <h2>{issue.fields.summary}</h2>
           <div className="inline">
             <span className="pill">{issue.fields.status?.name}</span>
@@ -459,8 +502,10 @@ export default function JiraIssue({
           </button>
         </div>
       ) : (
-        !error && <Pending />
+        !error && !readError && <Pending />
       )}
+      {!issue && initialSettled && <div className="form-note"><SyncStatus sync={sync} /></div>}
+      {readError && <div className="connection-error" role="alert">{readError}</div>}
       {error && (
         <div className="connection-error" role="alert">
           {error}

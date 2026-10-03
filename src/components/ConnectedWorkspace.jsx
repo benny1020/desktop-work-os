@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import DocumentReader from "./DocumentReader";
+import { useAutoSync } from "../lib/use-auto-sync";
+import SyncStatus from "./SyncStatus";
 import {
   ArrowRight,
   BookOpen,
@@ -13,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { invoke, isDesktop } from "../lib/integration-client";
-import ReviewWorkbench from "./ReviewWorkbench";
+import SyncedReview from "./SyncedReview";
 import JiraIssue from "./LiveIssue";
 import DailyWorkspace from "./DailyWorkspace";
 import { MRLinks } from "./ConnectedObjects";
@@ -79,6 +81,9 @@ export default function ConnectedWorkspace({
     );
   const plan = usePlan();
   const requestId = useRef(0);
+  const loadedPages = useRef(1);
+  const appliedFilters = useRef({ query: "", jql });
+  const [filterVersion, setFilterVersion] = useState(0);
   const service =
     section === "Code" ? "gitlab" : section === "Docs" ? "confluence" : "jira";
   const savedDocsView = section === "Docs" && ["Recent", "Favorites"].includes(view);
@@ -88,6 +93,42 @@ export default function ConnectedWorkspace({
   const visiblePages = savedDocsView
     ? savedPages.filter((object) => !query.trim() || object.title.toLowerCase() === query.trim().toLowerCase())
     : items;
+  const sync = useAutoSync({
+    key: `workspace:${configVersion}:${service}:${section}:${view}:${project}:${space}:${filterVersion}`,
+    services: [service],
+    enabled: Boolean(configs?.[service]?.tokenConfigured) && !["Home", "My Work"].includes(section) && !snapshot && !loading,
+    refresh: async (isCurrent) => {
+      const ticket = requestId.current;
+      const filters = { ...appliedFilters.current };
+      let cursor = null, merged = [], more = null;
+      for (let index = 0; index < loadedPages.current; index++) {
+        const result = await fetchRows(cursor, filters);
+        if (!isCurrent() || requestId.current !== ticket) return;
+        merged.push(...result.rows);
+        more = result.more;
+        if (!more) break;
+        cursor = more;
+      }
+      if (!isCurrent() || requestId.current !== ticket) return;
+      setItems([...new Map(merged.map(row => [row.id || row.key, row])).values()]);
+      setNext(more);
+      setError("");
+      if (section === "Docs" && selected) {
+        const refreshed = await invoke("confluence.page", { id: selected });
+        if (!isCurrent() || requestId.current !== ticket) return;
+        setPage(refreshed);
+        onContext?.(JSON.stringify({ type: "doc", id: refreshed.id, origin: configs.confluence.url,
+          title: refreshed.title, body: refreshed.body?.storage?.value?.slice(0, 16000) }));
+      }
+      if (section === "Docs") {
+        const metadata = await invoke("confluence.spaces");
+        if (isCurrent() && requestId.current === ticket) setSpaces(metadata.results || []);
+      } else if (section === "Code") {
+        const metadata = await invoke("gitlab.projects", {});
+        if (isCurrent() && requestId.current === ticket) setProjects(metadata.items || []);
+      }
+    },
+  });
   useEffect(() => {
     let alive = true;
     if (isDesktop())
@@ -111,6 +152,7 @@ export default function ConnectedWorkspace({
     setPage(null);
     setItems([]);
     setNext(null);
+    loadedPages.current = 1;
     setQuery("");
     if (
       configs?.[service]?.tokenConfigured &&
@@ -119,68 +161,60 @@ export default function ConnectedWorkspace({
       load(null, "");
   }, [section, view, project, space, configs]);
   useEffect(() => {
+    let alive = true;
     if (configs?.confluence?.tokenConfigured && section === "Docs")
       invoke("confluence.spaces")
-        .then((d) => setSpaces(d.results || []))
-        .catch((e) => setError(e.message));
+        .then(d => { if (alive) setSpaces(d.results || []); })
+        .catch(e => { if (alive) setError(e.message); });
     if (configs?.gitlab?.tokenConfigured && section === "Code")
       invoke("gitlab.projects", {})
-        .then((d) => setProjects(d.items || []))
-        .catch((e) => setError(e.message));
+        .then(d => { if (alive) setProjects(d.items || []); })
+        .catch(e => { if (alive) setError(e.message); });
+    return () => { alive = false; };
   }, [configs, section]);
+  async function fetchRows(cursor, filters) {
+    let data, rows, more;
+    if (section === "Code") {
+      if (view === "Repositories") {
+        data = await invoke("gitlab.projects", { page: cursor || 1, search: filters.query });
+        rows = data.items; more = data.nextPage;
+      } else if (view === "Pipelines") {
+        rows = project ? await invoke("gitlab.pipelines", { projectId: project }) : [];
+      } else {
+        data = await invoke("gitlab.mrs", { projectId: project || undefined,
+          mine: view === "My Reviews", page: cursor || 1 });
+        rows = data.items; more = data.nextPage;
+      }
+    } else if (section === "Docs") {
+      if (savedDocsView) rows = savedPages;
+      else {
+        data = await invoke("confluence.pages", { spaceId: space || undefined,
+          cursor: cursor || undefined, title: filters.query || undefined });
+        rows = data.results; more = data.nextCursor;
+      }
+    } else {
+      data = await invoke("jira.issues", { jql: filters.jql, nextPageToken: cursor || undefined });
+      rows = data.issues; more = data.nextPageToken;
+    }
+    return { rows: rows || [], more: more || null };
+  }
   async function load(cursor = null, searchQuery = query) {
     const ticket = ++requestId.current;
+    const filters = cursor ? { ...appliedFilters.current } : { query: searchQuery, jql };
+    if (!cursor) {
+      appliedFilters.current = filters;
+      loadedPages.current = 1;
+      setFilterVersion(version => version + 1);
+    }
     setLoading(true);
     setError("");
     try {
-      let data, rows, more;
-      if (section === "Code") {
-        if (view === "Repositories") {
-          data = await invoke("gitlab.projects", {
-            page: cursor || 1,
-            search: searchQuery,
-          });
-          rows = data.items;
-          more = data.nextPage;
-        } else if (view === "Pipelines") {
-          if (!project) {
-            setItems([]);
-            return;
-          }
-          rows = await invoke("gitlab.pipelines", { projectId: project });
-        } else {
-          data = await invoke("gitlab.mrs", {
-            projectId: project || undefined,
-            mine: view === "My Reviews",
-            page: cursor || 1,
-          });
-          rows = data.items;
-          more = data.nextPage;
-        }
-      } else if (section === "Docs") {
-        if (savedDocsView) {
-          rows = savedPages;
-          more = null;
-        } else {
-          data = await invoke("confluence.pages", {
-            spaceId: space || undefined,
-            cursor: cursor || undefined,
-            title: searchQuery || undefined,
-          });
-          rows = data.results;
-          more = data.nextCursor;
-        }
-      } else {
-        data = await invoke("jira.issues", {
-          jql,
-          nextPageToken: cursor || undefined,
-        });
-        rows = data.issues;
-        more = data.nextPageToken;
-      }
+      const { rows, more } = await fetchRows(cursor, filters);
       if (requestId.current === ticket) {
-        setItems((old) => (cursor ? [...old, ...(rows || [])] : rows || []));
-        setNext(more || null);
+        setItems(old => cursor ? [...new Map([...old, ...rows].map(row => [row.id || row.key, row])).values()] : rows);
+        setNext(more);
+        if (cursor) loadedPages.current++;
+        sync.markSynced();
       }
     } catch (e) {
       if (requestId.current === ticket) setError(e.message);
@@ -188,7 +222,7 @@ export default function ConnectedWorkspace({
       if (requestId.current === ticket) setLoading(false);
     }
   }
-  async function openMR(mr) {
+  async function openMR(mr, refresh = false) {
     const ticket = ++requestId.current;
     setLoading(true);
     setError("");
@@ -196,6 +230,7 @@ export default function ConnectedWorkspace({
       const data = await invoke("gitlab.mr", {
         projectId: mr.project_id,
         iid: mr.iid,
+        refresh,
       });
       if (requestId.current === ticket) setSnapshot(data);
     } catch (e) {
@@ -271,11 +306,12 @@ export default function ConnectedWorkspace({
           origin={configs.gitlab?.url}
           onOpen={onOpen}
         />
-        <ReviewWorkbench
-          key={`${snapshot.mr.project_id}:${snapshot.mr.iid}:${snapshot.mr.diff_refs.head_sha}`}
+        <SyncedReview
+          key={`${snapshot.mr.project_id}:${snapshot.mr.iid}`}
           snapshot={snapshot}
           onPendingChange={(pending) => { setReviewPending(pending); onReviewPendingChange?.(pending); }}
           externalError={error}
+          onSynchronized={() => setError("")}
           refreshing={loading}
           live
           onBack={() => {
@@ -286,7 +322,7 @@ export default function ConnectedWorkspace({
             setSnapshot(null);
             onContext?.("");
           }}
-          onRefresh={() => openMR(snapshot.mr)}
+          onRefresh={() => openMR(snapshot.mr, true)}
           onContext={onContext}
         />
       </div>
@@ -309,9 +345,12 @@ export default function ConnectedWorkspace({
             <h1>{title}</h1>
             <p>{configs[service].url} · Live data</p>
           </div>
-          <button className="btn" disabled={loading} onClick={() => load()}>
-            <RefreshCw size={13} /> Refresh
-          </button>
+          <div className="inline">
+            <SyncStatus sync={sync} />
+            <button className="btn" disabled={loading || sync.syncing} onClick={() => sync.run()}>
+              <RefreshCw size={13} /> Refresh
+            </button>
+          </div>
         </header>
         {section === "Code" && (
           <div className="view-toolbar">
@@ -692,7 +731,7 @@ export default function ConnectedWorkspace({
           onOpen={onOpen}
           configs={configs}
           onClose={() => { setSelected(null); onContext?.(""); }}
-          onChanged={() => load()}
+          onChanged={() => sync.run()}
           onContext={onContext}
         />
       )}

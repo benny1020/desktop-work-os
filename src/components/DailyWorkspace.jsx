@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import "../daily-workflow.css";
 import AssistantBrief from "./AssistantBrief";
+import { useAutoSync } from "../lib/use-auto-sync";
+import SyncStatus from "./SyncStatus";
 import {
   Check,
   ChevronLeft,
@@ -178,7 +180,6 @@ function PlanningWorkspace({
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [feed, setFeed] = useState({ issues: [], mrs: [], errors: [] }),
-    [refresh, setRefresh] = useState(0),
     [loading, setLoading] = useState(false);
   useEffect(() => {
     planningSessions.set(planningKey, { date, mode, quick, kind, quickDate, returnRange });
@@ -195,34 +196,38 @@ function PlanningWorkspace({
     });
     return () => cancelAnimationFrame(frame);
   }, [focusDate, focusTaskId, focusRequestId]);
+  const connectedFeed = Boolean(configs.jira?.tokenConfigured || configs.gitlab?.tokenConfigured);
+  const sync = useAutoSync({
+    key: `daily-work:${configVersion}:${configs.jira?.url || ""}:${configs.gitlab?.url || ""}`,
+    services: ["jira", "gitlab"], enabled: connectedFeed && !loading,
+    refresh: refreshFeed,
+  });
+  async function refreshFeed(isCurrent) {
+    const [j, g] = await Promise.allSettled([
+      configs.jira?.tokenConfigured
+        ? invoke("jira.issues", { jql: "assignee = currentUser() AND statusCategory != Done ORDER BY duedate ASC, updated DESC" })
+        : Promise.resolve({ issues: [] }),
+      configs.gitlab?.tokenConfigured ? invoke("gitlab.mrs", { mine: true }) : Promise.resolve({ items: [] }),
+    ]);
+    if (!isCurrent()) return;
+    const errors = [["Jira", j], ["GitLab", g]].flatMap(([service, result]) => result.status === "rejected" ? [`${service}: ${result.reason.message}`] : []);
+    setFeed(previous => ({
+      issues: j.status === "fulfilled" ? j.value.issues : previous.issues,
+      mrs: g.status === "fulfilled" ? g.value.items : previous.mrs,
+      errors,
+    }));
+    if (errors.length) throw new Error(errors.join(" · "));
+  }
   useEffect(() => {
     let alive = true;
+    setFeed({ issues: [], mrs: [], errors: [] });
     setLoading(true);
-    Promise.allSettled([
-      configs.jira?.tokenConfigured
-        ? invoke("jira.issues", {
-            jql: "assignee = currentUser() AND statusCategory != Done ORDER BY duedate ASC, updated DESC",
-          })
-        : Promise.resolve({ issues: [] }),
-      configs.gitlab?.tokenConfigured
-        ? invoke("gitlab.mrs", { mine: true })
-        : Promise.resolve({ items: [] }),
-    ]).then(([j, g]) => {
-      if (alive) {
-        setFeed({
-          issues: j.status === "fulfilled" ? j.value.issues : [],
-          mrs: g.status === "fulfilled" ? g.value.items : [],
-          errors: [j, g]
-            .filter((r) => r.status === "rejected")
-            .map((r) => r.reason.message),
-        });
-        setLoading(false);
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [configs, refresh]);
+    refreshFeed(() => alive)
+      .then(() => { if (alive) sync.markSynced(); })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [configs]);
   const previousRange = useRef({ date, view });
   useEffect(() => {
     if (previousRange.current.date !== date || previousRange.current.view !== view) setQuickDate(null);
@@ -358,13 +363,12 @@ function PlanningWorkspace({
           </div>}
 
         </div>
-        <button
-          className="btn"
-          disabled={loading}
-          onClick={() => setRefresh((x) => x + 1)}
-        >
-          Refresh work
-        </button>
+        <div className="inline">
+          {connectedFeed && <SyncStatus sync={sync} />}
+          <button className="btn" disabled={loading || sync.syncing} onClick={() => sync.run()}>
+            Refresh work
+          </button>
+        </div>
       </header>
       <div className="view-toolbar">
         <div className="segmented">
@@ -629,7 +633,7 @@ function PlanningWorkspace({
                 </button>
               </div>
             ))}
-            {!feed.mrs.length && !due.length && !loading && (
+            {!feed.mrs.length && !due.length && !loading && !feed.errors.length && (
               <div className="attention-clear"><CheckCircle2 size={20} />
                 <b>{connected ? "Nothing urgent in loaded work" : "Your work, in one place"}</b>
                 <p>{connected ? "No pending reviews or imminent deadlines in loaded results. Your plan is ready when you are." : "Connect your tools to surface review requests and upcoming deadlines here."}</p>

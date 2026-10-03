@@ -145,6 +145,7 @@ export function fixtureEngine(snapshot) {
             },
           ],
         };
+      if (action === "gitlab.mrUpdates") return structuredClone({ mr: snapshot.mr, discussions: snapshot.discussions || [] });
       if (action === "gitlab.mr") return structuredClone(snapshot);
       if (action === "gitlab.mrPipelines" || action === "gitlab.pipelines")
         return [{ id: 482, status: "success", ref: "feature/retry" }];

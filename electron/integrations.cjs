@@ -302,6 +302,17 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
   async function getCode(a) {
     return requireLocalGit().readFile({ projectId: a.projectId, path: a.path, ref: a.ref });
   }
+  async function getMRUpdates(a) {
+    const c = configFor("gitlab");
+    const p = gitPath(a);
+    const [mr, discussions] = await Promise.all([
+      request("gitlab", p, { config: c }), gitPages(p + "/discussions", 3, c),
+    ]);
+    assertGitAccount(c);
+    if (!["head_sha", "base_sha", "start_sha"].every(ref => mr.data.diff_refs?.[ref]))
+      throw Error("GitLab is preparing the new revision. Sync will retry automatically.");
+    return { mr: mr.data, discussions: discussions.items, discussionsTruncated: discussions.truncated };
+  }
   async function postReviewComment(a) {
     const body = required(a.body, "Review comment", 20000);
     const c = configFor("gitlab");
@@ -577,6 +588,7 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
     },
     "gitlab.mr": getMR,
     "gitlab.code": getCode,
+    "gitlab.mrUpdates": getMRUpdates,
     "gitlab.comment": postReviewComment,
     "gitlab.approve": async (a) => {
       const c = configFor("gitlab");

@@ -109,3 +109,7 @@ PR Lens 커밋: `402dc6600b682da48e7191cb067ab355944947e7`.
 - [Confluence Cloud pages v2](https://developer.atlassian.com/cloud/confluence/rest/v2/api-group-page/)
 - [Anthropic API overview](https://platform.claude.com/docs/en/api/overview)
 - [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), [DOMPurify](https://github.com/cure53/DOMPurify)
+
+## 자동 동기화
+
+연결된 Jira·GitLab·Confluence 화면은 기본 60초 간격으로 자동 갱신됩니다. 앱으로 복귀하거나 연결이 복구되어도 확인합니다. 숨겨진 화면과 오프라인에서는 주기 요청을 멈추며, 실패 시 마지막 데이터와 초안을 유지하고 재시도 간격을 늘립니다. MR은 동일 커밋이면 메타데이터만 확인하고 새 커밋이면 로컬 Git에 자동 준비합니다. 작성 중인 코드는 그대로 유지되며 **Review new revision**을 눌러 준비된 변경으로 전환합니다. [상세 동작·검증](AUTO_SYNC.md)

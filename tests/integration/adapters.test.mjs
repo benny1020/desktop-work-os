@@ -566,3 +566,19 @@ test("Comment and approval reject changed base/start even with identical head",a
   assert.equal(calls.some(c=>c.method==='POST'),false);
  }
 });
+
+test("Automatic MR probes read metadata and discussions without local Git or code endpoints", async t => {
+  const { engine, calls, localCalls } = await fixture(t);
+  const result = await engine.invoke('gitlab.mrUpdates', { projectId: 42, iid: 7 });
+  assert.equal(result.mr.diff_refs.head_sha, head);
+  assert.ok(Array.isArray(result.discussions));
+  assert.equal(localCalls.length, 0);
+  assert.equal(calls.length, 2);
+  assert.equal(calls.every(c => c.method === 'GET' && (c.path.endsWith('/merge_requests/7') || c.path.endsWith('/discussions'))), true);
+});
+
+test("Incomplete MR references cannot be silently treated as a synchronized revision", async t => {
+  const {engine,localCalls}=await fixture(t,{reply:c=>c.path.endsWith('/merge_requests/7')?{...gitMR,diff_refs:{head_sha:head}}:undefined});
+  await assert.rejects(engine.invoke('gitlab.mrUpdates',{projectId:42,iid:7}),/preparing/);
+  assert.equal(localCalls.length,0);
+});

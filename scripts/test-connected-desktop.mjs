@@ -2,6 +2,8 @@ import { _electron as electron, expect } from "@playwright/test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { snapshot as originalSnapshot } from "../tests/fixtures/connected.mjs";
 import { prepareLocalReviewFixture } from './fixtures/local-git-review.mjs';
 const root = path.resolve(new URL("..", import.meta.url).pathname),
@@ -25,6 +27,7 @@ try {
   await app.evaluate(
     ({ protocol }, { snapshot }) => {
       global.__fixtureCalls = [];
+      global.__fixtureSnapshot = snapshot;
       protocol.handle("https", async (request) => {
         const u = new URL(request.url);
         if (!u.hostname.endsWith(".fixture.test"))
@@ -150,6 +153,7 @@ try {
   );
   const p = await app.firstWindow();
   await p.waitForLoadState("domcontentloaded");
+  await p.clock.install();
   p.on("pageerror", (e) => evidence.consoleErrors.push(e.message));
   await p.evaluate(async () => {
     for (const service of ["jira", "gitlab", "confluence", "claude"])
@@ -224,6 +228,50 @@ try {
     projectId: 42, iid: 7, ref, path: 'src/PaymentService.ts',
   }), { ref: fixture.head });
   expect(localSource.content).toBe(sourceText);
+  // Real renderer timers + real local Git: metadata polls must not clone again;
+  // a new SHA can prepare in the background without replacing an active review.
+  const autoSyncBaseline = await app.evaluate(() => ({
+    snapshots: global.__localGitCalls.filter(call => call.name === 'snapshot').length,
+    writes: global.__fixtureCalls.filter(call => call.method === 'POST').length,
+  }));
+  await p.getByLabel('Diagram review comment').fill('Keep my review draft while metadata syncs.');
+  await app.evaluate(() => { global.__fixtureSnapshot.mr.title = 'PAY-382 Payment retry review · synchronized'; });
+  await p.clock.fastForward(61000);
+  await expect(p.getByRole('heading', { name: 'PAY-382 Payment retry review · synchronized', exact: true })).toBeVisible();
+  expect(await app.evaluate(() => global.__localGitCalls.filter(call => call.name === 'snapshot').length)).toBe(autoSyncBaseline.snapshots);
+  await expect(p.getByLabel('Diagram review comment')).toHaveValue('Keep my review draft while metadata syncs.');
+  const execute = promisify(execFile);
+  const nativeGit = async (...args) => (await execute('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Worklane Fixture', '-c', 'user.email=fixture@example.test', ...args], { cwd: fixture.repository })).stdout.trim();
+  await fs.appendFile(path.join(fixture.repository, 'src/PaymentService.ts'), '\n// Revision prepared by automatic synchronization.\n');
+  await nativeGit('add', '--', 'src/PaymentService.ts');
+  await nativeGit('commit', '-m', 'Native automatic sync revision');
+  const nextHead = await nativeGit('rev-parse', 'HEAD');
+  await nativeGit('update-ref', 'refs/merge-requests/7/head', nextHead);
+  await app.evaluate((_, { nextHead }) => {
+    global.__fixtureSnapshot.mr.diff_refs.head_sha = nextHead;
+    global.__fixtureSnapshot.mr.sha = nextHead;
+  }, { nextHead });
+  await p.clock.fastForward(61000);
+  await expect(p.getByText('New revision ready', { exact: false })).toBeVisible().catch(async error => {
+    console.error('Automatic revision preparation failed:', await p.locator('.review-auto-sync .sync-status').getAttribute('title'),
+      await app.evaluate(() => global.__fixtureCalls.slice(-12).map(call => ({ path: call.path, method: call.method }))));
+    throw error;
+  });
+  expect(await app.evaluate(() => global.__localGitCalls.filter(call => call.name === 'snapshot').length)).toBe(autoSyncBaseline.snapshots + 1);
+  await expect(p.getByLabel('Diagram review comment')).toHaveValue('Keep my review draft while metadata syncs.');
+  await expect(p.getByLabel('Component code')).not.toContainText('Revision prepared by automatic synchronization');
+  await expect(p.getByRole('button', { name: 'Post to GitLab', exact: true })).toBeDisabled();
+  await p.clock.fastForward(61000);
+  await expect(p.getByRole('button', { name: 'Review new revision', exact: true })).toBeEnabled();
+  expect(await app.evaluate(() => global.__localGitCalls.filter(call => call.name === 'snapshot').length)).toBe(autoSyncBaseline.snapshots + 1);
+  expect(await app.evaluate(() => global.__fixtureCalls.filter(call => call.method === 'POST').length)).toBe(autoSyncBaseline.writes);
+  await p.getByRole('button', { name: 'Review new revision', exact: true }).click();
+  await p.getByRole('button', { name: 'Open component PaymentService.ts', exact: true }).click();
+  await p.getByRole('button', { name: 'Source', exact: true }).click();
+  await expect(p.getByLabel('Component code')).toContainText('Revision prepared by automatic synchronization');
+  expect(await app.evaluate(() => global.__localGitCalls.filter(call => call.name === 'snapshot').length)).toBe(autoSyncBaseline.snapshots + 1);
+  evidence.checks.push('Automatic metadata sync makes no Git snapshot; new SHA prepares once without replacing draft/code or writing externally');
+  evidence.autoSync = { originalHead: fixture.head, newHead: nextHead, sameShaNewSnapshots: 0, changedShaNewSnapshots: 1, automaticExternalWrites: 0 };
   await p
     .getByRole("button", { name: "Select source line 7", exact: true })
     .click();

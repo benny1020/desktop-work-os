@@ -12,7 +12,9 @@ import {
   objectKey,
 } from "../lib/planning";
 import JiraIssue from "./LiveIssue";
-import ReviewWorkbench from "./ReviewWorkbench";
+import SyncedReview from "./SyncedReview";
+import SyncStatus from "./SyncStatus";
+import { useAutoSync } from "../lib/use-auto-sync";
 import AssistantAvatar from "./AssistantAvatar";
 import ConnectedAssistant from "./ConnectedAssistant";
 export function MRLinks({ mr, onOpen, origin, pending = false }) {
@@ -119,14 +121,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
           ? "jira"
           : "gitlab";
   const mismatch = object.origin && configs[service]?.url !== object.origin;
-  useEffect(() => { if (data && object.type !== "mr") onReady?.(); }, [data]);
-  useEffect(() => {
-    let alive = true;
-    if (object.type !== "mr") setData(null);
-    setError("");
-    if (mismatch || object.type === "issue") return;
-    setLoading(true);
-    async function load() {
+  async function readRemote() {
       if (object.type === "mr")
         return invoke("gitlab.mr", {
           projectId: object.projectId,
@@ -168,22 +163,35 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
         );
       }
     }
-    load()
-      .then((d) => {
-        if (alive) {
-          setData(d);
-          if (object.type === "doc")
-            onContext?.(
-              JSON.stringify({
-                type: "doc",
-                id: d.id,
-                origin: configs.confluence.url,
-                title: d.title,
-                body: d.body?.storage?.value?.slice(0, 16000),
-              }),
-            );
-        }
-      })
+  function acceptRemote(d) {
+    setData(d);
+    if (object.type === "doc") onContext?.(JSON.stringify({ type: "doc", id: d.id,
+      origin: configs.confluence.url, title: d.title, body: d.body?.storage?.value?.slice(0, 16000) }));
+  }
+  const sync = useAutoSync({
+    key: `object:${configs[service]?.url}:${object.type}:${object.id || object.projectId || object.query}`,
+    services: object.type === "related" ? ["gitlab", "confluence"] : [service],
+    enabled: !mismatch && !loading && object.type !== "issue" && (object.type !== "mr" || !data),
+    refresh: async isCurrent => {
+      const next = await readRemote();
+      if (!isCurrent()) return;
+      if (object.type === "related") {
+        setData(old => next.map(group => group.error ? { ...old?.find(g => g.label === group.label), ...group, data: old?.find(g => g.label === group.label)?.data } : group));
+        if (next.some(group => group.error)) throw Error("Some linked services could not sync. Keeping previous results.");
+      } else acceptRemote(next);
+      setError("");
+    },
+  });
+  useEffect(() => { if (data && object.type !== "mr") onReady?.(); }, [data]);
+  useEffect(() => {
+    let alive = true;
+    if (object.type !== "mr") setData(null);
+    setError("");
+    if (mismatch || object.type === "issue") return;
+    setLoading(true);
+
+    readRemote()
+      .then((d) => { if (alive) { acceptRemote(d); sync.markSynced(); } })
       .catch((e) => alive && setError(e.message))
       .finally(() => alive && setLoading(false));
     return () => {
@@ -200,6 +208,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
   if (object.type === "issue")
     return (
       <JiraIssue
+        key={`${configs.jira?.url}:${configs.jira?.email}:${object.key}`}
         item={object}
         origin={configs.jira?.url}
         configs={configs}
@@ -212,8 +221,8 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
     return (
       <div className="context-mr">
         <MRLinks mr={data.mr} origin={configs.gitlab?.url} onOpen={onOpen} pending={pending} />
-        <ReviewWorkbench
-          key={data.mr.diff_refs.head_sha}
+        <SyncedReview
+          key={`${data.mr.project_id}:${data.mr.iid}`}
           snapshot={data}
           initialReviewState={initialReviewState}
           onReviewState={onReviewState}
@@ -224,12 +233,14 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
           onRefresh={() => setRefresh((x) => x + 1)}
           onContext={onContext}
           externalError={error}
+          onSynchronized={() => setError("")}
           refreshing={loading}
         />
       </div>
     );
   return (
     <div className="object-detail">
+      <SyncStatus sync={sync} />
       {loading && <p role="status">{object.type === "mr" ? "Preparing local checkout and review context… The first fetch can take a moment." : `Loading ${object.type}…`}</p>}
       {error && (
         <div role="alert" className="connection-error">

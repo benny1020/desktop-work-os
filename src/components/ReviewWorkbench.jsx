@@ -344,6 +344,9 @@ export default function ReviewWorkbench({
   initialTab = "Dependency flow",
   externalError = "",
   refreshing = false,
+  revisionPending = false,
+  onBusyChange,
+  syncStatus,
   onBack,
   onRefresh,
   onContext,
@@ -381,6 +384,7 @@ export default function ReviewWorkbench({
   const [guide, setGuide] = useState(restored?.guide || snapshot.guide || null);
   const [guidelines, setGuidelines] = useState(restored?.guidelines || "");
   const [busy, setBusy] = useState("");
+  useEffect(() => { onBusyChange?.(!!busy || guideBusy); }, [busy, guideBusy, onBusyChange]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [zoom, setZoom] = useState(restored?.zoom || 0.85);
@@ -631,7 +635,7 @@ ${finding.reason}`;
     if (remaining) select(remaining.path);
   }
   async function generate() {
-    if (guideBusy || refreshing) return;
+    if (guideBusy || refreshing || revisionPending) return;
     const version = currentDiffVersion.current;
     setGuideBusy(true);
     setGuideError("");
@@ -673,7 +677,7 @@ ${finding.reason}`;
     const submittedKey = draftKey;
     const submittedDraft = draft;
     const text = draft.trim();
-    if (!text || busy || refreshing) return;
+    if (!text || busy || refreshing || revisionPending) return;
     setBusy("comment");
     if (live) onPendingChange?.("comment");
     setError("");
@@ -728,7 +732,7 @@ ${finding.reason}`;
     }
   }
   async function approve() {
-    if (busy || refreshing) return;
+    if (busy || refreshing || revisionPending) return;
     setBusy("approve");
     if (live) onPendingChange?.("approve");
     setError("");
@@ -821,6 +825,7 @@ ${finding.reason}`;
                   </div>
                 </details>
               )}
+              {syncStatus}
             </div>
           </div>
           <div className="inline">
@@ -836,7 +841,7 @@ ${finding.reason}`;
             </button>
             <button
               className="btn primary"
-              disabled={guideBusy || refreshing}
+              disabled={guideBusy || refreshing || revisionPending}
               onClick={generate}
             >
               {guideBusy ? (
@@ -1170,7 +1175,7 @@ ${finding.reason}`;
               <small>{draftStorageError ? "Draft not saved" : "Draft saved locally"} · ⌘ / Ctrl + Enter</small>
               <button
                 className="btn primary"
-                disabled={!draft.trim() || !!busy || refreshing}
+                disabled={!draft.trim() || !!busy || refreshing || revisionPending}
                 onClick={post}
               >
                 <Send size={12} />
@@ -1221,7 +1226,7 @@ ${finding.reason}`;
                 </button>
                 <button
                   className="btn primary"
-                  disabled={!!busy || refreshing}
+                  disabled={!!busy || refreshing || revisionPending}
                   onClick={approve}
                 >
                   Confirm approval
@@ -1234,7 +1239,7 @@ ${finding.reason}`;
                 </small>
                 <button
                   className="btn"
-                  disabled={approved || !!busy || refreshing}
+                  disabled={approved || !!busy || refreshing || revisionPending}
                   onClick={() => setConfirmApproval(true)}
                 >
                   <Check size={13} />
@@ -1246,7 +1251,7 @@ ${finding.reason}`;
         </section>
         <ReviewGuidePanel guide={guide} files={files} mr={mr} live={live}
           endpoint={configs.claude?.url} guidelines={guidelines} onGuidelines={setGuidelines}
-          busy={guideBusy} refreshing={refreshing} error={guideError} onGenerate={generate} selectedPath={file.path}
+          busy={guideBusy} refreshing={refreshing || revisionPending} error={guideError} onGenerate={generate} selectedPath={file.path}
           activeFinding={activeFinding} findingKey={findingKey} canLocate={canLocate}
           onSelect={selectFinding} onDraft={draftFinding} decisions={drafts}
           onDecision={(finding,value)=>setDrafts(items=>({...items,[findingKey(finding)]:value}))}/>
