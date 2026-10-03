@@ -60,7 +60,7 @@ The native memory gate runs the actual Electron renderer/preload/main bridge, OS
 
 ### Final local gate
 
-- 185/185 browser workflow tests passed, including memory restart UI, explicit task confirmation, stale search/history, pause, notification preference, reminder lease refresh and existing review workflows.
+- 187/187 browser workflow tests passed, including memory restart UI, explicit task confirmation, stale search/history, pause, notification preference, reminder lease refresh and existing review workflows.
 - 57/57 adapter and deterministic-rule tests passed, including 20 memory/storage/scheduler cases.
 - Native connected workflow: 7/7 checks, 39 intercepted HTTPS requests, zero renderer console errors.
 - Native memory lifecycle: 5/5 checks across three launches of an isolated profile, including editing a fact without recalling the superseded wording.

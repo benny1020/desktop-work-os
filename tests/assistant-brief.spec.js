@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {installConnected} from './fixtures/connected.mjs';
+// These scenarios describe a Seoul workday; make the browser clock explicit on CI.
+test.use({timezoneId:'Asia/Seoul'});
 async function setup(page){
  await page.clock.setFixedTime(new Date('2026-10-04T12:00:00+09:00'));
  await installConnected(page);
@@ -86,3 +88,17 @@ test('A memory change event refreshes the reminder lease before the next explici
  await brief.getByRole('button',{name:'Remind me about Check a new memory lease',exact:true}).click();await brief.getByRole('button',{name:'Confirm reminder',exact:true}).click();
  await expect(brief.getByRole('status')).toContainText('Reminder saved');expect(await page.evaluate(()=>window.__brief.calls.filter(call=>call.op==='create').at(-1).epoch)).toBe(4);
 });
+
+for(const [timezoneId,display] of [['Asia/Seoul','2026-10-04T13:00'],['UTC','2026-10-04T04:00']]) {
+ test.describe(`Reminder timezone ${timezoneId}`,()=>{
+  test.use({timezoneId});
+  test('local reminder input maps to the same absolute scheduled instant',async({page})=>{
+   const brief=await setup(page);await add(page,'Cross-timezone release reminder');await expandTasks(brief);
+   await brief.getByRole('button',{name:'Remind me about Cross-timezone release reminder',exact:true}).click();
+   await expect(brief.getByLabel('Reminder date and time')).toHaveValue(display);
+   await brief.getByRole('button',{name:'Confirm reminder',exact:true}).click();
+   await expect(brief.getByRole('status')).toContainText('Reminder saved');
+   expect(await page.evaluate(()=>window.__brief.calls.find(call=>call.op==='create').dueAt)).toBe('2026-10-04T04:00:00.000Z');
+  });
+ });
+}
