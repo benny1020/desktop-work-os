@@ -1,0 +1,283 @@
+import { _electron as electron, expect } from "@playwright/test";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { snapshot } from "../tests/fixtures/connected.mjs";
+const root = path.resolve(new URL("..", import.meta.url).pathname),
+  temp = await fs.mkdtemp(path.join(os.tmpdir(), "orbit-completion-"));
+const out = path.join(root, "research/completion");
+await fs.mkdir(out, { recursive: true });
+const app = await electron.launch({
+  args: [root],
+  env: { ...process.env, ORBIT_USER_DATA_DIR: temp },
+});
+const evidence = {
+  externalServicesTested: false,
+  scope:
+    "Actual Electron UI + preload + main adapters + HTTPS protocol fixtures",
+  checks: [],
+  consoleErrors: [],
+};
+try {
+  await app.evaluate(
+    ({ protocol }, { snapshot }) => {
+      global.__fixtureCalls = [];
+      protocol.handle("https", async (request) => {
+        const u = new URL(request.url);
+        if (!u.hostname.endsWith(".fixture.test"))
+          return new Response("Unconfigured fixture", { status: 403 });
+        let body;
+        try {
+          body = await request.json();
+        } catch {}
+        global.__fixtureCalls.push({
+          path: u.pathname,
+          method: request.method,
+          body,
+          host: u.hostname,
+        });
+        const issue = {
+          id: "1",
+          key: "PAY-382",
+          fields: {
+            summary: "Payment retry implementation",
+            description: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Retry transient failures with idempotency keys.",
+                    },
+                  ],
+                },
+              ],
+            },
+            status: { name: "In Progress" },
+            priority: { name: "High" },
+            project: { key: "PAY" },
+            assignee: { accountId: "alex", displayName: "Alex Kim" },
+            duedate: "2026-10-04",
+            comment: { comments: [] },
+          },
+        };
+        let data;
+        if (u.pathname.endsWith("/search/jql")) data = { issues: [issue] };
+        else if (u.pathname.endsWith("/transitions"))
+          data = { transitions: [{ id: "31", name: "Done" }] };
+        else if (u.pathname.includes("/issue/PAY-")) data = issue;
+        else if (u.pathname.endsWith("/diffs")) data = snapshot.files;
+        else if (u.pathname.endsWith("/discussions"))
+          data =
+            request.method === "POST"
+              ? {
+                  id: "posted",
+                  notes: [
+                    {
+                      id: 1,
+                      body: body.body,
+                      position: body.position,
+                      author: { name: "Reviewer" },
+                    },
+                  ],
+                }
+              : [];
+        else if (u.pathname.endsWith("/approve")) data = { approved: true };
+        else if (u.pathname.endsWith("/merge_requests/7")) data = snapshot.mr;
+        else if (u.pathname.endsWith("/merge_requests"))
+          data = [{ ...snapshot.mr, author: { name: "Daniel Park" } }];
+        else if (u.pathname.endsWith("/user"))
+          data = { id: 1, name: "Reviewer" };
+        else if (u.pathname.endsWith("/projects"))
+          data = [{ id: 42, path_with_namespace: "platform/payment-api" }];
+        else if (u.pathname.endsWith("/pipelines/482/jobs"))
+          data = [
+            {
+              id: 1,
+              name: "unit-tests",
+              stage: "test",
+              status: "success",
+              duration: 42,
+            },
+          ];
+        else if (u.pathname.endsWith("/pipelines/482"))
+          data = {
+            id: 482,
+            status: "success",
+            ref: "feature/retry",
+            sha: "a".repeat(40),
+          };
+        else if (u.pathname.endsWith("/pipelines"))
+          data = [{ id: 482, status: "success" }];
+        else if (u.pathname.endsWith("/rest/api/search"))
+          data = {
+            results: [{ content: { id: "p1", title: "Payment Retry Policy" } }],
+          };
+        else if (u.pathname.endsWith("/pages/p1"))
+          data = {
+            id: "p1",
+            title: "Payment Retry Policy",
+            version: { number: 3 },
+            body: {
+              storage: {
+                value: "<h2>Retry policy</h2><p>Preserve idempotency keys.</p>",
+              },
+            },
+          };
+        else if (u.pathname.includes("/repository/files/")) {
+          const file = decodeURIComponent(
+            u.pathname.split("/repository/files/")[1].replace(/\/raw$/, ""),
+          );
+          return new Response(
+            snapshot.files.find((f) => f.path === file)?.content || "",
+            { headers: { "content-type": "text/plain" } },
+          );
+        } else if (u.pathname.endsWith("/messages"))
+          data = {
+            model: "claude-fixture",
+            stop_reason: "end_turn",
+            content: [
+              { type: "text", text: JSON.stringify(snapshot.demoGuide) },
+            ],
+          };
+        else return new Response("Unsupported fixture route", { status: 404 });
+        return new Response(JSON.stringify(data), {
+          headers: { "content-type": "application/json", "x-next-page": "" },
+        });
+      });
+    },
+    { snapshot },
+  );
+  const p = await app.firstWindow();
+  await p.waitForLoadState("domcontentloaded");
+  p.on("pageerror", (e) => evidence.consoleErrors.push(e.message));
+  await p.evaluate(async () => {
+    for (const service of ["jira", "gitlab", "confluence", "claude"])
+      await window.orbit.invoke("config.save", {
+        service,
+        config: {
+          url: `https://${service}.fixture.test`,
+          email: "reviewer@example.test",
+          token: "isolated-fixture-token",
+          model: "claude-fixture",
+        },
+      });
+  });
+  await p.getByLabel("Workspace data mode").selectOption("connected");
+  await expect(p.locator(".inbox-work")).toContainText(
+    "Payment retry implementation",
+  );
+  evidence.checks.push("Connected home through native adapters");
+  await p
+    .getByLabel("Quick add personal work")
+    .fill("Review runbook tomorrow 2pm");
+  await p.getByRole("button", { name: "Add to plan", exact: true }).click();
+  await p.getByLabel("Next planning period").click();
+  await expect(p.locator(".plan-task")).toContainText("Review runbook");
+  await p.reload();
+  await p.getByLabel("Next planning period").click();
+  await expect(p.getByLabel("Time for Review runbook")).toHaveValue("14:00");
+  evidence.checks.push("Local plan retained across Electron reload");
+  await p
+    .locator(".live-inbox")
+    .getByRole("button", { name: /PAY-382 Payment retry implementation/ })
+    .click();
+  await expect(p.getByLabel("Live issue inspector")).toContainText(
+    "idempotency keys",
+  );
+  await p.getByRole("button", { name: "Find linked MR & wiki" }).click();
+  await p
+    .getByRole("button", { name: "Payment Retry Policy", exact: true })
+    .click();
+  await expect(p.locator(".remote-document")).toContainText(
+    "Preserve idempotency keys",
+  );
+  await p.screenshot({ path: path.join(out, "electron-wiki-context.png") });
+  evidence.checks.push("Issue → related wiki without page navigation");
+  await p.getByLabel("Back in context").click();
+  await p
+    .getByRole("button", {
+      name: "!7 PAY-382 Payment retry review",
+      exact: true,
+    })
+    .click();
+  await expect(
+    p.getByRole("img", { name: "Dependency flow diagram" }),
+  ).toBeVisible();
+  await p.getByRole("tab", { name: "Sequence", exact: true }).click();
+  await expect(p.getByRole("img", { name: "Sequence diagram" })).toBeVisible();
+  await p.screenshot({ path: path.join(out, "electron-sequence-context.png") });
+  await p
+    .getByRole("button", {
+      name: "Open component PaymentService.ts",
+      exact: true,
+    })
+    .click();
+  await p.getByRole("button", { name: "Source", exact: true }).click();
+  await expect(p.getByLabel("Component code")).toContainText(
+    "export class PaymentService",
+  );
+  await p
+    .getByRole("button", { name: "Select source line 7", exact: true })
+    .click();
+  await p
+    .getByLabel("Diagram review comment")
+    .fill("Native fixture: verify retry behavior.");
+  await p.getByRole("button", { name: "Post to GitLab", exact: true }).click();
+  await expect(p.locator(".component-comment")).toContainText(
+    "Native fixture: verify retry behavior.",
+  );
+  evidence.checks.push(
+    "Diagram → commit source → exact-line review through real main adapter",
+  );
+  await p
+    .getByRole("button", { name: "Generate AI guide", exact: true })
+    .click();
+  await expect(p.locator(".guide-summary")).toBeVisible();
+  await p.getByRole("button", { name: "Approve MR", exact: true }).click();
+  await p
+    .getByRole("button", { name: "Confirm approval", exact: true })
+    .click();
+  evidence.checks.push("Explicit Claude guide and SHA-guarded approval");
+  await p.getByRole("button", { name: "Pipeline", exact: true }).click();
+  await p.getByRole("button", { name: "#482 · success", exact: true }).click();
+  await expect(p.locator(".pipeline-stages")).toContainText("unit-tests");
+  await p.screenshot({ path: path.join(out, "electron-pipeline-context.png") });
+  evidence.checks.push("MR → pipeline jobs");
+  await p.getByLabel("Close context preview").click();
+  await p.getByRole("button", { name: "Toggle theme" }).click();
+  await p.screenshot({ path: path.join(out, "electron-home-dark.png") });
+  await p.keyboard.press("Meta+k");
+  await p
+    .getByRole("combobox", { name: "Connected global search" })
+    .fill("PAY-382");
+  await expect(
+    p
+      .locator("[cmdk-item]")
+      .filter({ hasText: "PAY-382 Payment retry implementation" }),
+  ).toBeVisible();
+  await p.screenshot({ path: path.join(out, "electron-search-dark.png") });
+  evidence.checks.push("Native keyboard search and dark theme");
+  const calls = await app.evaluate(() => global.__fixtureCalls);
+  evidence.requests = calls.map((c) => ({ path: c.path, method: c.method }));
+  expect(
+    calls.some((c) => c.method === "POST" && c.path.endsWith("/discussions")),
+  ).toBe(true);
+  expect(evidence.consoleErrors).toEqual([]);
+  await fs.writeFile(
+    path.join(out, "electron-workflows.json"),
+    JSON.stringify(evidence, null, 2),
+  );
+  console.log(
+    JSON.stringify(
+      { ...evidence, requests: evidence.requests.length },
+      null,
+      2,
+    ),
+  );
+} finally {
+  await app.close();
+  await fs.rm(temp, { recursive: true, force: true });
+}

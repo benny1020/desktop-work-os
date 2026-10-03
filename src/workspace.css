@@ -1,0 +1,727 @@
+/* Connected planning and object previews inherit the existing Orbit tokens. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.daily-connected {
+  max-width: 1600px;
+  margin: auto;
+}
+.daily-connected h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 22px 0 14px;
+}
+.daily-connected h2 .muted {
+  font-size: 11px;
+  font-weight: 400;
+  margin-left: 8px;
+}
+.daily-connected .view-toolbar {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.daily-connected input[type="date"] {
+  font-size: 11px;
+  padding: 5px;
+  max-width: 125px;
+}
+.plan-quick {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 5px;
+  padding: 8px 10px;
+  gap: 10px;
+  margin-top: 16px;
+}
+.plan-quick > input {
+  flex: 1;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  min-width: 80px;
+  font-size: 12px;
+}
+.plan-quick select {
+  font-size: 11px;
+}
+.plan-boundary {
+  font-size: 10px;
+  color: var(--secondary);
+  margin: 10px 0 20px;
+  line-height: 1.6;
+}
+.plan-notice {
+  font-size: 11px;
+  color: var(--accent);
+}
+.daily-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  gap: 30px;
+}
+.daily-brief {
+  border-left: 1px solid var(--line);
+  padding-left: 25px;
+}
+.plan-task {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  gap: 9px;
+  min-height: 62px;
+  padding: 10px 0;
+}
+.plan-task.done .plan-task-main > button {
+  text-decoration: line-through;
+  color: var(--secondary);
+}
+.plan-check {
+  width: 17px;
+  height: 17px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.plan-task.event .plan-check {
+  border: 0;
+  color: var(--purple);
+}
+.plan-task-main {
+  flex: 1;
+  min-width: 80px;
+}
+.plan-task-main > button {
+  font-size: 12px;
+  text-align: left;
+  display: block;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.plan-task-main small {
+  display: block;
+  font-size: 9px;
+  color: var(--secondary);
+  margin-top: 5px;
+}
+.plan-task time {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-size: 11px;
+  margin-right: 8px;
+}
+.plan-task-actions {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.plan-task-actions input {
+  font-size: 9px !important;
+  padding: 3px !important;
+  max-width: 102px !important;
+  background: transparent;
+}
+.plan-task-actions input[type="time"] {
+  max-width: 77px !important;
+}
+.plan-task-actions > button {
+  padding: 4px;
+}
+.plan-empty {
+  padding: 35px 16px;
+  border: 1px dashed var(--line);
+  font-size: 12px;
+  color: var(--secondary);
+  line-height: 1.8;
+}
+.attention-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+.attention-row > button:not(.btn) {
+  flex: 1;
+  text-align: left;
+  line-height: 1.5;
+}
+.attention-row b {
+  font-size: 12px;
+  font-weight: 500;
+}
+.attention-row small {
+  display: block;
+  color: var(--secondary);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.inbox-work {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+  font-size: 12px;
+}
+.inbox-work > button:first-child {
+  flex: 1;
+  text-align: left;
+}
+.inbox-work code {
+  color: var(--secondary);
+  margin-right: 12px;
+  font-size: 10px;
+}
+.planning-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(125px, 1fr));
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  margin: 20px 0;
+}
+.planning-grid > section {
+  border-right: 1px solid var(--line);
+  min-height: 250px;
+  padding: 12px 8px;
+}
+.planning-grid h3 {
+  font-size: 11px;
+  margin: 0 0 18px;
+  color: var(--secondary);
+}
+.planning-grid .is-today {
+  background: var(--accent-soft);
+}
+.planning-grid .is-today h3 {
+  color: var(--accent);
+}
+.planning-grid .plan-task {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 7px;
+  min-height: 80px;
+}
+.planning-grid .plan-task-actions {
+  width: 100%;
+  flex-wrap: wrap;
+}
+.planning-grid .plan-task-actions input[type="time"] {
+  max-width: 66px !important;
+}
+.planning-grid.month > section {
+  min-height: 150px;
+  border-bottom: 1px solid var(--line);
+}
+.planning-grid.day {
+  grid-template-columns: 1fr;
+}
+.planning-grid.day .plan-task {
+  flex-wrap: nowrap;
+}
+.planning-grid.day .plan-task-actions {
+  width: auto;
+}
+.day-add {
+  font-size: 10px;
+  color: var(--secondary);
+  padding: 8px 0;
+}
+.plan-activity p {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.plan-activity time {
+  font-size: 10px;
+  color: var(--secondary);
+  margin-right: 18px;
+}
+.live-command-overlay,
+.object-overlay {
+  position: fixed;
+  inset: 0;
+  background: #15262b55;
+  z-index: 90;
+}
+.live-command {
+  position: fixed;
+  z-index: 92;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, 90vw);
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 20px 90px #08182035;
+  border-radius: 10px;
+  padding: 22px;
+  color: var(--text);
+}
+.live-command > h2 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.live-command > p {
+  font-size: 11px;
+  color: var(--secondary);
+  margin: 0 0 18px;
+}
+.command-close {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+}
+.live-search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.live-search-input input {
+  width: 100%;
+  font-size: 14px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.live-command [cmdk-list] {
+  max-height: 45vh;
+  overflow: auto;
+}
+.live-command [cmdk-group-heading] {
+  font-size: 10px;
+  color: var(--secondary);
+  padding: 14px 8px 6px;
+}
+.live-command [cmdk-item] {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.live-command [cmdk-item][data-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.live-command [cmdk-item] small {
+  color: var(--secondary);
+  font-size: 10px;
+}
+.live-command footer {
+  padding-top: 15px;
+  font-size: 10px;
+  color: var(--secondary);
+  border-top: 1px solid var(--line);
+}
+.live-create {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.live-create label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--secondary);
+}
+.live-create input,
+.live-create textarea,
+.live-create select {
+  font-size: 12px;
+  padding: 9px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.create-target {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.object-panel {
+  position: fixed;
+  z-index: 91;
+  right: 0;
+  top: 44px;
+  bottom: 0;
+  width: min(760px, calc(100vw - 220px));
+  background: var(--surface);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: -10px 0 60px #08182025;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+}
+.object-panel.wide {
+  width: calc(100vw - 100px);
+}
+.object-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--line);
+  min-height: 52px;
+}
+.object-panel-header h2 {
+  font-size: 12px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+.object-panel-header > span {
+  color: var(--secondary);
+  font-size: 10px;
+}
+.object-panel .live-inspector {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.object-detail {
+  padding: 26px;
+  overflow: auto;
+  flex: 1;
+}
+.object-detail h1 {
+  font-size: 22px;
+  margin: 14px 0 24px;
+  line-height: 1.3;
+}
+.object-detail h3 {
+  font-size: 12px;
+  margin: 24px 0 10px;
+}
+.object-detail .remote-document {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.context-mr {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.context-mr .visual-review {
+  min-height: 0;
+  flex: 1;
+}
+.mr-linked-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  font-size: 10px;
+  background: var(--surface);
+}
+.mr-linked-context > span {
+  color: var(--secondary);
+}
+.linked-chip {
+  font-size: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+.linked-chip:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.related-result {
+  display: block;
+  width: 100%;
+  padding: 15px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.issue-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 20px 0;
+}
+.issue-edit-grid label {
+  margin: 0 !important;
+}
+.issue-edit-grid input,
+.issue-edit-grid select {
+  max-width: 100%;
+  min-width: 0;
+}
+.issue-related {
+  border-top: 1px solid var(--line);
+  padding: 8px 0 16px;
+  margin-top: 20px;
+}
+.pipeline-stages {
+  display: flex;
+  gap: 20px;
+  overflow: auto;
+  margin-top: 25px;
+}
+.pipeline-stages > section {
+  flex: 1;
+  min-width: 170px;
+}
+.pipeline-job {
+  border: 1px solid var(--line);
+  padding: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.pipeline-job b {
+  width: 100%;
+  font-weight: 500;
+}
+.pipeline-job small {
+  color: var(--secondary);
+}
+.live-board {
+  display: flex;
+  gap: 16px;
+  overflow: auto;
+  padding: 15px 0;
+}
+.live-board > section {
+  flex: 1;
+  min-width: 210px;
+  background: var(--bg);
+  padding: 12px;
+  border: 1px solid var(--line);
+}
+.live-board h3 {
+  font-size: 12px;
+  margin: 3px 0 15px;
+}
+.live-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 14px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+.live-board-card code,
+.live-board-card small {
+  font-size: 10px;
+  color: var(--secondary);
+}
+.live-board-card b {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.live-roadmap > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+  gap: 20px;
+  font-size: 12px;
+}
+.live-roadmap time {
+  width: 100px;
+  font-size: 11px;
+  color: var(--secondary);
+}
+.live-roadmap b {
+  flex: 1;
+  font-weight: 500;
+}
+.live-projects > section {
+  margin-bottom: 25px;
+}
+.live-projects h2 {
+  font-size: 16px;
+}
+.live-projects button {
+  display: block;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+}
+.live-projects .pill {
+  float: right;
+}
+.live-projects code {
+  margin-right: 14px;
+  color: var(--secondary);
+}
+@media (max-width: 1150px) {
+  .daily-columns {
+    grid-template-columns: 1fr;
+  }
+  .daily-brief {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .object-panel {
+    width: calc(100vw - 60px);
+  }
+  .plan-task-actions input[type="time"] {
+    display: none;
+  }
+  .planning-grid {
+    grid-template-columns: repeat(7, minmax(140px, 1fr));
+  }
+}
+.assistant-proposal {
+  padding: 15px;
+  border: 1px solid var(--line-strong);
+  background: var(--accent-soft);
+  border-radius: 5px;
+  font-size: 12px;
+  margin: 16px 0;
+}
+.assistant-proposal small {
+  display: block;
+  font-size: 10px;
+  color: var(--secondary);
+  margin-bottom: 12px;
+}
+.wiki-spaces {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 25px;
+}
+.wiki-spaces > button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.wiki-spaces b {
+  flex: 1;
+  font-size: 13px;
+}
+.wiki-spaces small {
+  color: var(--secondary);
+}
+.daily-connected .page-heading {
+  margin-bottom: 20px;
+}
+.daily-connected .view-toolbar {
+  justify-content: flex-start;
+  padding: 8px 0;
+  min-height: 40px;
+}
+.daily-connected .view-toolbar .segmented {
+  margin-right: auto;
+}
+.connected-attention {
+  position: fixed;
+  z-index: 80;
+  right: 30px;
+  top: 58px;
+  width: 430px;
+  max-height: 75vh;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  box-shadow: 0 12px 60px #08182030;
+  padding: 20px;
+}
+.connected-attention header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.connected-attention h2 {
+  font-size: 15px;
+  flex: 1;
+}
+.issue-planning-details {
+  border-top: 1px solid var(--line);
+  margin: 18px 0;
+  padding: 14px 0;
+}
+.issue-planning-details summary {
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.object-content-grid {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.object-content-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  flex-direction: column;
+}
+.object-content-main > .context-mr {
+  flex: 1;
+  min-height: 0;
+}
+.object-content-grid > .live-assistant {
+  width: 340px;
+  flex: 0 0 340px;
+  border-left: 1px solid var(--line-strong);
+}
+.object-content-grid .live-assistant-body {
+  overflow: auto;
+}
+.object-content-main > .connection-error {
+  margin: 20px;
+}
+/* Month stays a calendar, not six full weekly boards. */
+.planning-grid.month{grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:84px;overflow-x:hidden}
+.planning-grid.month>section{height:84px;min-height:0;padding:7px;overflow-y:auto}
+.planning-grid.month h3{margin-bottom:6px;font-size:10px}
+.planning-grid.month .plan-task{min-height:0;padding:4px;margin-bottom:3px;gap:4px;flex-wrap:nowrap}
+.planning-grid.month .plan-task-main>button{font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planning-grid.month .plan-task-main small,.planning-grid.month .plan-task-actions{display:none}
+.planning-grid.month .plan-check{width:12px;height:12px}
+.planning-grid.month .day-add{padding:2px 0;font-size:9px}

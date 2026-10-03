@@ -1,0 +1,31 @@
+{
+  "name": "desktop-work-os",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "test": "playwright test",
+    "desktop": "npm run build && electron .",
+    "test:adapters": "node --test tests/integration/*.test.mjs",
+    "test:desktop": "npm run build && node scripts/test-desktop.mjs",
+    "test:connected-desktop": "npm run build && node scripts/test-connected-desktop.mjs",
+    "screenshots:connected": "node scripts/capture-connected-workflows.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.6",
+    "cmdk": "1.1.1",
+    "dompurify": "3.4.16",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "electron": "^44.5.1",
+    "vite": "^6.3.0"
+  },
+  "main": "electron/main.cjs"
+}

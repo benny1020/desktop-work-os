@@ -1,0 +1,16 @@
+node_modules/
+dist/
+artifacts/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+*.enc
+*.pem
+*.key
+# Keep downloaded upstream source and local execution evidence on this device.
+research/*
+!research/SOURCE_REVIEW.md
+coverage/
