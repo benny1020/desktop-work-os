@@ -57,7 +57,8 @@ async function fixture(t, { status = 200, reply, changeHead = false } = {}) {
     }
     let data = reply?.(call);
     if (data === undefined) {
-      if (u.pathname.endsWith("/diffs")) data = [file];
+      if (u.pathname === "/api/v4/projects/42") data = {id:42,http_url_to_repo:"https://gitlab.example.test/platform/payment-api.git"};
+      else if (u.pathname.endsWith("/diffs")) { res.statusCode=410;res.end("Code APIs are forbidden");return; }
       else if (u.pathname.endsWith("/discussions"))
         data =
           req.method === "POST"
@@ -76,8 +77,8 @@ async function fixture(t, { status = 200, reply, changeHead = false } = {}) {
           },
         };
       } else if (u.pathname.includes("/repository/files/")) {
-        res.setHeader("content-type", "text/plain");
-        res.end("export const actualCode = true;");
+        res.statusCode=410;
+        res.end("Code APIs are forbidden");
         return;
       } else if (u.pathname.endsWith("/user"))
         data = { id: 3, name: "Reviewer" };
@@ -114,8 +115,13 @@ async function fixture(t, { status = 200, reply, changeHead = false } = {}) {
       saved = structuredClone(v);
     },
   };
+  const localCalls = [];
+  const localGit = {
+    async snapshot(args) { localCalls.push({action:'snapshot',args}); return {files:[file],truncated:false,local:{mode:'local-git',headSha:args.refs.head_sha,sourceBranch:args.sourceBranch}}; },
+    async readFile(args) { localCalls.push({action:'readFile',args}); return {content:'export const actualCode = true;',...args,local:true}; },
+  };
   const engine = createIntegrationService({
-    vault,
+    vault, localGit,
     fetchImpl: (url, opts) =>
       fetch(
         `http://127.0.0.1:${server.address().port}${new URL(url).pathname}${new URL(url).search}`,
@@ -132,7 +138,7 @@ async function fixture(t, { status = 200, reply, changeHead = false } = {}) {
         model: "claude-fixture",
       },
     });
-  return { engine, calls, vault };
+  return { engine, calls, vault, localGit, localCalls };
 }
 test("credential normalization, cloud email, redirect destination rotation", () => {
   assert.throws(
@@ -180,10 +186,11 @@ test("vault refuses plaintext fallback and writes only encrypted bytes with priv
   assert.equal(fs.statSync(f).mode & 0o777, 0o600);
   assert.equal(fs.readFileSync(f).includes("private-test-value"), false);
 });
-test("GitLab PAT headers, paginated diff snapshot, raw file SHA", async (t) => {
-  const { engine, calls } = await fixture(t);
+test("GitLab metadata uses PAT while diff and immutable source come from local Git", async (t) => {
+  const { engine, calls, localCalls } = await fixture(t);
   const snapshot = await engine.invoke("gitlab.mr", { projectId: 42, iid: 7 });
   assert.equal(snapshot.files[0].rows[3].newLine, 11);
+  const before = calls.length;
   const code = await engine.invoke("gitlab.code", {
     projectId: 42,
     path: "src/Service.ts",
@@ -192,8 +199,11 @@ test("GitLab PAT headers, paginated diff snapshot, raw file SHA", async (t) => {
   assert.match(code.content, /actualCode/);
   const call = calls.at(-1);
   assert.equal(call.headers["private-token"], "gitlab-secret");
-  assert.equal(call.query.get("ref"), head);
-  assert.match(call.path, /src%2FService.ts/);
+  assert.equal(calls.length, before);
+  assert.equal(localCalls.at(-1).args.ref, head);
+  assert.equal(localCalls.at(-1).args.path, 'src/Service.ts');
+  assert.equal(snapshot.local.mode,'local-git');
+  assert.equal(calls.some(c=>c.path.endsWith('/diffs')||c.path.includes('/repository/files/')),false);
 });
 test("diff mapping handles additions, removals and unchanged lines with distinct sides", () => {
   const f = { ...file, rows: parseDiff(diff) },
@@ -525,4 +535,34 @@ test("Claude follow-ups send bounded completed turns and reject privileged histo
     [{ role: "user", content: "x".repeat(4001) }, history[1]],
   ]) await assert.rejects(engine.invoke("claude.chat", { message: "follow up", history: bad }), /Invalid conversation history/);
   assert.equal(calls.length, 1);
+});
+
+test("Local code failures do not fall back to GitLab raw/diff APIs",async(t)=>{
+ const {engine,calls,localGit}=await fixture(t);
+ localGit.snapshot=async()=>{throw Error('Local fetch failed');};
+ await assert.rejects(engine.invoke('gitlab.mr',{projectId:42,iid:7}),/Local fetch failed/);
+ const before=calls.length;
+ localGit.readFile=async()=>{throw Error('Revision is not cached');};
+ await assert.rejects(engine.invoke('gitlab.code',{projectId:42,path:'src/Service.ts',ref:head}),/not cached/);
+ assert.equal(calls.length,before);assert.equal(calls.some(c=>c.path.endsWith('/diffs')||c.path.includes('/repository/files/')),false);
+});
+test("Project clone metadata is reused until explicit refresh and fetch intent reaches the store",async(t)=>{
+ const {engine,calls,localCalls}=await fixture(t);
+ await engine.invoke('gitlab.mr',{projectId:42,iid:7});await engine.invoke('gitlab.mr',{projectId:42,iid:7});
+ assert.equal(calls.filter(c=>c.path==='/api/v4/projects/42').length,1);
+ assert.equal(localCalls.filter(c=>c.action==='snapshot').every(c=>c.args.refresh===false),true);
+ await engine.invoke('gitlab.mr',{projectId:42,iid:7,refresh:true});
+ assert.equal(calls.filter(c=>c.path==='/api/v4/projects/42').length,2);assert.equal(localCalls.at(-1).args.refresh,true);
+});
+test("Account changes during local checkout cannot return another account's snapshot",async(t)=>{
+ const {engine,vault,localGit}=await fixture(t);const original=localGit.snapshot;
+ localGit.snapshot=async a=>{const result=await original(a);const cfg=vault.read();cfg.gitlab.token='rotated-token';vault.write(cfg);return result;};
+ await assert.rejects(engine.invoke('gitlab.mr',{projectId:42,iid:7}),/account changed/);
+});
+test("Comment and approval reject changed base/start even with identical head",async(t)=>{
+ for(const ref of ['base_sha','start_sha'])for(const action of ['gitlab.comment','gitlab.approve']){
+  const {engine,calls}=await fixture(t,{reply:c=>c.path.endsWith('/merge_requests/7')?{...gitMR,diff_refs:{...gitMR.diff_refs,[ref]:'d'.repeat(40)}}:undefined});
+  await assert.rejects(engine.invoke(action,{projectId:42,iid:7,headSha:head,baseSha:base,startSha:start,path:file.new_path,line:11,side:'new',mode:'inline',body:'Review'}),/MR changed/);
+  assert.equal(calls.some(c=>c.method==='POST'),false);
+ }
 });

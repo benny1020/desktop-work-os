@@ -2,19 +2,22 @@ import { _electron as electron, expect } from "@playwright/test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { snapshot } from "../tests/fixtures/connected.mjs";
+import { snapshot as originalSnapshot } from "../tests/fixtures/connected.mjs";
+import { prepareLocalReviewFixture } from './fixtures/local-git-review.mjs';
 const root = path.resolve(new URL("..", import.meta.url).pathname),
   temp = await fs.mkdtemp(path.join(os.tmpdir(), "orbit-completion-"));
 const out = path.join(root, "research/completion");
 await fs.mkdir(out, { recursive: true });
+const fixture = await prepareLocalReviewFixture({ root, directory: temp, snapshot: originalSnapshot });
+const { snapshot } = fixture;
 const app = await electron.launch({
-  args: [root],
+  args: [fixture.bootstrap],
   env: { ...process.env, ORBIT_USER_DATA_DIR: temp },
 });
 const evidence = {
   externalServicesTested: false,
   scope:
-    "Actual Electron UI + preload + main adapters + HTTPS protocol fixtures",
+    "Actual Electron UI + preload + main adapters + real temporary Git repository/worktree + HTTPS metadata fixtures",
   checks: [],
   consoleErrors: [],
 };
@@ -68,7 +71,8 @@ try {
         else if (u.pathname.endsWith("/transitions"))
           data = { transitions: [{ id: "31", name: "Done" }] };
         else if (u.pathname.includes("/issue/PAY-")) data = issue;
-        else if (u.pathname.endsWith("/diffs")) data = snapshot.files;
+        else if (u.pathname.endsWith("/diffs") || u.pathname.includes("/repository/files/"))
+          return new Response("Code APIs are forbidden in local Git review", { status: 410 });
         else if (u.pathname.endsWith("/discussions"))
           data =
             request.method === "POST"
@@ -92,6 +96,8 @@ try {
           data = { id: 1, name: "Reviewer" };
         else if (u.pathname.endsWith("/projects"))
           data = [{ id: 42, path_with_namespace: "platform/payment-api" }];
+        else if (u.pathname.endsWith("/projects/42"))
+          data = { id: 42, path_with_namespace: "platform/payment-api", http_url_to_repo: "https://gitlab.fixture.test/platform/payment-api.git" };
         else if (u.pathname.endsWith("/pipelines/482/jobs"))
           data = [
             {
@@ -107,7 +113,7 @@ try {
             id: 482,
             status: "success",
             ref: "feature/retry",
-            sha: "a".repeat(40),
+            sha: snapshot.mr.diff_refs.head_sha,
           };
         else if (u.pathname.endsWith("/pipelines"))
           data = [{ id: 482, status: "success" }];
@@ -126,15 +132,7 @@ try {
               },
             },
           };
-        else if (u.pathname.includes("/repository/files/")) {
-          const file = decodeURIComponent(
-            u.pathname.split("/repository/files/")[1].replace(/\/raw$/, ""),
-          );
-          return new Response(
-            snapshot.files.find((f) => f.path === file)?.content || "",
-            { headers: { "content-type": "text/plain" } },
-          );
-        } else if (u.pathname.endsWith("/messages"))
+        else if (u.pathname.endsWith("/messages"))
           data = {
             model: "claude-fixture",
             stop_reason: "end_turn",
@@ -206,6 +204,7 @@ try {
   await expect(
     p.getByRole("img", { name: "Dependency flow diagram" }),
   ).toBeVisible();
+  await expect(p.getByLabel('Local checkout details')).toBeVisible();
   await p.getByRole("tab", { name: "Sequence", exact: true }).click();
   await expect(p.getByRole("img", { name: "Sequence diagram" })).toBeVisible();
   await p.screenshot({ path: path.join(out, "electron-sequence-context.png") });
@@ -219,6 +218,12 @@ try {
   await expect(p.getByLabel("Component code")).toContainText(
     "export class PaymentService",
   );
+  await expect(p.getByText(/Local Git code ·/)).toBeVisible();
+  const sourceText = snapshot.files.find(file => file.path === 'src/PaymentService.ts').content;
+  const localSource = await p.evaluate(async ({ ref }) => window.orbit.invoke('gitlab.code', {
+    projectId: 42, iid: 7, ref, path: 'src/PaymentService.ts',
+  }), { ref: fixture.head });
+  expect(localSource.content).toBe(sourceText);
   await p
     .getByRole("button", { name: "Select source line 7", exact: true })
     .click();
@@ -236,6 +241,7 @@ try {
     .getByRole("button", { name: "Generate AI guide", exact: true })
     .click();
   await expect(p.locator(".guide-summary")).toBeVisible();
+  await p.screenshot({ path: path.join(out, "electron-local-git-review.png"), animations: "disabled" });
   await p.getByRole("button", { name: "Approve MR", exact: true }).click();
   await p
     .getByRole("button", { name: "Confirm approval", exact: true })
@@ -261,6 +267,12 @@ try {
   await p.screenshot({ path: path.join(out, "electron-search-dark.png") });
   evidence.checks.push("Native keyboard search and dark theme");
   const calls = await app.evaluate(() => global.__fixtureCalls);
+  const localCalls = await app.evaluate(() => global.__localGitCalls);
+  expect(calls.filter(call => call.path.endsWith('/diffs') || call.path.includes('/repository/files/'))).toEqual([]);
+  expect(localCalls.some(call => call.name === 'snapshot')).toBe(true);
+  expect(localCalls.some(call => call.name === 'readFile' && call.ref === fixture.head)).toBe(true);
+  evidence.checks.push('Real Git checkout and exact blob contents; zero GitLab diff/raw code API requests');
+  evidence.localGit = { head: fixture.head, base: fixture.base, snapshots: localCalls.filter(call => call.name === 'snapshot').length, blobReads: localCalls.filter(call => call.name === 'readFile').length };
   evidence.requests = calls.map((c) => ({ path: c.path, method: c.method }));
   expect(
     calls.some((c) => c.method === "POST" && c.path.endsWith("/discussions")),

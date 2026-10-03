@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import "../review-collaboration.css";
+import "../review-local-git.css";
 import {
   ArrowLeft,
   ArrowRight,
@@ -354,6 +355,10 @@ export default function ReviewWorkbench({
   onReady,
 }) {
   const { mr, files } = snapshot;
+  const localCheckout = live && snapshot.local?.mode === "local-git" ? snapshot.local : null;
+  const syncedDate = localCheckout?.syncedAt ? new Date(localCheckout.syncedAt) : null;
+  const syncedLabel = syncedDate && !Number.isNaN(syncedDate.getTime())
+    ? syncedDate.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
   const viewVersion = JSON.stringify([live, mr.web_url || mr.project_id, mr.iid,
     mr.diff_refs.base_sha, mr.diff_refs.start_sha, mr.diff_refs.head_sha]);
   // Session view state is valid only for this exact MR diff. Drafts have their
@@ -626,7 +631,7 @@ ${finding.reason}`;
     if (remaining) select(remaining.path);
   }
   async function generate() {
-    if (guideBusy) return;
+    if (guideBusy || refreshing) return;
     const version = currentDiffVersion.current;
     setGuideBusy(true);
     setGuideError("");
@@ -668,7 +673,7 @@ ${finding.reason}`;
     const submittedKey = draftKey;
     const submittedDraft = draft;
     const text = draft.trim();
-    if (!text || busy) return;
+    if (!text || busy || refreshing) return;
     setBusy("comment");
     if (live) onPendingChange?.("comment");
     setError("");
@@ -681,6 +686,8 @@ ${finding.reason}`;
           projectId: mr.project_id,
           iid: mr.iid,
           headSha: mr.diff_refs.head_sha,
+          baseSha: mr.diff_refs.base_sha,
+          startSha: mr.diff_refs.start_sha,
           path: file.path,
           line,
           side,
@@ -721,7 +728,7 @@ ${finding.reason}`;
     }
   }
   async function approve() {
-    if (busy) return;
+    if (busy || refreshing) return;
     setBusy("approve");
     if (live) onPendingChange?.("approve");
     setError("");
@@ -731,6 +738,8 @@ ${finding.reason}`;
           projectId: mr.project_id,
           iid: mr.iid,
           headSha: mr.diff_refs.head_sha,
+          baseSha: mr.diff_refs.base_sha,
+          startSha: mr.diff_refs.start_sha,
         });
       if (!live) onDemoApprove?.();
       setApproved(true);
@@ -763,8 +772,8 @@ ${finding.reason}`;
           Back
         </button>
         <h2>No changed files</h2>
-        <p>GitLab may still be preparing the diff. Refresh to try again.</p>
-        <button className="btn" onClick={onRefresh}>
+        <p>{localCheckout ? "The local checkout contains no changes for this merge request. Refresh to fetch the latest revision." : "GitLab may still be preparing the diff. Refresh to try again."}</p>
+        <button className="btn" disabled={refreshing} onClick={() => onRefresh?.({ refresh: true })}>
           Refresh
         </button>
       </div>
@@ -787,22 +796,47 @@ ${finding.reason}`;
         <div className="visual-review-title">
           <div>
             <h1>{mr.title}</h1>
-            <p>
-              {mr.source_branch} <ArrowRight size={12} /> {mr.target_branch}
-            </p>
+            <div className="review-branch-context">
+              <p>{mr.source_branch} <ArrowRight size={12} /> {mr.target_branch}</p>
+              {localCheckout && (
+                <details className="review-local-checkout" onKeyDown={(event) => {
+                  if (event.key === "Escape" && event.currentTarget.open) {
+                    event.stopPropagation();
+                    event.currentTarget.open = false;
+                    event.currentTarget.querySelector("summary")?.focus();
+                  }
+                }} onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+                }}>
+                  <summary aria-label="Local checkout details">
+                    <GitBranch size={12} /> Local checkout <ChevronDown size={11} />
+                  </summary>
+                  <div className="review-local-checkout-details">
+                    <strong>{localCheckout.sourceBranch || mr.source_branch}</strong>
+                    <span>Checked out at <code>{String(localCheckout.headSha || mr.diff_refs.head_sha).slice(0, 12)}</code></span>
+                    {syncedLabel && <span>Last synced <time dateTime={syncedDate.toISOString()}>{syncedLabel}</time></span>}
+                    <p>Diffs and source are read from this local checkout. Refresh fetches the latest commits and review metadata.</p>
+                    <small>Repository files are stored on disk, outside the encrypted assistant memory.</small>
+                    {localCheckout.worktreePath && <code className="review-local-path">{localCheckout.worktreePath}</code>}
+                  </div>
+                </details>
+              )}
+            </div>
           </div>
           <div className="inline">
             <button
               className="btn"
               disabled={!!busy || guideBusy || refreshing}
-              onClick={onRefresh}
+              title={localCheckout ? "Fetch latest commits and refresh review metadata" : "Refresh review"}
+              aria-busy={refreshing}
+              onClick={() => onRefresh?.({ refresh: true })}
             >
               <RefreshCw size={13} className={refreshing ? "spin" : ""} />{" "}
               Refresh
             </button>
             <button
               className="btn primary"
-              disabled={guideBusy}
+              disabled={guideBusy || refreshing}
               onClick={generate}
             >
               {guideBusy ? (
@@ -833,6 +867,7 @@ ${finding.reason}`;
           </div>
         </div>
       </header>
+      {refreshing && <p className="review-pending-notice" role="status">Refreshing checkout and review context… You can keep reading and editing your draft.</p>}
       {live && busy && <p className="review-pending-notice" role="status">{busy === "comment" ? "Posting review comment…" : "Submitting approval…"} Keep this review open until GitLab responds. You can keep reading and editing your draft.</p>}
       {externalError && (
         <div role="alert" className="connection-error">
@@ -994,7 +1029,7 @@ ${finding.reason}`;
             </div>
           </div>
           <div className="code-provenance">
-            {live ? "Repository code" : "Sample fixture"} ·{" "}
+            {localCheckout ? "Local Git code" : live ? "Repository code" : "Sample fixture"} ·{" "}
             {codeMode === "Source"
               ? (file.deleted_file ? "base" : "head") +
                 " " +
@@ -1135,7 +1170,7 @@ ${finding.reason}`;
               <small>{draftStorageError ? "Draft not saved" : "Draft saved locally"} · ⌘ / Ctrl + Enter</small>
               <button
                 className="btn primary"
-                disabled={!draft.trim() || !!busy}
+                disabled={!draft.trim() || !!busy || refreshing}
                 onClick={post}
               >
                 <Send size={12} />
@@ -1186,7 +1221,7 @@ ${finding.reason}`;
                 </button>
                 <button
                   className="btn primary"
-                  disabled={!!busy}
+                  disabled={!!busy || refreshing}
                   onClick={approve}
                 >
                   Confirm approval
@@ -1199,7 +1234,7 @@ ${finding.reason}`;
                 </small>
                 <button
                   className="btn"
-                  disabled={approved || !!busy}
+                  disabled={approved || !!busy || refreshing}
                   onClick={() => setConfirmApproval(true)}
                 >
                   <Check size={13} />
@@ -1211,7 +1246,7 @@ ${finding.reason}`;
         </section>
         <ReviewGuidePanel guide={guide} files={files} mr={mr} live={live}
           endpoint={configs.claude?.url} guidelines={guidelines} onGuidelines={setGuidelines}
-          busy={guideBusy} error={guideError} onGenerate={generate} selectedPath={file.path}
+          busy={guideBusy} refreshing={refreshing} error={guideError} onGenerate={generate} selectedPath={file.path}
           activeFinding={activeFinding} findingKey={findingKey} canLocate={canLocate}
           onSelect={selectFinding} onDraft={draftFinding} decisions={drafts}
           onDecision={(finding,value)=>setDrafts(items=>({...items,[findingKey(finding)]:value}))}/>

@@ -111,7 +111,7 @@ function createVault(directory, safeStorage) {
     },
   };
 }
-function createIntegrationService({ vault, assistantMemory, fetchImpl = globalThis.fetch }) {
+function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl = globalThis.fetch }) {
   const model = import("../src/lib/review-model.mjs");
   let queue = Promise.resolve();
   const serialize = (fn) => {
@@ -231,13 +231,14 @@ function createIntegrationService({ vault, assistantMemory, fetchImpl = globalTh
   }
   const gitPath = (a) =>
     `/projects/${enc(required(String(a.projectId || ""), "Project ID", 200))}/merge_requests/${enc(required(String(a.iid || ""), "MR number", 20))}`;
-  async function gitPages(route, maxPages = 5) {
+  async function gitPages(route, maxPages = 5, config) {
     const items = [];
     let more = false;
     for (let page = 1; page <= maxPages; page++) {
       const { data, headers } = await request(
         "gitlab",
         route + (route.includes("?") ? "&" : "?") + `per_page=100&page=${page}`,
+        { config },
       );
       if (!Array.isArray(data))
         throw new Error("GitLab returned an unexpected list response.");
@@ -248,57 +249,66 @@ function createIntegrationService({ vault, assistantMemory, fetchImpl = globalTh
     }
     return { items, truncated: more };
   }
-  async function getMR(a) {
+  const projectRepositories = new Map();
+  const gitIdentity = c => require("node:crypto").createHash("sha256").update(c.url + "\0" + c.token).digest("hex");
+  function assertGitAccount(c) {
+    if (gitIdentity(configFor("gitlab")) !== gitIdentity(c)) throw Error("GitLab account changed. Reopen the merge request.");
+  }
+  function requireLocalGit() {
+    if (!localGit) throw Error("Local Git source requires Worklane Desktop. No code API fallback is used.");
+    return localGit;
+  }
+  async function repositoryUrl(projectId, c, refresh) {
+    const key = gitIdentity(c) + ":" + projectId;
+    if (refresh) projectRepositories.delete(key);
+    if (!projectRepositories.has(key)) {
+      const task = request("gitlab", `/projects/${enc(String(projectId))}`, { config: c })
+        .then(({data}) => required(data?.http_url_to_repo, "GitLab HTTPS clone URL", 2000));
+      projectRepositories.set(key, task);
+      task.catch(() => { if (projectRepositories.get(key) === task) projectRepositories.delete(key); });
+      if (projectRepositories.size > 100) projectRepositories.delete(projectRepositories.keys().next().value);
+    }
+    return projectRepositories.get(key);
+  }
+  async function getMR(a, c = configFor("gitlab")) {
+    const store = requireLocalGit();
     const p = gitPath(a);
-    const [mr, diffResult, discussionResult] = await Promise.all([
-      request("gitlab", p),
-      gitPages(p + "/diffs"),
-      gitPages(p + "/discussions", 3),
+    const [mr, discussionResult] = await Promise.all([
+      request("gitlab", p, { config: c }),
+      gitPages(p + "/discussions", 3, c),
     ]);
-    if (!mr.data.diff_refs?.head_sha)
-      throw new Error(
-        "GitLab is still preparing this diff. Refresh in a moment.",
-      );
-    const verified = (await request("gitlab", p)).data;
-    if (["head_sha", "base_sha", "start_sha"].some(
-      (ref) => verified.diff_refs?.[ref] !== mr.data.diff_refs[ref],
-    ))
-      throw new Error(
-        "MR changed while loading. Refresh to load a consistent snapshot.",
-      );
+    if (!["head_sha", "base_sha", "start_sha"].every(ref => mr.data.diff_refs?.[ref]))
+      throw Error("GitLab is still preparing this diff. Refresh in a moment.");
+    const projectId = mr.data.project_id || a.projectId;
+    const repoUrl = await repositoryUrl(projectId, c, !!a.refresh);
+    assertGitAccount(c);
+    const snapshot = await store.snapshot({ projectId, iid: mr.data.iid || a.iid, repoUrl,
+      refs: mr.data.diff_refs, sourceBranch: mr.data.source_branch, refresh: !!a.refresh });
+    const verified = (await request("gitlab", p, { config: c })).data;
+    assertGitAccount(c);
+    if (["head_sha", "base_sha", "start_sha"].some(ref => verified.diff_refs?.[ref] !== mr.data.diff_refs[ref]))
+      throw Error("MR changed while loading. Refresh to load a consistent snapshot.");
     const { parseDiff } = await model;
-    const files = diffResult.items.map((f) => ({
-      ...f,
-      path: f.new_path || f.old_path,
-      rows: parseDiff(f.diff || ""),
-      unavailable: !!(f.too_large || f.collapsed || !f.diff),
-    }));
     return {
       mr: mr.data,
-      files,
+      files: snapshot.files.map(f => ({ ...f, path: f.new_path || f.old_path, rows: parseDiff(f.diff || ""),
+        unavailable: !!(f.unavailable || f.binary) })),
+      local: snapshot.local,
       discussions: discussionResult.items,
-      truncated: diffResult.truncated,
+      truncated: !!snapshot.truncated,
       discussionsTruncated: discussionResult.truncated,
     };
   }
   async function getCode(a) {
-    const text = (
-      await request(
-        "gitlab",
-        `/projects/${enc(String(a.projectId))}/repository/files/${enc(required(a.path, "File path", 1000))}/raw?ref=${enc(required(a.ref, "Commit SHA", 80))}`,
-        { raw: true },
-      )
-    ).data;
-    if (text.length > 600000)
-      throw new Error(
-        "File exceeds the code viewer limit (600 KB). Use the diff or GitLab.",
-      );
-    return { content: text, path: a.path, ref: a.ref };
+    return requireLocalGit().readFile({ projectId: a.projectId, path: a.path, ref: a.ref });
   }
   async function postReviewComment(a) {
     const body = required(a.body, "Review comment", 20000);
-    const snapshot = await getMR(a);
-    if (snapshot.mr.diff_refs.head_sha !== a.headSha)
+    const c = configFor("gitlab");
+    const snapshot = await getMR(a, c);
+    if (snapshot.mr.diff_refs.head_sha !== a.headSha ||
+      (a.baseSha && snapshot.mr.diff_refs.base_sha !== a.baseSha) ||
+      (a.startSha && snapshot.mr.diff_refs.start_sha !== a.startSha))
       throw new Error(
         "MR changed since you opened it. Refresh and review the new diff before posting. Your draft is retained.",
       );
@@ -321,15 +331,18 @@ function createIntegrationService({ vault, assistantMemory, fetchImpl = globalTh
         : {
             body: `${a.path}${a.line ? ":" + a.line : ""} @ ${a.headSha.slice(0, 8)}\n\n${body}`,
           };
+    assertGitAccount(c);
     return (
       await request("gitlab", gitPath(a) + "/discussions", {
+        config: c,
         method: "POST",
         body: payload,
       })
     ).data;
   }
   async function aiReview(a) {
-    const snapshot = await getMR(a);
+    const gitConfig = configFor("gitlab");
+    const snapshot = await getMR(a, gitConfig);
     if (
       (a.headSha && snapshot.mr.diff_refs.head_sha !== a.headSha) ||
       (a.baseSha && snapshot.mr.diff_refs.base_sha !== a.baseSha) ||
@@ -340,6 +353,7 @@ function createIntegrationService({ vault, assistantMemory, fetchImpl = globalTh
     required(c.model, "Claude model ID", 160);
     const { reviewPrompt, validateGuide } = await model;
     const payload = reviewPrompt(snapshot, a.guidelines || "");
+    assertGitAccount(gitConfig);
     const result = (
       await request("claude", "/messages", {
         method: "POST",
@@ -352,6 +366,7 @@ function createIntegrationService({ vault, assistantMemory, fetchImpl = globalTh
         },
       })
     ).data;
+    assertGitAccount(gitConfig);
     if (result.stop_reason === "max_tokens")
       throw new Error(
         "Claude response was truncated. Narrow the MR or retry with a smaller scope.",
@@ -564,11 +579,16 @@ function createIntegrationService({ vault, assistantMemory, fetchImpl = globalTh
     "gitlab.code": getCode,
     "gitlab.comment": postReviewComment,
     "gitlab.approve": async (a) => {
-      const latest = (await request("gitlab", gitPath(a))).data;
-      if (latest.diff_refs?.head_sha !== a.headSha)
+      const c = configFor("gitlab");
+      const latest = (await request("gitlab", gitPath(a), { config: c })).data;
+      assertGitAccount(c);
+      if (latest.diff_refs?.head_sha !== a.headSha ||
+        (a.baseSha && latest.diff_refs?.base_sha !== a.baseSha) ||
+        (a.startSha && latest.diff_refs?.start_sha !== a.startSha))
         throw new Error("MR changed. Refresh before approving.");
       return (
         await request("gitlab", gitPath(a) + "/approve", {
+          config: c,
           method: "POST",
           body: { sha: a.headSha },
         })

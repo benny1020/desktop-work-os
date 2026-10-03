@@ -1,14 +1,14 @@
 # Visual review + token integrations
 
-구현일: 2026-10-03. 최신 연결 워크플로 확장과 검증은 [로컬 개발 검증 기록](LOCAL_DEVELOPMENT.md)을 참고하세요. 브라우저의 UX 데모와 Electron의 실제 연결 모드를 구분합니다.
+최신 변경: 2026-10-04, [로컬 Git checkout 기반 리뷰](LOCAL_GIT_REVIEW.md) 적용. 최초 구현일: 2026-10-03. 최신 연결 워크플로 확장과 검증은 [로컬 개발 검증 기록](LOCAL_DEVELOPMENT.md)을 참고하세요. 브라우저의 UX 데모와 Electron의 실제 연결 모드를 구분합니다.
 
 ## 사용 순서
 
-1. `npm run desktop`으로 Electron을 실행합니다.
+1. Git을 설치해 PATH에서 실행 가능한지 확인한 뒤 `npm run desktop`으로 Electron을 실행합니다.
 2. Settings → Integrations에서 서비스별 URL과 토큰을 입력합니다.
 3. Save & test connection을 눌러 계정 접근을 확인합니다. 테스트 실패 시 토큰이 암호화되어 저장되어 있을 수 있으며, 상태는 '저장됨 · 테스트 필요'로 남습니다.
 4. 상단 Demo workspace를 Connected workspace로 전환합니다.
-5. Code → Merge Requests / My Reviews → MR을 선택합니다.
+5. Code → Merge Requests / My Reviews → MR을 선택합니다. 앱 전용 로컬 저장소에 필요한 브랜치 이력을 fetch하고 MR head 커밋을 별도 worktree에 체크아웃합니다. 이후 Diff/Source는 로컬 Git에서 읽습니다. Local checkout에서 브랜치·커밋·저장 경로를 확인하고 Refresh로 원격 변경을 동기화합니다.
 6. Dependency flow / Sequence에서 컴포넌트 또는 화살표를 클릭합니다. 중앙 Diff / Source에서 실제 코드를 확인하고 줄을 선택합니다.
 7. Post to GitLab은 명시적으로 눌렀을 때만 전송합니다. Approve MR은 확인 후 승인만 실행하며 merge하지 않습니다.
 8. Generate AI guide는 현재 MR diff와 사용자가 입력한 팀 가이드라인을 설정한 Claude 엔드포인트로 보냅니다. 노드 탐색·MR 열기만으로 AI를 호출하지 않습니다.
@@ -40,7 +40,7 @@ Claude 모델 ID는 해당 엔드포인트가 제공하는 값을 사용합니�
 - Dependency flow: 파일이 컴포넌트입니다. 실제 상대 import 경로로 연결한 간선과 추론 간선을 구분합니다. 같은 파일명의 다른 경로를 동일 객체로 취급하지 않습니다.
 - Sequence: 호출 지점 또는 AI가 제안한 순서를 표시합니다. 테스트 파일의 호출과 생성자 선언은 기본 정적 시퀀스에서 제외합니다. 모든 순서는 **추론이며 실제 런타임 trace가 아닙니다**.
 - 모든 노드는 실제 MR의 파일 경로에 연결됩니다. 화살표와 AI reading order/checkpoint는 근거 줄을 선택합니다.
-- GitLab Source는 head SHA에서 파일을 읽습니다. 삭제된 파일은 base SHA에서 읽습니다. 원문 로드 실패·binary·서버 diff 제한은 화면에 표시합니다.
+- GitLab Source는 head SHA에서 파일을 읽습니다. 삭제된 파일은 base SHA에서 읽습니다. 로컬 Git blob을 읽으므로 파일 선택마다 GitLab raw/diff API를 호출하지 않습니다. 원문 로드 실패·binary·로컬 미리보기 제한은 화면에 표시합니다.
 - 정적 분석은 간단한 import/참조 탐색입니다. 전체 저장소 AST, 다형성, DI 컨테이너, 서비스 간 런타임 의존성을 완전히 해석하지 않습니다. 그런 관계는 Claude의 추론으로 표시합니다.
 - AI JSON의 파일·새 줄 번호·간선 대상이 현재 diff에 존재하는지 확인합니다. 잘못된 참조는 제거하고 제거 수를 표시합니다. '참조가 존재함'이 AI 판단의 정확성을 보증하지는 않습니다.
 - AI 가이드는 diff 기반입니다. 파일당 24,000자, 전체 120,000자 범위를 제한하고 포함 파일 수와 부분 분석 여부를 표시합니다. 토큰 상한으로 응답이 끊기면 가이드를 적용하지 않습니다.
@@ -50,7 +50,7 @@ Claude 모델 ID는 해당 엔드포인트가 제공하는 값을 사용합니�
 - diff parser는 각 hunk의 old/new 시작 줄을 읽습니다. 화면 표시 인덱스를 GitLab 줄 번호로 보내지 않습니다.
 - 추가 줄은 new_line, 삭제 줄은 old_line, context 줄은 두 위치를 함께 전달합니다.
 - 댓글에는 base/start/head SHA와 old/new 파일 경로를 지정합니다. diff 밖의 Source 줄은 파일 수준 토론으로 올리고 경로·줄·SHA를 본문에 남깁니다.
-- MR 로드 전후의 base/start/head SHA를 비교해 섞인 스냅샷을 거부합니다. 댓글 제출 직전에도 최신 head SHA를 확인합니다. 승인에는 서버 검사용 SHA를 함께 보냅니다.
+- MR 로드 전후의 base/start/head SHA를 비교해 섞인 스냅샷을 거부합니다. 댓글·승인 제출 직전에도 현재 base/start/head SHA를 확인합니다. 승인에는 서버 검사용 SHA를 함께 보냅니다.
 - 초안은 MR 주소/프로젝트/번호/head SHA/파일/old 또는 new/줄별로 구분하여 로컬에 보존합니다. 요청 실패 시 지우지 않으며 자동으로 재전송하지 않습니다.
 - 네트워크 단절처럼 서버 처리 결과가 불명확할 때는 Refresh 후 토론을 확인하고 재제출해야 합니다. 서버가 제공하지 않는 exactly-once 보장을 주장하지 않습니다.
 
@@ -61,7 +61,7 @@ Claude 모델 ID는 해당 엔드포인트가 제공하는 값을 사용합니�
 - 도메인/계정/Cloud ID를 변경하면 토큰을 다시 입력해야 합니다. 이전 토큰을 새 목적지에 자동 전달하지 않습니다.
 - 서비스 요청은 Electron main의 고정된 action 목록으로만 수행합니다. renderer에는 임의 URL fetch, 파일 읽기, shell 실행 API를 노출하지 않습니다.
 - IPC는 앱의 main frame에서만 허용합니다. 외부 window/navigation을 막고, production renderer의 네트워크는 CSP로 제한합니다.
-- 서비스 요청은 Electron net.fetch의 Chromium 네트워크 계층을 사용해 시스템 프록시 설정을 따릅니다. API 토큰 외 브라우저 쿠키는 보내지 않습니다.
+- 서비스 API 요청은 Electron net.fetch의 Chromium 네트워크 계층을 사용해 시스템 프록시 설정을 따릅니다. Git fetch는 별도 Git HTTPS 전송이므로 사내 인증서·프록시·저장소 읽기 권한을 별도로 확인해야 합니다. API 토큰 외 브라우저 쿠키는 보내지 않습니다.
 - HTTPS와 정상 인증서 검증을 사용합니다. 리다이렉트는 따라가지 않습니다. HTTP 실패 응답 본문/토큰을 오류 메시지에 그대로 노출하지 않습니다.
 - Confluence HTML은 DOMPurify로 정화하며 script, form, iframe, 외부 이미지·리소스 및 링크 탐색을 제외합니다. 일부 Confluence macro/attachment 표현은 지원하지 않습니다.
 
@@ -89,7 +89,7 @@ Projects의 Overview/Board/Sprint/Roadmap은 현재 JQL로 로드한 이슈를 �
 
 이슈 → 관련 MR/위키 → Pipeline/Job을 중첩 미리보기로 탐색하고 뒤로 돌아올 수 있습니다. 이슈 키로 검색한 MR/문서는 검색 후보라는 점을 표시합니다. 전체 자동 연결 그래프나 검증된 관계로 가장하지 않습니다. Assistant의 로컬 내일 이동은 명령을 인식한 뒤 구체적인 날짜 제안/Confirm을 거칩니다. 다른 답변은 읽기/제안이며 외부 실행 도구는 없습니다.
 
-백그라운드 동기화, 오프라인 외부 쓰기/충돌 해결, GitLab merge, 저장소 전체 정밀 AST 분석은 지원하지 않습니다. MR 파일은 최대 500개, 토론은 최대 300개, Pipeline Job은 최대 300개, Scrum board/sprint는 첫 50개까지 조회합니다. 검색·Home 피드는 서비스별 첫 페이지이며 화면에서 범위를 알립니다. 개별 응답 8 MB, Source 600 KB 제한이 있습니다. Dooray 메뉴/Observe mock은 요청대로 유지합니다.
+백그라운드 동기화, 오프라인 외부 쓰기/충돌 해결, GitLab merge, 저장소 전체 정밀 AST 분석은 지원하지 않습니다. 로컬 MR 미리보기는 최대 120개 파일·전체 diff 2 MiB·파일별 512 KiB, 토론은 최대 300개, Pipeline Job은 최대 300개, Scrum board/sprint는 첫 50개까지 조회합니다. 검색·Home 피드는 서비스별 첫 페이지이며 화면에서 범위를 알립니다. API 개별 응답은 8 MB 제한입니다. Git 저장소 전체 용량 제한·자동 삭제는 아직 없으며, 로컬 Git 저장소와 checkout은 암호화되지 않은 소스 데이터입니다. Dooray 메뉴/Observe mock은 요청대로 유지합니다.
 
 ## 확인한 원본과 API 문서
 

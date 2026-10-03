@@ -122,7 +122,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
   useEffect(() => { if (data && object.type !== "mr") onReady?.(); }, [data]);
   useEffect(() => {
     let alive = true;
-    setData(null);
+    if (object.type !== "mr") setData(null);
     setError("");
     if (mismatch || object.type === "issue") return;
     setLoading(true);
@@ -131,6 +131,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
         return invoke("gitlab.mr", {
           projectId: object.projectId,
           iid: object.iid,
+          refresh: refresh > 0,
         });
       if (object.type === "doc")
         return invoke("confluence.page", { id: object.id });
@@ -229,7 +230,7 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack, onReady, ini
     );
   return (
     <div className="object-detail">
-      {loading && <p role="status">Loading {object.type}…</p>}
+      {loading && <p role="status">{object.type === "mr" ? "Preparing local checkout and review context… The first fetch can take a moment." : `Loading ${object.type}…`}</p>}
       {error && (
         <div role="alert" className="connection-error">
           {error}
@@ -470,6 +471,8 @@ export default function ConnectedObjects({
         <Dialog.Content
           className={`object-panel ${current.type === "mr" || assistant ? "wide" : ""}`}
           onEscapeKeyDown={(event) => {
+            const localDetails = event.target?.closest?.('.review-local-checkout[open]');
+            if (localDetails) { event.preventDefault(); localDetails.open = false; localDetails.querySelector('summary')?.focus(); return; }
             if (reviewPending) { event.preventDefault(); return; }
             if (assistant) {
               event.preventDefault();

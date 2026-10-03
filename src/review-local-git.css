@@ -1,0 +1,16 @@
+.review-local-checkout { position: relative; font-size: 10px; color: var(--secondary); }
+.review-local-checkout > summary { display: flex; align-items: center; gap: 5px; cursor: pointer; list-style: none; padding: 4px 6px; border-radius: 4px; }
+.review-local-checkout > summary::-webkit-details-marker { display: none; }
+.review-local-checkout > summary:hover, .review-local-checkout[open] > summary { background: var(--hover); color: var(--text); }
+.review-local-checkout > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.review-local-checkout-details { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 310px; max-width: calc(100vw - 48px); display: grid; gap: 8px; padding: 13px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 8px 24px #0002; font-size: 11px; line-height: 1.5; }
+.review-local-checkout-details strong { color: var(--text); overflow-wrap: anywhere; }
+.review-local-checkout-details p { margin: 0; }
+.review-local-checkout-details small { font-size: 10px; }
+.review-local-checkout-details code { font-size: 10px; }
+.review-local-path { padding-top: 8px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+@container (max-width: 900px) {
+  .review-local-checkout-details { left: auto; right: 0; }
+}
+.review-branch-context { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.review-branch-context > p { margin: 0; }

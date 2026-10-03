@@ -4,6 +4,7 @@ These files are curated recordings and screenshots of the actual Worklane UI. Al
 
 - `daily-command-center.png`: built-in demo home and connected work trail.
 - `product-guide.png`: actionable sample workflows.
+- `local-git-review.png`: actual Electron with a real temporary Git repository/worktree, local blob source, sequence diagram, and synthetic GitLab/Claude HTTPS fixtures. Reproduce with `npm run test:connected-desktop`; copy `research/completion/electron-local-git-review.png`.
 - `visual-review.png`: layered dependency map, actual code, human draft and persistent AI review.
 - `ai-collaborative-review.png`, `ai-collaborative-review-dark.png`: selected AI evidence and a human-edited review in light and dark themes.
 - `calendar.png`, `wiki-preview.png`, `contextual-assistant.png`, `dark-workspace.png`: connected UI with `tests/fixtures/connected.mjs` responses.

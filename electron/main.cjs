@@ -9,6 +9,7 @@ app.setPath("userData", path.resolve(
 app.setName("Worklane");
 const { createVault, createIntegrationService } = require("./integrations.cjs");
 const { createAssistantMemoryStore, createReminderScheduler } = require("./assistant-memory.cjs");
+const { createLocalGitStore } = require("./local-git.cjs");
 let integrationService;
 let reminderTimer;
 function createWindow() {
@@ -39,6 +40,7 @@ app.whenReady().then(() => {
     fetchImpl: (url, options) => net.fetch(url, options),
     vault,
     assistantMemory,
+    localGit: createLocalGitStore({ directory: path.join(app.getPath("userData"), "local-git"), getConfig: () => vault.read().gitlab }),
   });
   ipcMain.handle("orbit:integration", async (event, action, args) => {
     const allowed = require("node:url").pathToFileURL(

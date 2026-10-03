@@ -28,6 +28,7 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 
 - Dependency-layer layout and a clickable reading path, with separate sequence views and exact source references.
 - Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.
+- Code and diffs come from an app-managed local Git repository and isolated MR checkout. File browsing makes no GitLab code API requests; Refresh explicitly fetches updates.
 - Old/new diff positions and commit SHA checks before posting comments or approving.
 - Per-file **Viewed** state, commit-scoped progress, and **Next unreviewed** navigation.
 - Per-file and per-line local drafts, retained after failed submissions and edits during posting.
@@ -96,6 +97,9 @@ Personal planning changes stay local. Checking a task or moving its date does **
 ### Month at a glance
 ![Month calendar using the same personal task dataset](docs/media/calendar.png)
 
+### Local source, connected review
+![Real local Git source, sequence diagram and a fixture AI guide](docs/media/local-git-review.png)
+
 ### Contextual assistant
 ![Claude assistant beside a diagram and source review — fixture response](docs/media/contextual-assistant.png)
 
@@ -112,7 +116,7 @@ Personal planning changes stay local. Checking a task or moving its date does **
 
 ## Quick start
 
-You need Node.js 22 or newer and npm. Native desktop validation has been performed on macOS; Windows and Linux have not yet been validated.
+You need Node.js 22 or newer and npm, plus Git on your PATH for connected repository review. Native desktop validation has been performed on macOS; Windows and Linux have not yet been validated.
 
 ```sh
 git clone https://github.com/benny1020/worklane.git
@@ -144,7 +148,7 @@ There are no signed installers or automatic updates yet. The desktop command bui
 | --- | --- | --- |
 | Jira Cloud | Site URL, account email, API token; optional Cloud ID | JQL, issue previews, status, assignee, priority, due date, sprint changes, comments, issue creation |
 | Confluence Cloud | Separate site URL, email, API token; optional Cloud ID | Spaces, pages, search, recent/favorites, plain-text document publication |
-| GitLab Self-Managed | Instance URL, personal access token | Repositories, MR/review lists, commit source, discussions, approvals, pipelines and jobs |
+| GitLab Self-Managed | Instance URL, personal access token with repository-read access | Local Git checkouts/diffs/source; MR/review lists, discussions, approvals, pipelines and jobs |
 | Claude / Anthropic-compatible API | Endpoint URL, token, model ID; optional workspace ID | Model discovery, contextual assistant, durable memory, confirmed local task/reminder suggestions, structured MR review guides |
 | Dooray | Menu placeholder | No API integration |
 | Observe / OpenSearch | Interactive demo | Mock screens only |
@@ -168,7 +172,8 @@ The Home workflow guide opens real sample workflows in one click. Every global a
 ## Data and execution boundaries
 
 - Integration settings and tokens are encrypted with Electron `safeStorage`. Plaintext fallback is rejected; tokens are not returned to the renderer or stored in localStorage.
-- Personal plans, recent items, favorites and review drafts are **local, unencrypted application data**. There is no cross-device sync.
+- Personal plans, recent items, favorites and review drafts are **local, unencrypted application data**. App-managed Git objects, worktrees and diff caches are also ordinary local repository data. There is no cross-device sync.
+- Git credentials are provided only to the fetch process, never stored in clone URLs/config. Worklane checks out the MR branch’s exact commit in its own worktree; it never resets your existing development checkout. See [local Git review](docs/LOCAL_GIT_REVIEW.md).
 - Service calls pass through a fixed Electron IPC action list. The renderer cannot request arbitrary URLs or run shell commands.
 - Remote wiki HTML is sanitized. External navigation and active embedded content are blocked.
 - AI review runs only on request. Its submitted context includes bounded MR diffs and your guidelines. Assistant requests include the selected work, personal plan, up to three completed exchanges and bounded recalled memory. Memory and completed chats are OS-encrypted; the browser demo uses session-only conversations. Selecting source sends a bounded excerpt around that line with its commit SHA.
@@ -188,7 +193,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **187 browser tests**, **57 adapter tests**, **7 native connected workflow checks** and **5 native memory lifecycle checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **192 browser tests**, **72 adapter tests**, **8 native connected workflow checks** and **5 native memory lifecycle checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

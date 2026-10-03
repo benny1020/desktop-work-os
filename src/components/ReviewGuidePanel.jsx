@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Sparkles, ArrowRight, MessageSquare, Check} from 'lucide-react';
 import {basename} from '../lib/review-model.mjs';
 
-export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guidelines, onGuidelines, busy, error, onGenerate, selectedPath, activeFinding, findingKey, canLocate, onSelect, onDraft, decisions, onDecision}) {
+export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guidelines, onGuidelines, busy, refreshing = false, error, onGenerate, selectedPath, activeFinding, findingKey, canLocate, onSelect, onDraft, decisions, onDecision}) {
   const [scope,setScope]=useState('all');
   const body = useRef(null);
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guid
       </details>
       {busy && <p className="guide-generating" role="status">Reviewing this diff… Keep exploring the code.</p>}
       {error && <div className="connection-error" role="alert">{error}{guide && <p>Your previous guide remains below.</p>}</div>}
-      {!guide ? <div className="guide-empty"><h3>A second perspective on this change</h3><p>Generate checkpoints, inspect the code, then write your own review.</p><button className="btn primary" disabled={busy} onClick={onGenerate}><Sparkles size={13}/>{busy?'Analyzing…':'Generate review guide'}</button><small>Nothing is posted or approved automatically.</small></div> : <>
+      {!guide ? <div className="guide-empty"><h3>A second perspective on this change</h3><p>Generate checkpoints, inspect the code, then write your own review.</p><button className="btn primary" disabled={busy || refreshing} onClick={onGenerate}><Sparkles size={13}/>{busy?'Analyzing…':'Generate review guide'}</button><small>Nothing is posted or approved automatically.</small></div> : <>
         <details className="ai-summary" open><summary>Change summary</summary><p className="guide-summary">{guide.summary}</p></details>
         <div className="guide-coverage">{guide.model || 'AI'} · {mr.diff_refs.head_sha.slice(0,8)}<br/>{guide.coverage?.includedFiles ?? files.length} / {guide.coverage?.totalFiles ?? files.length} files · Diff-based{guide.coverage?.truncated?' · Partial coverage':''}{guide.rejectedReferences?` · ${guide.rejectedReferences} invalid references omitted`:''}</div>
         <div className="ai-checkpoint-heading"><h3>Review checkpoints</h3><span>{reviewed}/{findings.length} reviewed</span></div>
