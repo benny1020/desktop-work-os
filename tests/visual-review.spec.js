@@ -94,6 +94,7 @@ test("Visual review: AI reading order jumps to evidence and approval requires ex
     .getByRole("button", { name: "Preview AI guide", exact: true })
     .click();
   await expect(page.locator(".guide-summary")).toContainText("주문 응답");
+  await page.getByText("Suggested reading order", {exact:true}).click();
   await page.locator(".reading-order button").nth(1).click();
   await expect(page.locator(".visual-code-heading")).toContainText(
     "OrderService.ts",

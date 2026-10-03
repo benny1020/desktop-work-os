@@ -22,7 +22,7 @@ Worklane connects daily planning, Jira issues, Confluence documents, GitLab revi
 
 ## Review the change, not just the files
 
-Move between a **dependency graph**, a **sequence diagram**, and the exact source lines. Select a component, read its diff or commit-pinned source, and leave a review comment without abandoning the diagram.
+Keep the **dependency or sequence diagram**, **code**, and **AI review** together. Select an AI checkpoint to highlight its component and exact diff line, inspect the evidence, then write your own review in the same workspace.
 
 ![Dependency graph → sequence → source → review comment → sample AI guide](docs/media/visual-review.gif)
 
@@ -31,7 +31,9 @@ Move between a **dependency graph**, a **sequence diagram**, and the exact sourc
 - Old/new diff positions and commit SHA checks before posting comments or approving.
 - Per-file **Viewed** state, commit-scoped progress, and **Next unreviewed** navigation.
 - Per-file and per-line local drafts, retained after failed submissions and edits during posting.
-- On-demand Claude guidance: reading order, review checkpoints, and cited code locations.
+- Persistent, on-demand Claude review beside the diagram and code, with cited checkpoints and reading order.
+- Bring a suggestion into your local draft without replacing your own text; edit it before explicitly posting.
+- Mark checkpoints **Checked** or **Not relevant** locally, independently of file progress and MR approval.
 - Explicit review approval; Worklane does not merge the MR.
 
 Solid dependency edges represent resolved imports; dashed relationships and sequence flows are inferred. These are **not runtime traces or a complete repository analysis**.
@@ -160,7 +162,7 @@ npm run test:connected-desktop   # Native UI → IPC → service adapters
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **125 browser tests**, **24 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **131 browser tests**, **30 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

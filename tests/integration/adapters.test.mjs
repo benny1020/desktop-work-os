@@ -373,6 +373,8 @@ test("Anthropic call is explicit, typed and pinned to same MR commit", async (t)
     iid: 7,
     headSha: head,
     guidelines: "Check idempotency.",
+    baseSha: base,
+    startSha: start,
   });
   const call = calls.find((c) => c.path === "/v1/messages");
   assert.equal(call.headers["x-api-key"], "claude-secret");
@@ -381,6 +383,45 @@ test("Anthropic call is explicit, typed and pinned to same MR commit", async (t)
   assert.match(call.body.system, /UNTRUSTED DATA/);
   assert.equal(result.findings.length, 1);
   assert.equal(result.headSha, head);
+  assert.deepEqual(result.diffRefs, gitMR.diff_refs);
+});
+test("AI review refuses changed base or start refs even when the head is unchanged", async (t) => {
+  for (const changedRef of ["base_sha", "start_sha"]) {
+    await t.test(changedRef, async (t) => {
+      const { engine, calls } = await fixture(t, {
+        reply: (call) => call.path.endsWith("/merge_requests/7")
+          ? { ...gitMR, diff_refs: { ...gitMR.diff_refs, [changedRef]: "d".repeat(40) } }
+          : undefined,
+      });
+      await assert.rejects(
+        engine.invoke("claude.review", {
+          projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start,
+        }),
+        /MR changed\. Refresh before generating a guide\./,
+      );
+      assert.equal(calls.some((call) => call.path === "/v1/messages"), false);
+    });
+  }
+});
+test("AI review refuses base or start changes during snapshot download", async (t) => {
+  for (const changedRef of ["base_sha", "start_sha"]) {
+    await t.test(changedRef, async (t) => {
+      let details = 0;
+      const { engine, calls } = await fixture(t, {
+        reply: (call) => {
+          if (!call.path.endsWith("/merge_requests/7")) return undefined;
+          details++;
+          return { ...gitMR, diff_refs: { ...gitMR.diff_refs,
+            [changedRef]: details > 1 ? "d".repeat(40) : gitMR.diff_refs[changedRef],
+          } };
+        },
+      });
+      await assert.rejects(engine.invoke("claude.review", {
+        projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start,
+      }), /MR changed while loading/);
+      assert.equal(calls.some((call) => call.path === "/v1/messages"), false);
+    });
+  }
 });
 test("AI invented file/line references are dropped; truncated input remains explicit", () => {
   const f = { ...file, path: file.new_path, rows: parseDiff(diff) };

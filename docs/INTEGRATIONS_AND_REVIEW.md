@@ -9,9 +9,12 @@
 3. Save & test connection을 눌러 계정 접근을 확인합니다. 테스트 실패 시 토큰이 암호화되어 저장되어 있을 수 있으며, 상태는 '저장됨 · 테스트 필요'로 남습니다.
 4. 상단 Demo workspace를 Connected workspace로 전환합니다.
 5. Code → Merge Requests / My Reviews → MR을 선택합니다.
-6. Dependency flow / Sequence에서 컴포넌트 또는 화살표를 클릭합니다. 오른쪽 Diff / Source에서 실제 코드를 확인하고 줄을 선택합니다.
+6. Dependency flow / Sequence에서 컴포넌트 또는 화살표를 클릭합니다. 중앙 Diff / Source에서 실제 코드를 확인하고 줄을 선택합니다.
 7. Post to GitLab은 명시적으로 눌렀을 때만 전송합니다. Approve MR은 확인 후 승인만 실행하며 merge하지 않습니다.
 8. Generate AI guide는 현재 MR diff와 사용자가 입력한 팀 가이드라인을 설정한 Claude 엔드포인트로 보냅니다. 노드 탐색·MR 열기만으로 AI를 호출하지 않습니다.
+9. 오른쪽 AI review의 의견을 선택하면 다이어그램과 근거 코드 줄이 함께 선택됩니다. Draft comment로 기존 초안에 의견을 추가하고 직접 수정해 게시합니다. Checked / Not relevant는 로컬 판단이며 파일 확인이나 MR 승인을 대신하지 않습니다.
+
+창이 좁아지면 왼쪽에 다이어그램과 AI 의견을 위아래로 두고 코드는 오른쪽에 유지합니다. [공동 리뷰 흐름과 검증](AI_COLLABORATIVE_REVIEW.md)을 참고하세요.
 
 브라우저에서는 토큰 입력/저장을 막고 데모 코드와 샘플 가이드를 제공합니다. 실제 연결을 흉내 내는 성공 응답으로 대체하지 않습니다.
 
@@ -47,7 +50,7 @@ Claude 모델 ID는 해당 엔드포인트가 제공하는 값을 사용합니�
 - diff parser는 각 hunk의 old/new 시작 줄을 읽습니다. 화면 표시 인덱스를 GitLab 줄 번호로 보내지 않습니다.
 - 추가 줄은 new_line, 삭제 줄은 old_line, context 줄은 두 위치를 함께 전달합니다.
 - 댓글에는 base/start/head SHA와 old/new 파일 경로를 지정합니다. diff 밖의 Source 줄은 파일 수준 토론으로 올리고 경로·줄·SHA를 본문에 남깁니다.
-- MR 로드 전후의 head SHA를 비교해 섞인 스냅샷을 거부합니다. 댓글 제출 직전에도 최신 head SHA를 확인합니다. 승인에는 서버 검사용 SHA를 함께 보냅니다.
+- MR 로드 전후의 base/start/head SHA를 비교해 섞인 스냅샷을 거부합니다. 댓글 제출 직전에도 최신 head SHA를 확인합니다. 승인에는 서버 검사용 SHA를 함께 보냅니다.
 - 초안은 MR 주소/프로젝트/번호/head SHA/파일/old 또는 new/줄별로 구분하여 로컬에 보존합니다. 요청 실패 시 지우지 않으며 자동으로 재전송하지 않습니다.
 - 네트워크 단절처럼 서버 처리 결과가 불명확할 때는 Refresh 후 토론을 확인하고 재제출해야 합니다. 서버가 제공하지 않는 exactly-once 보장을 주장하지 않습니다.
 

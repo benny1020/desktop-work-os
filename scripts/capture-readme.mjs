@@ -21,6 +21,10 @@ await screenshot(hero, 'product-guide');
 await hero.getByRole('button',{name:/See the change before the code/}).click();
 await expect(hero.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();
 await hero.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+await hero.getByRole('button',{name:'Preview AI guide',exact:true}).click();
+await hero.getByRole('button',{name:/Draft comment for/}).first().click();
+await hero.getByLabel('Diagram review comment').fill('Could we add a concurrent retry test to verify that the idempotency key prevents duplicate captures?');
+await pause(250);
 await screenshot(hero, 'visual-review');
 await hero.close();
 async function scene(name, actions) {
@@ -67,7 +71,12 @@ await scene('visual-review', async p => {
   await pause(900);
   await p.getByRole('button', { name: 'Generate AI guide', exact: true }).click();
   await expect(p.locator('.guide-summary')).toBeVisible();
-  await pause(1600);
+  await p.getByRole('tab',{name:'Dependency flow',exact:true}).click();
+  await p.getByRole('button',{name:/Draft comment for/}).first().click();
+  await p.getByLabel('Diagram review comment').fill('Could we add a concurrent retry test to verify that the idempotency key prevents duplicate captures?');
+  await pause(1100);
+  await screenshot(p, 'ai-collaborative-review');
+  await pause(900);
   await p.keyboard.press('Meta+j');
   await p.getByLabel('Ask Claude').fill('Which part should I review first?');
   await p.getByRole('button',{name:'Send to Claude'}).click();
@@ -111,6 +120,12 @@ await dark.getByLabel('Quick add personal work').fill('Prepare deployment review
 await dark.getByRole('button',{name:'Add to plan',exact:true}).click();
 await dark.getByRole('button',{name:'Toggle theme'}).click();
 await screenshot(dark, 'dark-workspace');
+await dark.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();
+await dark.getByRole('button',{name:'Generate AI guide',exact:true}).click();
+await dark.getByRole('button',{name:/Draft comment for/}).first().click();
+await dark.getByLabel('Diagram review comment').fill('Can we test a retry after a gateway timeout to confirm the capture remains idempotent?');
+await pause(250);
+await screenshot(dark, 'ai-collaborative-review-dark');
 await dark.close();
 await fs.writeFile(`${root}/artifacts/readme-recording/manifest.json`, JSON.stringify(manifest, null, 2));
 await browser.close();

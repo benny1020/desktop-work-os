@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
+import ReviewGuidePanel from "./ReviewGuidePanel";
+import "../review-collaboration.css";
 import {
   ArrowLeft,
   ArrowRight,
@@ -348,7 +350,11 @@ export default function ReviewWorkbench({
   onDemoApprove,
 }) {
   const { mr, files } = snapshot;
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState(initialTab === "Sequence" ? "Sequence" : "Dependency flow");
+  const [guideBusy, setGuideBusy] = useState(false);
+  const [guideError, setGuideError] = useState("");
+  const [activeFinding, setActiveFinding] = useState(null);
+  const commentInput = useRef(null);
   const [selected, setSelected] = useState(files[0]?.path);
   const [line, setLine] = useState(null);
   const [side, setSide] = useState("new");
@@ -424,6 +430,34 @@ export default function ReviewWorkbench({
   const sourceKey = JSON.stringify([sourceRef, file?.deleted_file ? file?.old_path : file?.path]);
   const legacyDraftKey = `${file?.path}:${side}:${line || "file"}`;
   const diffVersion = JSON.stringify([mr.diff_refs.base_sha, mr.diff_refs.start_sha, mr.diff_refs.head_sha]);
+  const currentDiffVersion = useRef(diffVersion);
+  currentDiffVersion.current = diffVersion;
+  const findingKey = (finding) => `checkpoint:${diffVersion}:${JSON.stringify([finding.path, finding.line, finding.title, finding.reason])}`;
+  const canLocate = (finding) => {
+    const target = files.find(item => item.path === finding.path);
+    return !!target && Number.isInteger(finding.line) && target.rows.some(row => row.kind !== "hunk" && (target.deleted_file ? row.oldLine : row.newLine) === finding.line);
+  };
+  function selectFinding(finding) {
+    if (!canLocate(finding)) return;
+    setCodeMode("Diff");
+    select(finding.path, finding.line);
+    setActiveFinding(findingKey(finding));
+  }
+  function draftFinding(finding) {
+    if (!canLocate(finding)) return;
+    const target = files.find(item => item.path === finding.path);
+    const targetSide = target.deleted_file ? "old" : "new";
+    const key = `${finding.path}:${targetSide}:${finding.line}${targetSide === "old" ? `:refs:${diffVersion}` : ""}`;
+    const suggestion = `${finding.title}
+${finding.reason}`;
+    setDrafts(items => ({...items, [key]: items[key]?.includes(suggestion) ? items[key] : [items[key], suggestion].filter(Boolean).join("\n\n")}));
+    selectFinding(finding);
+    setNotice("AI suggestion added to your draft. Edit it before posting.");
+    requestAnimationFrame(() => {
+      commentInput.current?.focus({preventScroll:true});
+      commentInput.current?.scrollIntoView({block:"nearest"});
+    });
+  }
   const draftKey = side === "old" ? `${legacyDraftKey}:refs:${diffVersion}` : legacyDraftKey;
   const draft = drafts[draftKey] || "";
   const unverifiedDraft = side === "old" && !Object.hasOwn(drafts, draftKey) ? drafts[legacyDraftKey] : "";
@@ -435,6 +469,8 @@ export default function ReviewWorkbench({
     setSide(file?.deleted_file ? "old" : "new");
     setConfirmApproval(false);
     setGuide(null);
+    setActiveFinding(null);
+    setGuideError("");
     setNotice("Diff base changed. Previous line drafts remain saved with their original version. Select a line to continue.");
   }, [diffVersion]);
   const graph = useMemo(() => buildGraph(files, guide), [files, guide]);
@@ -446,6 +482,18 @@ export default function ReviewWorkbench({
     }
     return stats;
   }, { added: 0, removed: 0 }), [files]);
+  useEffect(() => {
+    if (!activeFinding) return;
+    const frame = requestAnimationFrame(() => {
+      const panel = mapPanel.current;
+      const node = panel?.querySelector(".diagram-node.selected");
+      if (!node) return;
+      const bounds = panel.getBoundingClientRect(), target = node.getBoundingClientRect();
+      if (target.bottom > bounds.bottom || target.top < bounds.top + 36)
+        panel.scrollTop += target.top - bounds.top - Math.max(40, (bounds.height - target.height) / 2);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeFinding, selected, tab, zoom]);
   useEffect(() => {
     if (!autoFit || tab === "AI guide") return;
     const canvas = mapPanel.current?.querySelector(".diagram-scroll");
@@ -561,8 +609,10 @@ export default function ReviewWorkbench({
     if (remaining) select(remaining.path);
   }
   async function generate() {
-    setBusy("guide");
-    setError("");
+    if (guideBusy) return;
+    const version = currentDiffVersion.current;
+    setGuideBusy(true);
+    setGuideError("");
     try {
       if (!live) {
         setGuide({
@@ -576,23 +626,25 @@ export default function ReviewWorkbench({
             diffOnly: true,
           },
         });
-        setTab("AI guide");
+
       } else {
         const result = await invoke("claude.review", {
           projectId: mr.project_id,
           iid: mr.iid,
           headSha: mr.diff_refs.head_sha,
+          baseSha: mr.diff_refs.base_sha,
+          startSha: mr.diff_refs.start_sha,
           guidelines,
         });
         if (alive.current) {
+          if (currentDiffVersion.current !== version) throw Error("The diff changed during analysis. Generate a guide for the current version.");
           setGuide(result);
-          setTab("AI guide");
         }
       }
     } catch (e) {
-      if (alive.current) setError(e.message);
+      if (alive.current) setGuideError(e.message);
     } finally {
-      if (alive.current) setBusy("");
+      if (alive.current) setGuideBusy(false);
     }
   }
   async function post() {
@@ -696,7 +748,7 @@ export default function ReviewWorkbench({
       </div>
     );
   return (
-    <div className="visual-review">
+    <div className="visual-review review-workbench">
       <header className="visual-review-heading">
         <div className="inline">
           <button className="quiet-button" onClick={onBack}>
@@ -720,7 +772,7 @@ export default function ReviewWorkbench({
           <div className="inline">
             <button
               className="btn"
-              disabled={!!busy || refreshing}
+              disabled={!!busy || guideBusy || refreshing}
               onClick={onRefresh}
             >
               <RefreshCw size={13} className={refreshing ? "spin" : ""} />{" "}
@@ -728,10 +780,10 @@ export default function ReviewWorkbench({
             </button>
             <button
               className="btn primary"
-              disabled={!!busy}
+              disabled={guideBusy}
               onClick={generate}
             >
-              {busy === "guide" ? (
+              {guideBusy ? (
                 <Loader2 className="spin" size={14} />
               ) : (
                 <Sparkles size={14} />
@@ -790,7 +842,6 @@ export default function ReviewWorkbench({
             {[
               ["Dependency flow", Network],
               ["Sequence", Workflow],
-              ["AI guide", Sparkles],
             ].map(([name, Icon]) => (
               <button
                 key={name}
@@ -814,8 +865,7 @@ export default function ReviewWorkbench({
               </button>
             ))}
           </div>
-          {tab !== "AI guide" ? (
-            <>
+          <>
               <div className="diagram-toolbar">
                 <div>
                   <strong>
@@ -896,111 +946,9 @@ export default function ReviewWorkbench({
                   </button>
                 ))}
               </div>
-            </>
-          ) : (
-            <div className="ai-review-guide">
-              <div className="guide-heading">
-                <Sparkles size={18} />
-                <div>
-                  <h2>Review guide</h2>
-                  <p>
-                    {guide
-                      ? `${guide.model || "AI"} · ${mr.diff_refs.head_sha.slice(0, 8)}`
-                      : "Understand the change and decide what to check next"}
-                  </p>
-                </div>
-              </div>
-              <details className="guideline-settings">
-                <summary>Team review guidelines</summary>
-                <textarea
-                  aria-label="Team review guidelines"
-                  value={guidelines}
-                  onChange={(e) => setGuidelines(e.target.value)}
-                  placeholder="Prioritize transaction boundaries, idempotency, error handling, and missing tests."
-                />
-              </details>
-              <p className="ai-transmission-note">
-                {live
-                  ? `Generate AI guide sends this MR’s diff and your guidelines to ${configs.claude?.url || "your configured Claude endpoint"}.`
-                  : "This is a sample guide. Use Connected workspace to generate a guide with Claude."}
-              </p>
-              {!guide ? (
-                <div className="guide-empty">
-                  <Network size={30} />
-                  <h3>Build a review plan from the code</h3>
-                  <p>
-                    Connect the change summary, dependencies, inferred sequences, and
-                    suggested tests to specific files and lines.
-                  </p>
-                  <button
-                    className="btn primary"
-                    disabled={!!busy}
-                    onClick={generate}
-                  >
-                    {busy === "guide" ? "Analyzing…" : "Generate review guide"}
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="guide-summary">{guide.summary}</p>
-                  <div className="guide-coverage">
-                    {guide.coverage?.includedFiles || files.length} /{" "}
-                    {guide.coverage?.totalFiles || files.length} files ·
-                    Diff-based analysis
-                    {guide.coverage?.truncated ? " · Partial coverage" : ""}
-                    {guide.rejectedReferences
-                      ? ` · ${guide.rejectedReferences} invalid references omitted`
-                      : ""}
-                  </div>
-                  <h3>Recommended reading order</h3>
-                  <ol className="reading-order">
-                    {(guide.readingOrder || []).map((r, i) => (
-                      <li key={i}>
-                        <button onClick={() => select(r.path, r.line)}>
-                          <span className="step-number">{i + 1}</span>
-                          <div>
-                            <b>
-                              {basename(r.path)}:{r.line}
-                            </b>
-                            <p>{r.reason}</p>
-                          </div>
-                          <ArrowRight size={14} />
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  <h3>
-                    Review checkpoints{" "}
-                    <small>AI suggestions · verify in code</small>
-                  </h3>
-                  {(guide.findings || []).map((f, i) => (
-                    <button
-                      className="guide-finding"
-                      key={i}
-                      onClick={() => select(f.path, f.line)}
-                    >
-                      <span className={`finding-severity ${f.severity}`}>
-                        {f.severity}
-                      </span>
-                      <b>{f.title}</b>
-                      <p>{f.reason}</p>
-                      <code>
-                        {f.path}:{f.line}
-                      </code>
-                    </button>
-                  ))}
-                  {!guide.findings?.length && (
-                    <p className="muted">
-                      No additional checks were suggested for this diff. Continue your
-                      review; this does not establish that the change is defect-free.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+          </>
         </section>
-        <section className="visual-code-panel">
+        <section className="visual-code-panel" aria-label="Code and your review">
           <div className="visual-code-heading">
             <FileCode2 size={15} />
             <strong title={file.path}>{file.path}</strong>
@@ -1139,7 +1087,9 @@ export default function ReviewWorkbench({
                 </button>
               </details>
             )}
+            <div className="your-review-label"><b>Your review</b><span>Private draft · post when ready</span></div>
             <textarea
+              ref={commentInput}
               aria-label="Diagram review comment"
               value={draft}
               onChange={(e) =>
@@ -1236,6 +1186,12 @@ export default function ReviewWorkbench({
             )}
           </div>
         </section>
+        <ReviewGuidePanel guide={guide} files={files} mr={mr} live={live}
+          endpoint={configs.claude?.url} guidelines={guidelines} onGuidelines={setGuidelines}
+          busy={guideBusy} error={guideError} onGenerate={generate} selectedPath={file.path}
+          activeFinding={activeFinding} findingKey={findingKey} canLocate={canLocate}
+          onSelect={selectFinding} onDraft={draftFinding} decisions={drafts}
+          onDecision={(finding,value)=>setDrafts(items=>({...items,[findingKey(finding)]:value}))}/>
       </div>
     </div>
   );

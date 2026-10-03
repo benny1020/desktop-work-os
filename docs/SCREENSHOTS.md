@@ -12,7 +12,11 @@ Home brings the daily plan and attention items into one workspace. A review open
 
 ![Visual code review](media/visual-review.gif)
 
-Dependency flow and sequence are separate views. Selecting a component reveals source and diff positions for review comments. The AI guide shown is a fixture response.
+Dependency flow and sequence are separate views. AI review stays beside the diagram and code. Clicking a checkpoint highlights its component and evidence; Draft comment brings the suggestion into your editable local draft. The AI guide shown is a fixture response.
+
+![AI checkpoints, diagram and human review together](media/ai-collaborative-review.png)
+
+![The same review workspace in dark mode](media/ai-collaborative-review-dark.png)
 
 ## Keep the original context
 

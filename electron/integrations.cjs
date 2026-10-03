@@ -260,7 +260,9 @@ function createIntegrationService({ vault, fetchImpl = globalThis.fetch }) {
         "GitLab is still preparing this diff. Refresh in a moment.",
       );
     const verified = (await request("gitlab", p)).data;
-    if (verified.diff_refs?.head_sha !== mr.data.diff_refs.head_sha)
+    if (["head_sha", "base_sha", "start_sha"].some(
+      (ref) => verified.diff_refs?.[ref] !== mr.data.diff_refs[ref],
+    ))
       throw new Error(
         "MR changed while loading. Refresh to load a consistent snapshot.",
       );
@@ -328,7 +330,11 @@ function createIntegrationService({ vault, fetchImpl = globalThis.fetch }) {
   }
   async function aiReview(a) {
     const snapshot = await getMR(a);
-    if (a.headSha && snapshot.mr.diff_refs.head_sha !== a.headSha)
+    if (
+      (a.headSha && snapshot.mr.diff_refs.head_sha !== a.headSha) ||
+      (a.baseSha && snapshot.mr.diff_refs.base_sha !== a.baseSha) ||
+      (a.startSha && snapshot.mr.diff_refs.start_sha !== a.startSha)
+    )
       throw new Error("MR changed. Refresh before generating a guide.");
     const c = configFor("claude");
     required(c.model, "Claude model ID", 160);
@@ -368,6 +374,7 @@ function createIntegrationService({ vault, fetchImpl = globalThis.fetch }) {
     return {
       ...validateGuide(parsed, snapshot.files),
       headSha: snapshot.mr.diff_refs.head_sha,
+      diffRefs: snapshot.mr.diff_refs,
       model: result.model || c.model,
       usage: result.usage,
       coverage: payload.coverage,

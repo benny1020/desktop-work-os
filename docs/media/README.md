@@ -4,9 +4,10 @@ These files are curated recordings and screenshots of the actual Worklane UI. Al
 
 - `daily-command-center.png`: built-in demo home and connected work trail.
 - `product-guide.png`: actionable sample workflows.
-- `visual-review.png`: layered dependency map, reading path and actual code.
+- `visual-review.png`: layered dependency map, actual code, human draft and persistent AI review.
+- `ai-collaborative-review.png`, `ai-collaborative-review-dark.png`: selected AI evidence and a human-edited review in light and dark themes.
 - `calendar.png`, `wiki-preview.png`, `contextual-assistant.png`, `dark-workspace.png`: connected UI with `tests/fixtures/connected.mjs` responses.
-- `visual-review.gif`: dependency → viewed progress → sequence → source → comment → guide → assistant.
+- `visual-review.gif`: dependency → viewed progress → sequence → source → comment → guide → checkpoint → human draft → assistant.
 - `connected-context.gif`: issue → wiki → MR → pipeline → home.
 - `daily-planning.gif`: quick add → week → calendar → global search.
 
