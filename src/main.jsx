@@ -412,6 +412,8 @@ function App() {
     prefs,
   ]);
   function navigate(section, view, scope) {
+    setLiveContext("");
+    setLiveObject(null);
     if (scope?.project) setProject(scope.project);
     if (scope?.filter) setFilters((f) => ({ ...f, [section]: scope.filter }));
     const next = {
@@ -432,6 +434,8 @@ function App() {
     if (n >= 0 && n < history.length) {
       setHistoryIndex(n);
       setRoute(history[n]);
+      setLiveContext("");
+      setLiveObject(null);
       setInspector(null);
     }
   }
@@ -592,7 +596,7 @@ function App() {
           day: /tomorrow/i.test(text) ? "Sat" : "Fri",
           time: text.match(/\d{1,2}\s?(?:am|pm)/i)?.[0] || "",
           project: "PAY",
-          description: "Created in Orbit.",
+          description: "Created in Worklane.",
         },
       ]);
       notify(`${id} created`);
@@ -3221,7 +3225,7 @@ function App() {
   function Settings() {
     return (
       <div className="page settings-page">
-        {sectionHeader("Settings", "Make Orbit work for you.")}
+        {sectionHeader("Settings", "Make Worklane work for you.")}
         <div className="tabs">
           {["Integrations", "Notifications", "Workspace", "Preferences"].map(
             (v) => (
@@ -4074,7 +4078,7 @@ function App() {
           {!collapsed && (
             <>
               <span>
-                <b>orbit</b>
+                <b>worklane</b>
                 <small>{workspaceMode === "connected" ? "My workspace" : "Acme Engineering"}</small>
               </span>
               <I name="ChevronsUpDown" size={13} />
@@ -4518,7 +4522,7 @@ function App() {
           </details>
         </div>
       )}
-      {liveObject && workspaceMode === "connected" && <ConnectedObjects object={liveObject} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>{setLiveObject(null);setLiveContext("");}} onContext={setLiveContext}/>}
+      {liveObject && workspaceMode === "connected" && <ConnectedObjects object={liveObject} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>setLiveObject(null)}/>}
       {palette && workspaceMode === "connected" && <ConnectedCommands mode={palette} onClose={()=>setPalette(null)} onOpen={setLiveObject} onNavigate={navigate}/>}
       {palette && workspaceMode === "demo" && (
         <Palette
@@ -4837,7 +4841,7 @@ function Assistant({
           <div className={"chat-message " + m.role} key={i}>
             {m.role === "assistant" && (
               <span>
-                <I name="Sparkles" size={13} /> Orbit assistant
+                <I name="Sparkles" size={13} /> Worklane assistant
               </span>
             )}
             <p>{m.text}</p>
@@ -5106,7 +5110,7 @@ function Palette({
         <kbd>↓</kbd> to navigate <kbd>↵</kbd> to {create ? "create" : "open"}
       </span>
       <span>
-        <I name="Orbit" size={13} /> Orbit
+        <I name="Orbit" size={13} /> Worklane
       </span>
     </div>
   );

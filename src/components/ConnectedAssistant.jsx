@@ -8,6 +8,7 @@ function Pending() {
 export default function ConnectedAssistant({ context, onClose, onSettings }) {
   const plan = usePlan();
   const [proposal, setProposal] = useState(null);
+  const [history, setHistory] = useState([]);
   const [input, setInput] = useState(""),
     [messages, setMessages] = useState([]),
     [busy, setBusy] = useState(false),
@@ -45,6 +46,7 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
     try {
       const result = await invoke("claude.chat", {
         message: question,
+        history,
         context: JSON.stringify({
           selected: context,
           personalPlan: plan.tasks.map((t) => ({
@@ -55,18 +57,21 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
           })),
         }),
       });
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          text: (result.content || [])
-            .filter((c) => c.type === "text")
-            .map((c) => c.text)
-            .join("\n"),
-        },
-      ]);
+      const answer = (result.content || [])
+        .filter((c) => c.type === "text")
+        .map((c) => c.text)
+        .join("\n");
+      if (!answer.trim()) throw Error("Claude returned no text. Please retry.");
+      setMessages((m) => [...m, { role: "assistant", text: answer }]);
+      // Only completed exchanges are sent back; failed/local action messages
+      // must never masquerade as answers from the model.
+      setHistory((h) => [...h,
+        { role: "user", content: question.slice(0, 4000) },
+        { role: "assistant", content: answer.slice(0, 4000) },
+      ].slice(-6));
     } catch (e) {
       setError(e.message);
+      setInput((current) => current || question);
     } finally {
       setBusy(false);
     }
@@ -86,7 +91,7 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
       </div>
       <div className="live-assistant-body">
         <p className="form-note">
-          질문·선택한 업무·개인 계획을 설정한 Claude로 전송합니다. 외부 상태
+          질문·최근 대화 3회·선택한 업무·개인 계획을 설정한 Claude로 전송합니다. 외부 상태
           변경·댓글 등록은 실행하지 않습니다. “PAY-382 내일로 옮겨줘”는 확인 후
           로컬 계획만 변경합니다.
         </p>

@@ -1,6 +1,6 @@
 # Contributing
 
-Orbit is an early developer-workspace preview. Small changes that reduce context switching, preserve drafts, improve keyboard access or clarify failure states are especially useful.
+Worklane is an early developer-workspace preview. Small changes that reduce context switching, preserve drafts, improve keyboard access or clarify failure states are especially useful.
 
 1. Open an issue describing the workflow and expected behavior.
 2. Use a branch and keep the change focused.

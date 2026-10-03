@@ -1,7 +1,12 @@
 const { app, BrowserWindow, ipcMain, safeStorage, net } = require("electron");
 const path = require("node:path");
-if (process.env.ORBIT_USER_DATA_DIR)
-  app.setPath("userData", path.resolve(process.env.ORBIT_USER_DATA_DIR));
+// Keep the original profile directory so renaming preserves encrypted tokens,
+// drafts and Chromium localStorage. ORBIT_USER_DATA_DIR remains a test alias.
+app.setPath("userData", path.resolve(
+  process.env.WORKLANE_USER_DATA_DIR || process.env.ORBIT_USER_DATA_DIR ||
+  path.join(app.getPath("appData"), "desktop-work-os"),
+));
+app.setName("Worklane");
 const { createVault, createIntegrationService } = require("./integrations.cjs");
 let integrationService;
 function createWindow() {
@@ -10,7 +15,7 @@ function createWindow() {
     height: 900,
     minWidth: 980,
     minHeight: 650,
-    title: "Orbit — Desktop Work OS",
+    title: "Worklane — Your workday, connected",
     backgroundColor: "#f7f8fa",
     titleBarStyle: "hidden",
     trafficLightPosition: { x: 19, y: 15 },

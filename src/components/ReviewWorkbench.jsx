@@ -329,6 +329,20 @@ export default function ReviewWorkbench({
   const [configs, setConfigs] = useState({});
   const [approved, setApproved] = useState(mr.status === "Approved");
   const [confirmApproval, setConfirmApproval] = useState(false);
+  const progressKey = `orbit-visual-viewed:${JSON.stringify([
+    live ? "live" : "demo", mr.web_url || mr.project_id, mr.iid,
+    mr.diff_refs.base_sha, mr.diff_refs.start_sha, mr.diff_refs.head_sha,
+  ])}`;
+  const [progress, setProgress] = useState(() => {
+    try {
+      const paths = JSON.parse(localStorage.getItem(progressKey) || "[]");
+      return { key: progressKey, paths: Array.isArray(paths) ? paths : [] };
+    } catch {
+      return { key: progressKey, paths: [] };
+    }
+  });
+  const viewed = progress.key === progressKey ? progress.paths : [];
+  const viewedCount = files.filter((f) => viewed.includes(f.path)).length;
   const storeKey = draftStoreKey(live, mr);
   const [drafts, setDrafts] = useState(() => {
     try {
@@ -361,6 +375,10 @@ export default function ReviewWorkbench({
   const draft = drafts[draftKey] || "";
   const graph = useMemo(() => buildGraph(files, guide), [files, guide]);
   useEffect(() => {
+    const content = source[file?.path];
+    const sourceLines = typeof content === "string" ? content.split("\n") : null;
+    const start = Math.max(0, (line || 1) - 11);
+    const end = sourceLines ? Math.min(sourceLines.length, start + 21) : 0;
     onContext?.(
       JSON.stringify({
         type: "merge_request",
@@ -370,11 +388,20 @@ export default function ReviewWorkbench({
         headSha: mr.diff_refs.head_sha,
         file: file?.path,
         line,
+        codeMode,
+        side: codeMode === "Source" ? (file?.deleted_file ? "old" : "new") : side,
+        source: codeMode === "Source" && sourceLines ? {
+          ref: file?.deleted_file ? mr.diff_refs.base_sha : mr.diff_refs.head_sha,
+          fromLine: start + 1,
+          toLine: end,
+          excerpt: sourceLines.slice(start, end).map((text, i) => `${start + i + 1}: ${text.slice(0, 500)}`).join("\n"),
+          truncated: start > 0 || end < sourceLines.length || sourceLines.slice(start, end).some(text => text.length > 500),
+        } : null,
         diff: file?.diff?.slice(0, 12000),
         guide: guide?.summary,
       }),
     );
-  }, [file?.path, line, mr.id, guide?.summary]);
+  }, [file?.path, file?.diff, line, side, codeMode, source, mr.id, mr.diff_refs.head_sha, guide?.summary]);
   useEffect(() => {
     if (line !== null)
       requestAnimationFrame(() =>
@@ -419,6 +446,23 @@ export default function ReviewWorkbench({
     setError("");
     setNotice("");
   }
+  function markViewed(checked) {
+    const paths = checked
+      ? [...new Set([...viewed, file.path])]
+      : viewed.filter((path) => path !== file.path);
+    setProgress({ key: progressKey, paths });
+    try {
+      localStorage.setItem(progressKey, JSON.stringify(paths));
+    } catch {
+      setNotice("진행도를 이 기기에 저장하지 못했습니다. 현재 화면에서는 유지됩니다.");
+    }
+  }
+  function nextUnreviewed() {
+    const index = files.findIndex((f) => f.path === file.path);
+    const remaining = [...files.slice(index + 1), ...files.slice(0, index + 1)]
+      .find((f) => !viewed.includes(f.path));
+    if (remaining) select(remaining.path);
+  }
   async function generate() {
     setBusy("guide");
     setError("");
@@ -456,6 +500,7 @@ export default function ReviewWorkbench({
   }
   async function post() {
     const submittedKey = draftKey;
+    const submittedDraft = draft;
     const text = draft.trim();
     if (!text) return;
     setBusy("comment");
@@ -492,7 +537,9 @@ export default function ReviewWorkbench({
       }
       if (alive.current) {
         setDiscussions((d) => [...d, thread]);
-        setDrafts((d) => ({ ...d, [submittedKey]: "" }));
+        setDrafts((d) => d[submittedKey] === submittedDraft
+          ? { ...d, [submittedKey]: "" }
+          : d);
         setNotice(
           live
             ? "GitLab에 리뷰 댓글을 등록했습니다."
@@ -611,6 +658,16 @@ export default function ReviewWorkbench({
       )}
       <div className="visual-review-grid">
         <section className="visual-map-panel">
+          <div className="review-file-progress">
+            <div>
+              <strong role="status">{viewedCount} / {files.length} files viewed</strong>
+              <small>Saved on this device · current diff only</small>
+            </div>
+            <progress aria-label="Files viewed" max={files.length} value={viewedCount} />
+            <button className="btn" onClick={nextUnreviewed} disabled={viewedCount === files.length}>
+              Next unreviewed <ArrowRight size={12} />
+            </button>
+          </div>
           <div
             className="visual-tabs"
             role="tablist"
@@ -702,7 +759,9 @@ export default function ReviewWorkbench({
                     key={f.path}
                     onClick={() => select(f.path)}
                   >
-                    <FileCode2 size={13} />
+                    {viewed.includes(f.path)
+                      ? <Check size={13} className="review-file-viewed" aria-label="Viewed" />
+                      : <FileCode2 size={13} />}
                     {f.path}
                     <span>
                       {(f.rows || []).filter((r) => r.kind === "added").length}{" "}
@@ -819,6 +878,12 @@ export default function ReviewWorkbench({
           <div className="visual-code-heading">
             <FileCode2 size={15} />
             <strong title={file.path}>{file.path}</strong>
+            <label className="review-viewed-toggle">
+              <input type="checkbox" checked={viewed.includes(file.path)}
+                onChange={(e) => markViewed(e.target.checked)}
+                aria-label={`Mark ${file.path} as viewed`} />
+              Viewed
+            </label>
             <div className="segmented">
               {["Diff", "Source"].map((t) => (
                 <button

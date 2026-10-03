@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import { addPlanTask } from "../lib/planning";
@@ -22,6 +22,15 @@ export default function JiraIssue({
   onOpen,
   configs,
 }) {
+  const mounted = useRef(false);
+  const activeKey = useRef(item.key);
+  activeKey.current = item.key;
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [issue, setIssue] = useState(null),
     [transitions, setTransitions] = useState([]),
     [transition, setTransition] = useState(""),
@@ -57,8 +66,7 @@ export default function JiraIssue({
         ...(field === "assignee" ? { accountId: account } : { due }),
       });
       setNotice("Saved in Jira");
-      await load();
-      onChanged?.();
+      if (await load()) onChanged?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -108,8 +116,7 @@ export default function JiraIssue({
           ? "Sprint updated in Jira"
           : "Priority updated in Jira",
       );
-      await load();
-      onChanged?.();
+      if (await load()) onChanged?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -117,13 +124,17 @@ export default function JiraIssue({
     }
   }
   async function load() {
+    const key = item.key;
+    if (!mounted.current || activeKey.current !== key) return false;
     const [i, t] = await Promise.all([
-      invoke("jira.issue", { key: item.key }),
-      invoke("jira.transitions", { key: item.key }),
+      invoke("jira.issue", { key }),
+      invoke("jira.transitions", { key }),
     ]);
+    if (!mounted.current || activeKey.current !== key) return false;
     setIssue(i);
     setTransitions(t);
     onContext?.(JSON.stringify({ key: i.key, ...i.fields }));
+    return true;
   }
   useEffect(() => {
     let alive = true;
@@ -150,15 +161,15 @@ export default function JiraIssue({
     setError("");
     try {
       if (kind === "comment") {
-        await invoke("jira.comment", { key: item.key, body: text });
-        setText("");
+        const submittedText = text;
+        await invoke("jira.comment", { key: item.key, body: submittedText });
+        setText((current) => (current === submittedText ? "" : current));
       } else
         await invoke("jira.transition", {
           key: item.key,
           transitionId: transition,
         });
-      await load();
-      onChanged?.();
+      if (await load()) onChanged?.();
     } catch (e) {
       setError(e.message);
     } finally {

@@ -14,6 +14,9 @@ const evidence = {
 };
 try {
   const p = await app.firstWindow();
+  evidence.worklaneName = await app.evaluate(({app}) => app.getName()) === "Worklane";
+  if (!evidence.worklaneName) throw new Error("Electron app name was not updated");
+  await expect(p).toHaveTitle(/Worklane/);
   await app.evaluate(async ({protocol})=>{
     globalThis.__nativeRequestVerified=false;
     await protocol.handle('https',(request)=>{

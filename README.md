@@ -1,6 +1,6 @@
 <div align="center">
 
-# Orbit
+# Worklane
 
 **Your workday, connected.**
 
@@ -12,9 +12,9 @@ An Electron workspace for developers — plan the day, follow an issue across to
 
 </div>
 
-![Orbit daily command center — sample data](docs/media/daily-command-center.png)
+![Worklane daily command center — sample data](docs/media/daily-command-center.png)
 
-Orbit connects daily planning, Jira issues, Confluence documents, GitLab reviews and a contextual Claude assistant. Open related work in an inspector, follow its context, and return to the same list.
+Worklane connects daily planning, Jira issues, Confluence documents, GitLab reviews and a contextual Claude assistant. Open related work in an inspector, follow its context, and return to the same list.
 
 > **Early preview.** Includes a fully clickable demo and an Electron connected mode. All images and GIFs use synthetic sample data. Connected-mode recordings use test service responses, including the AI guide — they do not demonstrate a live company connection.
 
@@ -26,9 +26,10 @@ Move between a **dependency graph**, a **sequence diagram**, and the exact sourc
 
 - Separate dependency and sequence views, with clickable components and source references.
 - Old/new diff positions and commit SHA checks before posting comments or approving.
-- Per-file and per-line local drafts, retained after failed submissions.
+- Per-file **Viewed** state, commit-scoped progress, and **Next unreviewed** navigation.
+- Per-file and per-line local drafts, retained after failed submissions and edits during posting.
 - On-demand Claude guidance: reading order, review checkpoints, and cited code locations.
-- Explicit review approval; Orbit does not merge the MR.
+- Explicit review approval; Worklane does not merge the MR.
 
 Solid dependency edges represent resolved imports; dashed relationships and sequence flows are inferred. These are **not runtime traces or a complete repository analysis**.
 
@@ -48,7 +49,8 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 
 - Quick add: `Prepare deployment review tomorrow 2pm`.
 - Personal tasks and events, with Day / Week / Month calendar views.
-- Drag-to-schedule and keyboard-accessible date inputs.
+- Drag-to-schedule, keyboard reordering, and editable linked personal plans.
+- Click a calendar date to focus quick add without losing the current month.
 - Review requests and imminent deadlines collected in an attention center.
 - Global search across local tasks, Jira, GitLab and Confluence.
 
@@ -76,8 +78,8 @@ Personal planning changes stay local. Checking a task or moving its date does **
 You need Node.js 22 or newer and npm. Native desktop validation has been performed on macOS; Windows and Linux have not yet been validated.
 
 ```sh
-git clone https://github.com/benny1020/desktop-work-os.git
-cd desktop-work-os
+git clone https://github.com/benny1020/worklane.git
+cd worklane
 npm ci
 ```
 
@@ -132,7 +134,7 @@ Every global action also has a visible button. Light/dark themes, a collapsible 
 - Personal plans, recent items, favorites and review drafts are **local, unencrypted application data**. There is no cross-device sync.
 - Service calls pass through a fixed Electron IPC action list. The renderer cannot request arbitrary URLs or run shell commands.
 - Remote wiki HTML is sanitized. External navigation and active embedded content are blocked.
-- AI review runs only on request. Its submitted context includes bounded MR diffs and your guidelines. Assistant requests include the selected work and personal plan.
+- AI review runs only on request. Its submitted context includes bounded MR diffs and your guidelines. Assistant requests include the selected work, personal plan and up to three completed conversation exchanges. Selecting source sends a bounded excerpt around that line with its commit SHA.
 - External writes use explicit submission buttons. The assistant's supported local rescheduling action presents a confirmation first.
 
 Real organization endpoints and credentials have not been validated in the published test run. Do not interpret fixture tests as production integration certification.
@@ -148,7 +150,7 @@ npm run test:connected-desktop   # Native UI → IPC → service adapters
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **47 browser tests**, **23 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **64 browser tests**, **24 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI
@@ -167,6 +169,6 @@ Background synchronization, offline external writes, rich-text editing of existi
 
 ## References and licensing
 
-Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana and PR Lens. Orbit uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) record inspected commits, line ranges and what was adopted.
+Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [team review](docs/WORKLANE_REVIEW.md) records reproduced defects and validation.
 
-Dependencies retain their respective licenses. **No project-wide license has been selected for Orbit yet**; making this repository public does not grant a new open-source license.
+Dependencies retain their respective licenses. **No project-wide license has been selected for Worklane yet**; making this repository public does not grant a new open-source license.

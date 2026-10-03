@@ -65,9 +65,9 @@ Fixtures test actual UI, transport construction and local runtime boundaries; th
 
 Existing document rich-text editing, company-specific required Jira custom fields, automatic service synchronization, installer signing and runtime dependency tracing are outside this implementation. Detailed resource caps and behavior are in `INTEGRATIONS_AND_REVIEW.md`. Personal plan/draft/recent data is local plain text; only integration credentials/configuration use the encrypted vault.
 
-## Private repository scope
+## Repository publication
 
-Repository: https://github.com/benny1020/desktop-work-os. Initially created as Private; the owner has now authorized Public visibility.
+Repository: https://github.com/benny1020/worklane. Initially created as Private; the owner has now authorized Public visibility.
 
 The user authorized creating one **private** GitHub repository, then explicitly authorized making it **public** with screenshots and GIFs. Publish source, dependency locks, test code, documentation and curated synthetic media. Keep `node_modules`, `dist`, generated screenshots/test outputs, downloaded upstream sources, `.env`, tokens and encryption files local. `.gitignore` excludes these classes. Evidence paths in this document refer to the original local workspace; regenerate them with the documented commands after cloning.
 
@@ -80,3 +80,10 @@ The user authorized creating one **private** GitHub repository, then explicitly 
 - Confluence CQL search: https://developer.atlassian.com/cloud/confluence/rest/v1/api-group-search/
 - GitLab MR pipelines: https://docs.gitlab.com/api/merge_requests/
 - GitLab pipeline/jobs: https://docs.gitlab.com/api/pipelines/ and https://docs.gitlab.com/api/jobs/
+
+
+## Worklane rename and team review — 2026-10-03
+
+The product is now **Worklane**, and the public repository is https://github.com/benny1020/worklane. The local checkout directory can keep its original name. Electron keeps the existing `desktop-work-os` user-data directory and legacy `orbit-*` storage/IPC names to preserve encrypted connection settings, personal plans and drafts. `WORKLANE_USER_DATA_DIR` can select an isolated profile; `ORBIT_USER_DATA_DIR` remains a compatibility alias.
+
+The latest [team review and validation](WORKLANE_REVIEW.md) supersedes the test counts above. Three specialist agents reviewed planning usability, API/context correctness and open-source review patterns. Source provenance is recorded in [REVIEW_REFERENCES.md](REVIEW_REFERENCES.md).

@@ -394,6 +394,35 @@
   min-height: 100px;
   overflow: auto;
 }
+.review-file-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.review-file-progress strong,
+.review-file-progress small { display: block; }
+.review-file-progress strong { font-size: 11px; }
+.review-file-progress small { font-size: 9px; color: var(--secondary); margin-top: 4px; }
+.review-file-progress progress {
+  flex: 1;
+  width: 45px;
+  min-width: 24px;
+  height: 4px;
+  accent-color: var(--accent);
+}
+.review-file-progress .btn { white-space: nowrap; font-size: 10px; }
+.review-viewed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.review-viewed-toggle input { accent-color: var(--accent); cursor: pointer; }
+.review-file-viewed { color: var(--accent); flex-shrink: 0; }
 .review-component-list button {
   display: flex;
   align-items: center;

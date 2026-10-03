@@ -1,5 +1,5 @@
 {
-  "name": "desktop-work-os",
+  "name": "worklane",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "test": "playwright test",
     "desktop": "npm run build && electron .",
     "test:adapters": "node --test tests/integration/*.test.mjs",
-    "test:desktop": "npm run build && node scripts/test-desktop.mjs",
+    "test:desktop": "npm run build && node scripts/test-profile-compatibility.mjs && node scripts/test-desktop.mjs",
     "test:connected-desktop": "npm run build && node scripts/test-connected-desktop.mjs",
     "screenshots:connected": "node scripts/capture-connected-workflows.mjs"
   },
@@ -27,5 +27,6 @@
     "electron": "^44.5.1",
     "vite": "^6.3.0"
   },
-  "main": "electron/main.cjs"
+  "main": "electron/main.cjs",
+  "productName": "Worklane"
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   Check,
@@ -7,6 +7,7 @@ import {
   Plus,
   ArrowUp,
   ArrowDown,
+  Pencil,
   CalendarDays,
   GitPullRequest,
 } from "lucide-react";
@@ -22,6 +23,115 @@ import {
   moveTask,
   planChange,
 } from "../lib/planning";
+function PlanTask({ task, tasks, today, act, onOpen, onEdit }) {
+  const siblings = tasks.filter((item) => item.date === task.date && (item.time || "") === (task.time || ""));
+  const index = siblings.findIndex((item) => item.id === task.id);
+  return (
+    <div
+      className={`plan-task ${task.done ? "done" : ""} ${task.kind}`}
+      draggable
+      onDragStart={(e) => e.dataTransfer.setData("text/orbit-task", task.id)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.getData("text/orbit-task") === task.id) return;
+        act(() =>
+          moveTask(
+            e.dataTransfer.getData("text/orbit-task"),
+            task.date,
+            task.id,
+          ),
+        );
+      }}
+    >
+      <button
+        className="plan-check"
+        aria-label={`${task.done ? "Reopen" : "Complete"} ${task.title}`}
+        onClick={() => act(() => updateTask(task.id, { done: !task.done }))}
+      >
+        {task.done ? (
+          <Check size={13} />
+        ) : task.kind === "event" ? (
+          <CalendarDays size={13} />
+        ) : null}
+      </button>
+      <div className="plan-task-main">
+        <button
+          onClick={() =>
+            task.object ? onOpen(task.object) : onEdit({ ...task })
+          }
+        >
+          {task.time && <time>{task.time}</time>}
+          {task.title}
+        </button>
+        <small>
+          {task.object?.type === "issue"
+            ? "Jira linked"
+            : task.object?.type === "mr"
+              ? "GitLab review"
+              : task.kind === "event"
+                ? "Personal event"
+                : "Personal task"}{" "}
+          · {task.done ? "Completed locally" : "Local plan"}
+        </small>
+      </div>
+      <div className="plan-task-actions">
+        <button
+          title="Move up"
+          aria-label={`Move up ${task.title}`}
+          aria-disabled={index === 0}
+          onClick={() => index > 0 && act(() => moveTask(task.id, task.date, siblings[index - 1].id))}
+        >
+          <ArrowUp size={12} />
+        </button>
+        <button
+          title="Move down"
+          aria-label={`Move down ${task.title}`}
+          aria-disabled={index === siblings.length - 1}
+          onClick={() => index < siblings.length - 1 && act(() => moveTask(siblings[index + 1].id, task.date, task.id))}
+        >
+          <ArrowDown size={12} />
+        </button>
+        <button
+          title="Edit personal plan"
+          aria-label={`Edit plan for ${task.title}`}
+          onClick={() => onEdit({ ...task })}
+        >
+          <Pencil size={12} />
+        </button>
+        <label>
+          <span className="sr-only">Date for {task.title}</span>
+          <input
+            type="date"
+            value={task.date || ""}
+            onChange={(e) =>
+              act(() => updateTask(task.id, { date: e.target.value }))
+            }
+          />
+        </label>
+        <input
+          aria-label={`Time for ${task.title}`}
+          type="time"
+          value={task.time || ""}
+          onChange={(e) =>
+            act(() => updateTask(task.id, { time: e.target.value }))
+          }
+        />
+        <button
+          title="Tomorrow"
+          aria-label={`Tomorrow ${task.title}`}
+          onClick={() =>
+            act(() => updateTask(task.id, { date: shiftDay(today, 1) }))
+          }
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DailyWorkspace({
   section,
   view,
@@ -33,6 +143,8 @@ export default function DailyWorkspace({
   const plan = usePlan(),
     today = dayKey();
   const [editing, setEditing] = useState(null);
+  const quickInput = useRef(null);
+  const [quickDate, setQuickDate] = useState(null);
   const [date, setDate] = useState(today),
     [mode, setMode] = useState("Week"),
     [quick, setQuick] = useState(""),
@@ -70,6 +182,7 @@ export default function DailyWorkspace({
       alive = false;
     };
   }, [configs, refresh]);
+  useEffect(() => { setQuickDate(null); }, [date, view]);
   const act = (fn) => {
     try {
       fn();
@@ -81,7 +194,7 @@ export default function DailyWorkspace({
   function add(e) {
     e.preventDefault();
     act(() => {
-      const t = parseQuick(quick, view === "Backlog" ? "" : date);
+      const t = parseQuick(quick, view === "Backlog" ? "" : quickDate || date);
       addPlanTask({ ...t, kind });
       setQuick("");
       setNotice(`Saved locally · ${t.date || "Backlog"} ${t.time}`);
@@ -106,100 +219,7 @@ export default function DailyWorkspace({
     title: `!${m.iid} ${m.title}`,
     origin: configs.gitlab?.url,
   });
-  function Task({ task }) {
-    return (
-      <div
-        className={`plan-task ${task.done ? "done" : ""} ${task.kind}`}
-        draggable
-        onDragStart={(e) => e.dataTransfer.setData("text/orbit-task", task.id)}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          act(() =>
-            moveTask(
-              e.dataTransfer.getData("text/orbit-task"),
-              task.date,
-              task.id,
-            ),
-          );
-        }}
-      >
-        <button
-          className="plan-check"
-          aria-label={`${task.done ? "Reopen" : "Complete"} ${task.title}`}
-          onClick={() => act(() => updateTask(task.id, { done: !task.done }))}
-        >
-          {task.done ? (
-            <Check size={13} />
-          ) : task.kind === "event" ? (
-            <CalendarDays size={13} />
-          ) : null}
-        </button>
-        <div className="plan-task-main">
-          <button
-            onClick={() =>
-              task.object ? onOpen(task.object) : setEditing({ ...task })
-            }
-          >
-            {task.time && <time>{task.time}</time>}
-            {task.title}
-          </button>
-          <small>
-            {task.object?.type === "issue"
-              ? "Jira linked"
-              : task.object?.type === "mr"
-                ? "GitLab review"
-                : task.kind === "event"
-                  ? "Personal event"
-                  : "Personal task"}{" "}
-            · {task.done ? "Completed locally" : "Local plan"}
-          </small>
-        </div>
-        <div className="plan-task-actions">
-          <button
-            title="Move up"
-            aria-label={`Move up ${task.title}`}
-            onClick={() => {
-              const same = plan.tasks.filter((t) => t.date === task.date);
-              const index = same.findIndex((t) => t.id === task.id);
-              if (index > 0)
-                act(() => moveTask(task.id, task.date, same[index - 1].id));
-            }}
-          >
-            <ArrowUp size={12} />
-          </button>
-          <label>
-            <span className="sr-only">Date for {task.title}</span>
-            <input
-              type="date"
-              value={task.date || ""}
-              onChange={(e) =>
-                act(() => updateTask(task.id, { date: e.target.value }))
-              }
-            />
-          </label>
-          <input
-            aria-label={`Time for ${task.title}`}
-            type="time"
-            value={task.time || ""}
-            onChange={(e) =>
-              act(() => updateTask(task.id, { time: e.target.value }))
-            }
-          />
-          <button
-            title="Tomorrow"
-            aria-label={`Tomorrow ${task.title}`}
-            onClick={() =>
-              act(() => updateTask(task.id, { date: shiftDay(today, 1) }))
-            }
-          >
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={setEditing} />;
   function dayTasks(d) {
     return plan.tasks
       .filter((t) => t.date === d)
@@ -298,6 +318,8 @@ export default function DailyWorkspace({
       <form className="plan-quick" onSubmit={add}>
         <Plus size={15} />
         <input
+          ref={quickInput}
+          aria-describedby="plan-quick-target"
           aria-label="Quick add personal work"
           placeholder="Prepare retry review tomorrow 2pm"
           value={quick}
@@ -315,11 +337,14 @@ export default function DailyWorkspace({
           Add to plan
         </button>
       </form>
+      <div id="plan-quick-target" className="plan-quick-target">
+        Adding to {view === "Backlog" ? "Backlog" : quickDate || date} · explicit dates in your text take priority
+      </div>
       <div className="plan-boundary">
         개인 계획은 이 기기에 저장됩니다. 체크·날짜 이동은 Jira 상태나 기한을
         변경하지 않습니다. Dooray 일정은 연동하지 않습니다.
       </div>
-      {error && (
+      {error && !editing && (
         <div role="alert" className="connection-error">
           {error}
         </div>
@@ -370,14 +395,13 @@ export default function DailyWorkspace({
                     day: "numeric",
                   })}
                 </h3>
-                {dayTasks(d).map((task) => (
-                  <Task key={task.id} task={task} />
-                ))}
+                {dayTasks(d).map(taskRow)}
                 <button
                   className="day-add"
                   onClick={() => {
-                    setDate(d);
-                    setNotice(`Quick add date: ${d}`);
+                    setQuickDate(d);
+                    quickInput.current?.focus();
+                    quickInput.current?.scrollIntoView({ block: "nearest" });
                   }}
                 >
                   + Plan here
@@ -388,9 +412,7 @@ export default function DailyWorkspace({
           <h3>Unscheduled · drag into a day</h3>
           {plan.tasks
             .filter((t) => !t.date && !t.done)
-            .map((t) => (
-              <Task key={t.id} task={t} />
-            ))}
+            .map(taskRow)}
         </>
       ) : (
         <div className="daily-columns">
@@ -408,7 +430,7 @@ export default function DailyWorkspace({
               </span>
             </h2>
             {tasks.length ? (
-              tasks.map((t) => <Task key={t.id} task={t} />)
+              tasks.map(taskRow)
             ) : (
               <div className="plan-empty">
                 계획된 업무가 없습니다. 아래 실제 업무를 Today에 추가하거나 개인
@@ -534,6 +556,7 @@ export default function DailyWorkspace({
               <Dialog.Description>
                 이 기기의 개인 계획만 변경합니다.
               </Dialog.Description>
+              {error && <p role="alert" className="connection-error">{error}</p>}
               <form
                 className="live-create"
                 onSubmit={(e) => {

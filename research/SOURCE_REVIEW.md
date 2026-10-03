@@ -1,4 +1,4 @@
-# Orbit — 실제 소스 코드 기반 UX 검토와 적용
+# Worklane — 실제 소스 코드 기반 UX 검토와 적용
 
 검토일: 2026-10-03. 대상: `desktop-work-os`.
 
@@ -28,7 +28,7 @@
 
 ## 코드 경로별 판단
 
-| 원본 | 읽은 근거 | 원본에서 확인한 동작 | Orbit에 적용 / 의도적 차이 | 검증 |
+| 원본 | 읽은 근거 | 원본에서 확인한 동작 | Worklane에 적용 / 의도적 차이 | 검증 |
 |---|---|---|---|---|
 | Plane | [header.tsx:39–59](https://github.com/makeplane/plane/blob/c7a5afee6afd15f16038ebda1ec1489ebd8af67d/apps/web/components/issues/peek-overview/header.tsx#L39-L59) | side-peek / modal / full-screen의 표시 방식과 이슈 식별자를 분리한다. | Inspector 확장/축소는 route와 선택 이슈를 바꾸지 않는다. 전체 페이지 이동은 추가하지 않았다. | OSS-04 |
 | Plane | [view.tsx:85–113](https://github.com/makeplane/plane/blob/c7a5afee6afd15f16038ebda1ec1489ebd8af67d/apps/web/components/issues/peek-overview/view.tsx#L85-L113) | 다른 모달·드롭다운이 열렸을 때 peek가 같이 닫히지 않도록 하고, 닫힌 뒤 원래 이슈에 포커스를 돌린다. | 검색창 Escape는 검색창만 닫음. Inspector Escape는 원래 목록 버튼으로 포커스 반환. | OSS-01 |

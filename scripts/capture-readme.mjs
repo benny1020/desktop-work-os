@@ -7,9 +7,20 @@ const root = new URL('..', import.meta.url).pathname;
 const browser = await chromium.launch();
 const manifest = { syntheticData: true, animations: [], screenshots: [], errors: [] };
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function screenshot(page, name) {
+  await page.screenshot({path: `${root}/docs/media/${name}.png`, animations:'disabled'});
+  manifest.screenshots.push(name);
+}
+const hero = await browser.newPage({viewport:{width:1440,height:900}});
+await hero.goto('http://127.0.0.1:5178');
+await expect(hero.getByRole('heading',{name:'Good morning, Alex.'})).toBeVisible();
+await hero.evaluate(() => document.fonts.ready);
+await screenshot(hero, 'daily-command-center');
+await hero.close();
 async function scene(name, actions) {
   const folder = `${root}/artifacts/readme-recording/${name}`;
   await fs.mkdir(folder, { recursive: true });
+  for (const file of await fs.readdir(folder)) if (/^\d+\.png$/.test(file)) await fs.unlink(`${folder}/${file}`);
   const page = await browser.newPage({ baseURL: 'http://127.0.0.1:5178', viewport: { width: 1440, height: 900 } });
   page.on('pageerror', error => manifest.errors.push(error.message));
   await installConnected(page);
@@ -34,6 +45,11 @@ await scene('visual-review', async p => {
   await pause(1400);
   await p.getByRole('button', { name: 'Open component PaymentService.ts', exact: true }).click();
   await pause(900);
+  await p.getByRole('checkbox', { name: /Mark .* as viewed/ }).check();
+  await pause(500);
+  await p.getByRole('button', {name:'Next unreviewed',exact:true}).click();
+  await pause(600);
+  await p.getByRole('button', { name: 'Open component PaymentService.ts', exact: true }).click();
   await p.getByRole('tab', { name: 'Sequence', exact: true }).click();
   await pause(1300);
   await p.getByRole('button', { name: 'Source', exact: true }).click();
@@ -46,6 +62,13 @@ await scene('visual-review', async p => {
   await p.getByRole('button', { name: 'Generate AI guide', exact: true }).click();
   await expect(p.locator('.guide-summary')).toBeVisible();
   await pause(1600);
+  await p.keyboard.press('Meta+j');
+  await p.getByLabel('Ask Claude').fill('Which part should I review first?');
+  await p.getByRole('button',{name:'Send to Claude'}).click();
+  await expect(p.locator('.live-chat-message.assistant')).toBeVisible();
+  await p.getByRole('tab', {name:'Dependency flow',exact:true}).click();
+  await p.getByLabel('Fit diagram to panel').click();
+  await screenshot(p, 'contextual-assistant');
 });
 await scene('connected-context', async p => {
   await pause(600);
@@ -54,6 +77,7 @@ await scene('connected-context', async p => {
   await p.getByRole('button', { name: 'Find linked MR & wiki' }).click();await pause(900);
   await p.getByRole('button', { name: 'Payment Retry Policy', exact: true }).click();
   await expect(p.locator('.remote-document')).toBeVisible();await pause(1200);
+  await screenshot(p, 'wiki-preview');
   await p.getByLabel('Back in context').click();
   await p.getByRole('button', { name: '!7 PAY-382 Payment retry review', exact: true }).click();
   await expect(p.getByRole('img', { name: 'Dependency flow diagram' })).toBeVisible();await pause(1100);
@@ -69,10 +93,19 @@ await scene('daily-planning', async p => {
   await p.getByRole('button', { name: 'This Week', exact: true }).first().click();await pause(1500);
   await p.getByRole('button', { name: 'Calendar', exact: true }).first().click();
   await p.getByLabel('Calendar range').selectOption('Month');await pause(1700);
+  await screenshot(p, 'calendar');
   await p.keyboard.press('Meta+k');
   await p.getByLabel('Connected global search').pressSequentially('PAY-382', { delay: 100 });
   await expect(p.locator('[cmdk-item]').filter({ hasText: 'PAY-382 Payment retry implementation' })).toBeVisible();await pause(1500);
 });
+const dark = await browser.newPage({baseURL:'http://127.0.0.1:5178',viewport:{width:1440,height:900}});
+await installConnected(dark);
+await expect(dark.locator('.inbox-work')).toBeVisible();
+await dark.getByLabel('Quick add personal work').fill('Prepare deployment review today 10am');
+await dark.getByRole('button',{name:'Add to plan',exact:true}).click();
+await dark.getByRole('button',{name:'Toggle theme'}).click();
+await screenshot(dark, 'dark-workspace');
+await dark.close();
 await fs.writeFile(`${root}/artifacts/readme-recording/manifest.json`, JSON.stringify(manifest, null, 2));
 await browser.close();
 if (manifest.errors.length) throw new Error(manifest.errors.join('\n'));

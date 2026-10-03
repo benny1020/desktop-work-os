@@ -1,4 +1,4 @@
-/* Connected planning and object previews inherit the existing Orbit tokens. */
+/* Connected planning and object previews inherit the existing Worklane tokens. */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -63,6 +63,20 @@
 .plan-notice {
   font-size: 11px;
   color: var(--accent);
+}
+.plan-quick-target {
+  color: var(--secondary);
+  font-size: 10px;
+  margin-top: 7px;
+}
+.plan-task-actions > button[aria-disabled="true"] {
+  opacity: .3;
+  cursor: default;
+}
+.daily-connected button:focus-visible,
+.daily-connected input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .daily-columns {
   display: grid;
@@ -223,6 +237,17 @@
 }
 .planning-grid .plan-task-actions input[type="time"] {
   max-width: 66px !important;
+}
+.planning-grid:not(.day):not(.month) .plan-task {
+  min-height: 52px;
+}
+.planning-grid:not(.day):not(.month) .plan-task-main small,
+.planning-grid:not(.day):not(.month) .plan-task-actions {
+  display: none;
+}
+.planning-grid:not(.day):not(.month) .plan-task:hover .plan-task-actions,
+.planning-grid:not(.day):not(.month) .plan-task:focus-within .plan-task-actions {
+  display: flex;
 }
 .planning-grid.month > section {
   min-height: 150px;

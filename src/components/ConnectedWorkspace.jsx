@@ -93,6 +93,7 @@ export default function ConnectedWorkspace({
     };
   }, [configVersion]);
   useEffect(() => {
+    onContext?.("");
     setSnapshot(null);
     setSelected(null);
     setPage(null);
@@ -197,6 +198,7 @@ export default function ConnectedWorkspace({
   async function openPage(item) {
     const ticket = ++requestId.current;
     setSelected(item.id);
+    onContext?.("");
     setPage(null);
     setLoading(true);
     setError("");
@@ -682,7 +684,7 @@ export default function ConnectedWorkspace({
           origin={configs.jira?.url}
           onOpen={onOpen}
           configs={configs}
-          onClose={() => setSelected(null)}
+          onClose={() => { setSelected(null); onContext?.(""); }}
           onChanged={() => load()}
           onContext={onContext}
         />
