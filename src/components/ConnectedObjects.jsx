@@ -13,6 +13,7 @@ import {
 } from "../lib/planning";
 import JiraIssue from "./LiveIssue";
 import ReviewWorkbench from "./ReviewWorkbench";
+import AssistantAvatar from "./AssistantAvatar";
 import ConnectedAssistant from "./ConnectedAssistant";
 export function MRLinks({ mr, onOpen, origin, pending = false }) {
   const [pipelines, setPipelines] = useState(null),
@@ -505,8 +506,8 @@ export default function ConnectedObjects({
             <span>
               {stack.length > 1 ? `${stack.length} contexts` : "Quick preview"}
             </span>
-            <button ref={assistantTrigger} className="btn" onClick={() => setAssistant((v) => !v)}>
-              Assistant
+            <button ref={assistantTrigger} aria-label="Assistant" className="btn" onClick={() => setAssistant((v) => !v)}>
+              <AssistantAvatar size={18}/> Assistant
             </button>
             <Dialog.Close
               className="icon-button"

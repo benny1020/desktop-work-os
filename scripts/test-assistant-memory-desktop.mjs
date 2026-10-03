@@ -1,0 +1,84 @@
+import { _electron as electron } from '@playwright/test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+const root=path.resolve(new URL('..',import.meta.url).pathname);
+const profile=await fs.mkdtemp(path.join(os.tmpdir(),'worklane-memory-native-'));
+const output=path.join(root,'artifacts/assistant-memory-native');
+await fs.mkdir(output,{recursive:true});
+const evidence={scope:'Actual Electron renderer/preload/main, OS safeStorage and intercepted HTTPS Claude fixture; same profile across restarts',externalServicesTested:false,realNotificationsSent:false,checks:[]};
+let app,page;
+async function launch() {
+  app=await electron.launch({args:[root],env:{...process.env,WORKLANE_USER_DATA_DIR:profile}});
+  await app.evaluate(({protocol})=>{
+    globalThis.__memoryRequests=[];
+    protocol.handle('https',async request=>{
+      const url=new URL(request.url);
+      if(url.hostname!=='claude.fixture.test'||url.pathname!=='/v1/messages')return new Response('Unsupported fixture',{status:403});
+      const body=await request.json();globalThis.__memoryRequests.push(body);
+      const payload=JSON.parse(body.messages.at(-1).content);
+      const first=payload.question.startsWith('I plan my release review');
+      return new Response(JSON.stringify({model:'claude-fixture',stop_reason:'tool_use',content:[{type:'tool_use',name:'worklane_reply',input:{answer:first?'Your release review preference is noted.':'I will use the supplied evidence without inventing a schedule.',memories:first?[{text:'Tuesday release review',kind:'preference',sourceQuote:'I plan my release review every Tuesday.'}]:[],suggestions:[]}}]}),{headers:{'content-type':'application/json'}});
+    });
+  });
+  page=await app.firstWindow();await page.waitForLoadState('domcontentloaded');
+  const secure=await app.evaluate(({safeStorage})=>safeStorage.isEncryptionAvailable()&&safeStorage.getSelectedStorageBackend?.()!=='basic_text');
+  assert.equal(secure,true,'Native OS encrypted storage must be available; no fallback is permitted');
+}
+const invoke=(action,args={})=>page.evaluate(({action,args})=>window.orbit.invoke(action,args),{action,args});
+try {
+  await launch();
+  await invoke('config.save',{service:'claude',config:{url:'https://claude.fixture.test',token:'native-memory-fixture-token-not-real',model:'claude-fixture'}});
+  let state=await invoke('assistant.memory',{op:'state'});
+  const firstScope=state.scope;
+  const response=await invoke('claude.chat',{message:'I plan my release review every Tuesday.',memory:{scope:state.scope,epoch:state.epoch,contextKey:'native-home'}});
+  assert.equal(response.memory.saved,true);
+  state=await invoke('assistant.memory',{op:'state'});
+  assert.equal(state.stats.conversations,1);assert.equal(state.memories.length,1);
+  await invoke('assistant.reminders',{op:'create',scope:state.scope,epoch:state.epoch,title:'Native fixture follow-up',dueAt:new Date(Date.now()+3600000).toISOString()});
+  assert.equal(state.notificationsEnabled,false);
+  const encryptedPath=path.join(profile,`assistant-memory-${state.scope}.enc`), bytes=await fs.readFile(encryptedPath);
+  for(const value of ['I plan my release review','Tuesday','native-memory-fixture-token-not-real','Native fixture follow-up'])assert.equal(bytes.includes(value),false);
+  assert.equal((await fs.stat(encryptedPath)).mode&0o777,0o600);
+  evidence.checks.push('Real OS encrypted archive/fact/reminder and 0600 ciphertext without plaintext');
+  await app.close();app=null;
+  await launch();
+  state=await invoke('assistant.memory',{op:'state'});
+  assert.equal(state.scope,firstScope);assert.equal(state.memories.length,1);assert.equal(state.reminders.length,1);
+  const recall=await invoke('claude.chat',{message:'What review routine did I ask you to remember?',memory:{scope:state.scope,epoch:state.epoch,contextKey:'native-home'}});
+  assert.equal(recall.memory.saved,true);
+  const requests=await app.evaluate(()=>globalThis.__memoryRequests);
+  assert.ok(JSON.parse(requests[0].messages.at(-1).content).retrievedMemory.some(item=>item.kind==='fact'&&item.text.includes('every Tuesday')));
+  evidence.checks.push('Same profile restart restores archive, facts and reminder; next native Claude request contains sourced memory');
+  state=await invoke('assistant.memory',{op:'state'});
+  const originalFact=state.memories[0];
+  state=await invoke('assistant.memory',{op:'update',scope:state.scope,epoch:state.epoch,id:originalFact.id,text:'I plan my release review every Wednesday.'});
+  assert.equal(state.memories[0].id,originalFact.id);assert.equal(state.memories[0].createdAt,originalFact.createdAt);
+  assert.equal(state.memories[0].sourceContext,'Edited by you');assert.equal(state.stats.conversations,0);
+  await invoke('claude.chat',{message:'Which review preference is current?',memory:{scope:state.scope,epoch:state.epoch,contextKey:'native-home'}});
+  const afterEdit=await app.evaluate(()=>globalThis.__memoryRequests.at(-1));
+  const editedRecall=JSON.stringify(JSON.parse(afterEdit.messages.at(-1).content).retrievedMemory);
+  assert.equal(editedRecall.includes('Tuesday'),false);assert.equal(editedRecall.includes('Wednesday'),true);
+  evidence.checks.push('Editing Tuesday to Wednesday retires prior source and dependent episodes; native recall sends only the corrected fact');
+  state=await invoke('assistant.memory',{op:'forget',scope:state.scope,epoch:state.epoch,type:'memory',id:state.memories[0].id});
+  assert.equal(state.memories.length,0);assert.equal(state.stats.conversations,0);
+  await invoke('claude.chat',{message:'Do you still have a stored review preference?',memory:{scope:state.scope,epoch:state.epoch,contextKey:'native-home'}});
+  const afterForget=await app.evaluate(()=>globalThis.__memoryRequests.at(-1));
+  const recalledAfterForget=JSON.parse(afterForget.messages.at(-1).content).retrievedMemory;
+  assert.equal(recalledAfterForget.some(item=>item.kind==='fact'||item.kind==='message'),false);
+  assert.equal(JSON.stringify(recalledAfterForget).includes('Tuesday'),false);
+  evidence.checks.push('Forget removes original and dependent recall episodes; next Claude request cannot reclaim the fact');
+  state=await invoke('assistant.memory',{op:'state'});
+  state=await invoke('assistant.memory',{op:'clear',scope:state.scope,epoch:state.epoch,target:'all'});
+  await app.close();app=null;
+  await launch();
+  state=await invoke('assistant.memory',{op:'state'});
+  assert.deepEqual(state.stats,{conversations:0,memories:0});assert.equal(state.reminders.length,0);
+  evidence.checks.push('Clear survives another native restart without resurrecting history or reminders');
+  await fs.writeFile(path.join(output,'evidence.json'),JSON.stringify(evidence,null,2));
+  console.log(JSON.stringify(evidence,null,2));
+} finally {
+  if(app)await app.close();
+  await fs.rm(profile,{recursive:true,force:true});
+}

@@ -46,7 +46,21 @@ Solid dependency edges represent resolved imports; dashed relationships and sequ
 
 Related MR and wiki candidates appear directly in the issue inspector. Documents include a heading outline and issue references; pipeline failures can be filtered and focused without abandoning the MR. Issue-key matches are candidates, not automatically verified relationships.
 
-The assistant keeps a separate conversation and draft for each work item during the app session, including responses that finish while its panel is closed.
+The assistant keeps work-item conversations separate while recalling relevant knowledge across your connected profile. Completed exchanges and saved knowledge survive desktop restarts in encrypted storage; unfinished drafts stay in the current app session.
+
+## A companion that remembers
+
+Keep Claude docked beside your work or expand it into a spacious assistant workspace. Inspect the memories behind an answer, refine what it knows, and confirm proposed task changes before they happen.
+
+![Remembered preferences → inspect sources → confirm a task → inspect memory — synthetic fixture](docs/media/assistant-memory.gif)
+
+- Encrypted conversation history and user-sourced knowledge, with search, editing, pause and forgetting.
+- Source disclosure for recalled knowledge; bounded retrieval instead of sending the whole archive.
+- Explicit confirmation for local task changes and scheduled reminders.
+- A quiet Home brief built from the same personal plan, without background model calls.
+- Opt-in desktop notifications while Worklane runs, with overdue reminders caught up on reopening.
+
+The original robot avatar is Worklane's companion, not an official Claude character. This is a local desktop assistant, not an always-running cloud agent. Read the [memory design and limits](docs/ASSISTANT_MEMORY.md) and [GitHub source research](research/ASSISTANT_MEMORY_REPOS.md).
 
 ## Plan once, use every view
 
@@ -131,7 +145,7 @@ There are no signed installers or automatic updates yet. The desktop command bui
 | Jira Cloud | Site URL, account email, API token; optional Cloud ID | JQL, issue previews, status, assignee, priority, due date, sprint changes, comments, issue creation |
 | Confluence Cloud | Separate site URL, email, API token; optional Cloud ID | Spaces, pages, search, recent/favorites, plain-text document publication |
 | GitLab Self-Managed | Instance URL, personal access token | Repositories, MR/review lists, commit source, discussions, approvals, pipelines and jobs |
-| Claude / Anthropic-compatible API | Endpoint URL, token, model ID; optional workspace ID | Model discovery, contextual assistant, structured MR review guides |
+| Claude / Anthropic-compatible API | Endpoint URL, token, model ID; optional workspace ID | Model discovery, contextual assistant, durable memory, confirmed local task/reminder suggestions, structured MR review guides |
 | Dooray | Menu placeholder | No API integration |
 | Observe / OpenSearch | Interactive demo | Mock screens only |
 
@@ -157,8 +171,8 @@ The Home workflow guide opens real sample workflows in one click. Every global a
 - Personal plans, recent items, favorites and review drafts are **local, unencrypted application data**. There is no cross-device sync.
 - Service calls pass through a fixed Electron IPC action list. The renderer cannot request arbitrary URLs or run shell commands.
 - Remote wiki HTML is sanitized. External navigation and active embedded content are blocked.
-- AI review runs only on request. Its submitted context includes bounded MR diffs and your guidelines. Assistant requests include the selected work, personal plan and up to three completed conversation exchanges. Selecting source sends a bounded excerpt around that line with its commit SHA.
-- External writes use explicit submission buttons. The assistant's supported local rescheduling action presents a confirmation first.
+- AI review runs only on request. Its submitted context includes bounded MR diffs and your guidelines. Assistant requests include the selected work, personal plan, up to three completed exchanges and bounded recalled memory. Memory and completed chats are OS-encrypted; the browser demo uses session-only conversations. Selecting source sends a bounded excerpt around that line with its commit SHA.
+- External writes use explicit submission buttons. Assistant task and reminder suggestions require confirmation before changing the personal plan or creating a reminder.
 
 Real organization endpoints and credentials have not been validated in the published test run. Do not interpret fixture tests as production integration certification.
 
@@ -170,10 +184,11 @@ npm test                        # Browser workflows
 npm run test:adapters            # API contracts and safeguards
 npm run test:desktop             # Native Electron encrypted vault
 npm run test:connected-desktop   # Native UI → IPC → service adapters
+npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **170 browser tests**, **30 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **185 browser tests**, **57 adapter tests**, **7 native connected workflow checks** and **5 native memory lifecycle checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

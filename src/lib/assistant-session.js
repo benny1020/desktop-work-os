@@ -4,7 +4,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 const sessions = new Map();
 let credentialEpoch = 0;
 export function advanceAssistantCredentialScope() { credentialEpoch++; }
-const empty = () => ({ proposal: null, history: [], input: '', messages: [], busy: false, error: '' });
+const empty = () => ({ proposal: null, history: [], input: '', messages: [], busy: false, error: '', hydrated: false, archiveOffset: 0, archiveTotal: 0 });
 function session(key) {
   if (!sessions.has(key)) sessions.set(key, { value: empty(), listeners: new Set() });
   return sessions.get(key);

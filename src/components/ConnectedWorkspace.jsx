@@ -248,6 +248,7 @@ export default function ConnectedWorkspace({
   if (["Home", "My Work"].includes(section))
     return (
       <DailyWorkspace
+        configVersion={configVersion}
         section={section}
         view={view}
         configs={configs}

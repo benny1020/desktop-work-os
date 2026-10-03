@@ -13,5 +13,6 @@ test-results/
 # Keep downloaded upstream source and local execution evidence on this device.
 research/*
 !research/SOURCE_REVIEW.md
+!research/ASSISTANT_MEMORY_REPOS.md
 coverage/
 .venv*/

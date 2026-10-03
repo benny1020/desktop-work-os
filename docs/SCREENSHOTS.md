@@ -64,3 +64,15 @@ Local tasks and events share Today, Week, Backlog and Calendar. They do not sile
 ![Available search results remain usable when another provider fails](media/search-progressive.png)
 
 See the [workflow convenience review](WORKFLOW_CONVENIENCE.md) for interactions and validation boundaries.
+
+## Personal assistant and durable memory
+
+Synthetic connected-service fixtures; no real company data or live Claude answers.
+
+![Expanded assistant and proposed task](media/assistant-memory.png)
+
+![Inspectable memory and notification preferences](media/assistant-memory-controls.png)
+
+![Dark companion workspace](media/assistant-memory-dark.png)
+
+![Memory workflow walkthrough](media/assistant-memory.gif)

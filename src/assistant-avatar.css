@@ -1,0 +1,38 @@
+.assistant-avatar {
+  --robot-shell: #e9bd9e;
+  --robot-outline: #8f624a;
+  --robot-ink: #594438;
+  --robot-signal: #538a7b;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 0;
+}
+:root[data-theme="dark"] .assistant-avatar {
+  --robot-shell: #b8886c;
+  --robot-outline: #e2bda3;
+  --robot-ink: #292621;
+  --robot-signal: #96c6b4;
+}
+.assistant-avatar svg { display: block; overflow: visible; }
+.assistant-antenna-stem, .assistant-ear { fill: none; stroke: var(--robot-outline); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.assistant-antenna { fill: var(--robot-signal); }
+.assistant-head { fill: var(--robot-shell); stroke: var(--robot-outline); stroke-width: 1.4; }
+.assistant-eyes { fill: var(--robot-ink); transform-origin: 24px 25.5px; }
+.assistant-brow { fill: none; stroke: var(--robot-outline); stroke-width: 1.2; stroke-linecap: round; opacity: .55; }
+.assistant-smile, .assistant-voice { fill: none; stroke: var(--robot-ink); stroke-width: 1.7; stroke-linecap: round; }
+.assistant-cheek { fill: #be7053; opacity: .5; }
+.assistant-voice { display: none; }
+.assistant-avatar--thinking .assistant-antenna { animation: assistant-signal 1.8s ease-in-out infinite; }
+.assistant-avatar--thinking .assistant-eyes { animation: assistant-consider 3s ease-in-out infinite; }
+.assistant-avatar--talking .assistant-smile { display: none; }
+.assistant-avatar--talking .assistant-voice { display: block; transform-origin: 24px 33.5px; animation: assistant-speak .85s ease-in-out infinite; }
+@keyframes assistant-signal { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes assistant-consider { 0%, 65%, 100% { transform: translateX(0); } 25%, 45% { transform: translateX(1px); } }
+@keyframes assistant-speak { 0%, 100% { transform: scaleY(.65); } 50% { transform: scaleY(1.2); } }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-avatar *, .assistant-avatar *::before, .assistant-avatar *::after { animation: none !important; }
+  .assistant-avatar--thinking .assistant-antenna { opacity: 1; }
+}

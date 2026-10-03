@@ -293,6 +293,7 @@ function Btn({
   );
 }
 import ConnectedCommands, { advanceCommandCredentialScope } from "./components/ConnectedCommands";
+import AssistantAvatar from "./components/AssistantAvatar";
 import { advanceAssistantCredentialScope } from "./lib/assistant-session";
 import ConnectedObjects from "./components/ConnectedObjects";
 import ConnectedAttention from "./components/ConnectedAttention";
@@ -4484,7 +4485,7 @@ function App() {
               title="Assistant · ⌘ / Ctrl J"
               onClick={() => setAssistant(!assistant)}
             >
-              <I name="Sparkles" size={15} /> Assistant <kbd>⌘ J</kbd>
+              <AssistantAvatar size={20} /> Assistant <kbd>⌘ J</kbd>
             </button>
           </div>
           {activePop === "recent" && (

@@ -1,0 +1,30 @@
+.assistant-brief{border:1px solid var(--line);border-left:2px solid var(--accent);border-radius:5px;padding:14px 16px;background:var(--surface);margin:18px 0;}
+.assistant-brief>header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.assistant-brief>header>div{display:flex;align-items:center;gap:8px;}
+.assistant-brief h2{font-size:13px;margin:0;}
+.assistant-brief header small,.brief-boundary,.brief-entry-main>small{font-size:10px;color:var(--secondary);}
+.brief-boundary{margin:8px 0 10px;}
+.brief-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line);}
+.brief-entry-main{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.brief-entry-main>span{font-size:10px;color:var(--secondary);}
+.brief-task-title{display:flex;align-items:center;gap:5px;text-align:left;font-size:12px;font-weight:600;padding:0;color:var(--text);overflow-wrap:anywhere;}
+.brief-entry-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:7px;flex-shrink:0;}
+.brief-entry-actions .quiet-button{display:flex;gap:4px;align-items:center;font-size:10px;}
+.brief-entry-actions .btn{font-size:10px;min-height:27px;padding:5px 8px;}
+.brief-expand{font-size:11px;color:var(--accent);}
+.brief-empty,.brief-notice{font-size:11px;color:var(--secondary);margin:12px 0 0;}
+.brief-notice{color:var(--accent);}
+.brief-reminder{padding-top:12px;border-top:1px solid var(--line);display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;font-size:11px;}
+.brief-reminder label{display:flex;flex-direction:column;gap:6px;flex:1;min-width:160px;}
+.brief-reminder input{background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--text);padding:7px;}
+.brief-reminder>div{display:flex;align-items:center;gap:8px;}
+@media(max-width:1100px){.brief-entry{align-items:flex-start;flex-direction:column;gap:9px}.brief-entry-actions{justify-content:flex-start}}
+.daily-brief .assistant-brief{margin:0 0 22px;padding:12px;}
+.daily-brief .brief-entry{align-items:flex-start;flex-direction:column;gap:9px;}
+.daily-brief .brief-entry-actions{justify-content:flex-start;}
+.brief-carryover{padding:10px 0;border-top:1px solid var(--line);}
+.brief-carryover small,.brief-reminder>small,.brief-reminder-status{font-size:10px;color:var(--secondary);line-height:1.6;}
+.brief-carryover small{display:block;margin-top:5px;}
+.brief-reminder-status{margin-top:10px;}
+.brief-reminder-status p{overflow-wrap:anywhere;}
+.brief-entry-main>b{font-size:12px;overflow-wrap:anywhere;}

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import "../daily-workflow.css";
+import AssistantBrief from "./AssistantBrief";
 import {
   Check,
   ChevronLeft,
@@ -158,6 +159,7 @@ function PlanningWorkspace({
   focusTaskId,
   focusRequestId,
   planningKey,
+  configVersion,
 }) {
   const plan = usePlan(),
     today = dayKey();
@@ -588,6 +590,7 @@ function PlanningWorkspace({
             )}
           </section>
           <aside className="daily-brief">
+            {home && <AssistantBrief onOpen={onOpen} onNavigate={onNavigate} configVersion={configVersion} />}
             <h2>
               Needs your attention{" "}
               <span className="pill">{feed.mrs.length + due.length}</span>
