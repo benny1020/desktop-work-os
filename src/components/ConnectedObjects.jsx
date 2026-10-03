@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import DOMPurify from "dompurify";
 import { X, ChevronLeft, Star } from "lucide-react";
@@ -399,12 +399,14 @@ export default function ConnectedObjects({
   onClose,
   onContext,
   onSettings,
+  returnFocusRef,
 }) {
   const [stack, setStack] = useState([object]),
     [configs, setConfigs] = useState(null),
     [error, setError] = useState("");
   const [assistant, setAssistant] = useState(false),
     [context, setContext] = useState("");
+  const assistantTrigger = useRef(null);
   const current = stack.at(-1);
   function receiveContext(value) {
     setContext(value);
@@ -421,7 +423,12 @@ export default function ConnectedObjects({
     };
   }, []);
   useEffect(() => {
-    setStack([object]);
+    setStack((items) => {
+      const key = (item) => item.type === "related"
+        ? `related:${item.query || ""}`
+        : objectKey(item);
+      return key(items.at(-1)) === key(object) ? items : [...items, object];
+    });
   }, [object]);
   useEffect(() => {
     setContext(JSON.stringify(current));
@@ -443,6 +450,19 @@ export default function ConnectedObjects({
         <Dialog.Overlay className="object-overlay" />
         <Dialog.Content
           className={`object-panel ${current.type === "mr" || assistant ? "wide" : ""}`}
+          onEscapeKeyDown={(event) => {
+            if (assistant) {
+              event.preventDefault();
+              setAssistant(false);
+              requestAnimationFrame(() => assistantTrigger.current?.focus());
+            }
+          }}
+          onCloseAutoFocus={(event) => {
+            if (returnFocusRef?.current?.isConnected) {
+              event.preventDefault();
+              returnFocusRef.current.focus();
+            }
+          }}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
               e.preventDefault();
@@ -464,7 +484,7 @@ export default function ConnectedObjects({
             <span>
               {stack.length > 1 ? `${stack.length} contexts` : "Quick preview"}
             </span>
-            <button className="btn" onClick={() => setAssistant((v) => !v)}>
+            <button ref={assistantTrigger} className="btn" onClick={() => setAssistant((v) => !v)}>
               Assistant
             </button>
             <Dialog.Close

@@ -160,7 +160,7 @@ npm run test:connected-desktop   # Native UI → IPC → service adapters
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **83 browser tests**, **24 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **125 browser tests**, **24 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI
@@ -179,6 +179,6 @@ Background synchronization, offline external writes, rich-text editing of existi
 
 ## References and licensing
 
-Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [team review](docs/WORKLANE_REVIEW.md) records reproduced defects and validation.
+Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [iterative team review](docs/UX_REVIEW_CYCLES.md) records reproduced defects and validation.
 
 DM Sans and IBM Plex Mono are bundled locally under their SIL Open Font Licenses; the app makes no external font requests. Dependencies retain their respective licenses. **No project-wide license has been selected for Worklane yet**; making this repository public does not grant a new open-source license.

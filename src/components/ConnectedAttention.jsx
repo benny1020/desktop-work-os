@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { X, RefreshCw } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import { addPlanTask } from "../lib/planning";
-export default function ConnectedAttention({ onClose, onOpen }) {
+export default function ConnectedAttention({ onClose, onOpen, onSettings }) {
   const [items, setItems] = useState([]),
+    [configured, setConfigured] = useState(false),
     [errors, setErrors] = useState([]),
     [busy, setBusy] = useState(true),
     [refresh, setRefresh] = useState(0),
@@ -12,8 +13,11 @@ export default function ConnectedAttention({ onClose, onOpen }) {
     let alive = true;
     setBusy(true);
     setErrors([]);
+    setItems([]);
+    setNotice("");
     async function load() {
       const c = await invoke("config.list");
+      if (alive) setConfigured(Boolean(c.jira?.tokenConfigured || c.gitlab?.tokenConfigured));
       const requests = [];
       if (c.jira?.tokenConfigured)
         requests.push(
@@ -64,6 +68,8 @@ export default function ConnectedAttention({ onClose, onOpen }) {
   return (
     <aside
       className="connected-attention"
+      id="attention-popover"
+      tabIndex={-1}
       aria-label="Connected attention center"
     >
       <header>
@@ -85,8 +91,7 @@ export default function ConnectedAttention({ onClose, onOpen }) {
         </button>
       </header>
       <p className="form-note">
-        기한이 임박한 이슈와 리뷰 요청을 모았습니다. 서비스별 첫 50개
-        결과입니다.
+        Due issues and review requests, up to the first 50 results per service.
       </p>
       {busy && <p>Loading…</p>}
       {items.map((o, i) => (
@@ -115,7 +120,10 @@ export default function ConnectedAttention({ onClose, onOpen }) {
           </button>
         </div>
       ))}
-      {!items.length && !busy && <p>No urgent work in connected results.</p>}
+      {!items.length && !busy && !errors.length && (configured
+        ? <p>No urgent work in connected results.</p>
+        : <div><p>Connect Jira or GitLab to see due issues and review requests.</p><button className="btn" onClick={onSettings}>Connect tools</button></div>)}
+      {!busy && errors.length > 0 && <p>{items.length ? "Some services could not be checked. Results may be incomplete." : "Attention could not be checked. Refresh to try again."}</p>}
       {errors.map((e, i) => (
         <p className="connection-error" role="alert" key={i}>
           {e}

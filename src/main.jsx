@@ -303,6 +303,21 @@ function App() {
   const [showGuide,setShowGuide] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState(()=>persisted("workspaceMode","demo"));
   const [liveObject,setLiveObject]=useState(null);
+  const liveObjectFocus = useRef(null);
+  const planningNavigationRequest = useRef(0);
+  function openLiveObject(object) {
+    if (!liveObject) {
+      const active = document.activeElement;
+      liveObjectFocus.current = active?.closest('.connected-attention')
+        ? document.querySelector('[aria-label="Notifications"]')
+        : active?.closest('.recent-popover')
+          ? document.querySelector('[aria-label="Recently viewed"]')
+          : active?.closest('[role="dialog"]')
+            ? document.querySelector('[aria-label="Global search"]')
+            : active;
+    }
+    setLiveObject(object);
+  }
   const livePlan=usePlan();
   useEffect(()=>localStorage.setItem("orbit-workspaceMode",JSON.stringify(workspaceMode)),[workspaceMode]);
   const [configVersion, setConfigVersion] = useState(0);
@@ -380,6 +395,33 @@ function App() {
   const [quickText, setQuickText] = useState("");
   const [activePop, setActivePop] = useState(null);
   const toastTimer = useRef();
+  const shellPopover = notifications ? "notifications" : ["recent", "workspace"].includes(activePop) ? activePop : null;
+  const popoverSelectors = {
+    notifications: ['.notification-popover, .connected-attention', '[aria-label="Notifications"]'],
+    recent: ['.recent-popover', '[aria-label="Recently viewed"]'],
+    workspace: ['.workspace-popover', '[aria-label="Workspace switcher"]'],
+  };
+  function dismissPopover(restoreFocus = false) {
+    const trigger = shellPopover && document.querySelector(popoverSelectors[shellPopover][1]);
+    setNotifications(false);
+    setActivePop(null);
+    if (restoreFocus) requestAnimationFrame(() => { if (!document.querySelector('[role="dialog"]') && trigger?.isConnected) trigger.focus(); });
+  }
+  useEffect(() => {
+    if (!shellPopover) return;
+    const [panelSelector, triggerSelector] = popoverSelectors[shellPopover];
+    const panel = document.querySelector(panelSelector);
+    (panel?.querySelector('button:not(:disabled)') || panel)?.focus();
+    const outside = (event) => {
+      if (!event.target.closest(`${panelSelector}, ${triggerSelector}`)) dismissPopover();
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("focusin", outside);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("focusin", outside);
+    };
+  }, [shellPopover]);
   useEffect(() => {
     document.getElementById("main-content")?.scrollTo({top:0,left:0});
   }, [route.section, route.view]);
@@ -427,9 +469,18 @@ function App() {
       view:
         view || navigation.find((n) => n.name === section)?.views[0] || "Home",
     };
-    setRoute(next);
-    setHistory((h) => [...h.slice(0, historyIndex + 1), next]);
-    setHistoryIndex(historyIndex + 1);
+    if (scope?.mrId) next.mrId = scope.mrId;
+    if (scope?.taskId) {
+      next.taskId = scope.taskId;
+      next.planDate = scope.planDate;
+      next.focusRequestId = ++planningNavigationRequest.current;
+    }
+    if (JSON.stringify(next) !== JSON.stringify(route)) {
+      setRoute(next);
+      setHistory((h) => [...h.slice(0, historyIndex + 1), next]);
+      setHistoryIndex(historyIndex + 1);
+    }
+    setNotifications(false);
     setInspector(null);
     setPanelHistory([]);
     setInspectorExpanded(false);
@@ -440,6 +491,11 @@ function App() {
     if (n >= 0 && n < history.length) {
       setHistoryIndex(n);
       setRoute(history[n]);
+      if (history[n].mrId) setSelectedMR(history[n].mrId);
+      setPanelHistory([]);
+      setInspectorExpanded(false);
+      setActivePop(null);
+      setNotifications(false);
       setLiveContext("");
       setLiveObject(null);
       setInspector(null);
@@ -535,7 +591,7 @@ function App() {
     setSelectedMR(id);
     setReviewTab("Changes");
     setSelectedFile(1);
-    navigate("Code", "Review");
+    navigate("Code", "Review", { mrId: id });
   }
   function addComment(key, text) {
     if (!text.trim()) return;
@@ -613,6 +669,12 @@ function App() {
     let timer;
     const handler = (e) => {
       if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return;
+      // A focused dialog owns its keyboard interaction; never navigate the workspace behind it.
+      if (document.querySelector('[role="dialog"]') && !palette) {
+        const commandFromPreview = document.querySelector('.object-panel') &&
+          (e.metaKey || e.ctrlKey) && ["k", "n"].includes(e.key.toLowerCase());
+        if (!commandFromPreview) { g = false; return; }
+      }
       const typing =
         ["INPUT", "TEXTAREA", "SELECT"].includes(
           document.activeElement?.tagName,
@@ -622,20 +684,20 @@ function App() {
         ["k", "n", "j"].includes(e.key.toLowerCase())
       ) {
         e.preventDefault();
-        if (e.key.toLowerCase() === "j") setAssistant((a) => !a);
+        if (e.key.toLowerCase() === "j") { if (!palette) setAssistant((a) => !a); }
         else setPalette(e.key.toLowerCase() === "k" ? "search" : "create");
         return;
       }
       if (e.key === "Escape") {
         if (palette) return;
-        if (activePop) setActivePop(null);
-        else if (notifications) setNotifications(false);
+        if (shellPopover) dismissPopover(true);
+        else if (activePop) setActivePop(null);
         else if (assistant) setAssistant(false);
         else if (inspector) closeInspector();
         return;
       }
       if (palette) return;
-      if (typing) return;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) { g = false; return; }
       if (g) {
         const section = {
           h: "Home",
@@ -4096,9 +4158,11 @@ function App() {
         <button
           className="workspace-switcher"
           onClick={() =>
-            setActivePop(activePop === "workspace" ? null : "workspace")
+            { setNotifications(false); setActivePop(activePop === "workspace" ? null : "workspace"); }
           }
           aria-label="Workspace switcher"
+          aria-expanded={activePop === "workspace"}
+          aria-controls="workspace-popover"
         >
           <span className="brand-mark">
             <WorklaneMark size={25} />
@@ -4114,9 +4178,9 @@ function App() {
           )}
         </button>
         {activePop === "workspace" && (
-          <div className="workspace-popover">
+          <div className="workspace-popover" id="workspace-popover" tabIndex={-1}>
             <strong>{workspaceMode === "connected" ? "My workspace" : "Acme Engineering"}</strong>
-            <p>Backend & platform</p>
+            <p>{workspaceMode === "connected" ? "Local planning and connected tools" : "Backend & platform"}</p>
             <Btn onClick={() => navigate("Settings", "Workspace")}>
               Workspace settings
             </Btn>
@@ -4322,8 +4386,11 @@ function App() {
             <button
               className="icon-button"
               aria-label="Recently viewed"
+              title="Recently viewed"
+              aria-expanded={activePop === "recent"}
+              aria-controls="recent-popover"
               onClick={() =>
-                setActivePop(activePop === "recent" ? null : "recent")
+                { setNotifications(false); setActivePop(activePop === "recent" ? null : "recent"); }
               }
             >
               <I name="History" size={15} />
@@ -4355,6 +4422,8 @@ function App() {
                 setLiveContext("");
                 setNotifications(false);
                 setPalette(null);
+                setActivePop(null);
+                setShowGuide(false);
                 setLiveObject(null);
               }}
             >
@@ -4379,23 +4448,28 @@ function App() {
             <button
               className="icon-button notification-button"
               aria-label="Notifications"
-              onClick={() => setNotifications(!notifications)}
+              title="Notifications"
+              aria-expanded={notifications}
+              aria-controls="attention-popover"
+              onClick={() => { setActivePop(null); setNotifications(!notifications); }}
             >
               <I name="Bell" size={16} />
-              <i />
+              {workspaceMode === "demo" && <i />}
             </button>
             <span className="topbar-divider" />
             <button
               className={cx("assistant-toggle", assistant && "selected")}
+              aria-expanded={assistant}
+              title="Assistant · ⌘ / Ctrl J"
               onClick={() => setAssistant(!assistant)}
             >
               <I name="Sparkles" size={15} /> Assistant <kbd>⌘ J</kbd>
             </button>
           </div>
           {activePop === "recent" && (
-            <div className="recent-popover">
+            <div className="recent-popover" id="recent-popover" tabIndex={-1}>
               <h3>Recently viewed</h3>
-              {workspaceMode === "connected" ? (livePlan.recent.length ? livePlan.recent.map((o,i)=><button key={i} onClick={()=>{setLiveObject(o);setActivePop(null);}}>{o.title}</button>) : <p>No connected items viewed yet.</p>) : recent.length ? (
+              {workspaceMode === "connected" ? (livePlan.recent.length ? livePlan.recent.map((o,i)=><button key={i} onClick={()=>{openLiveObject(o);setActivePop(null);}}>{o.title}</button>) : <p>No connected items viewed yet.</p>) : recent.length ? (
                 recent.map((x) => (
                   <button
                     key={x.type + x.id}
@@ -4437,8 +4511,11 @@ function App() {
                 key={route.section}
                 section={route.section}
                 view={route.view}
+                focusDate={route.planDate}
+                focusTaskId={route.taskId}
+                focusRequestId={route.focusRequestId}
                 configVersion={configVersion}
-                onOpen={setLiveObject}
+                onOpen={openLiveObject}
                 onContext={setLiveContext}
                 onSettings={() => navigate("Settings", "Integrations")}
                 onNavigate={navigate}
@@ -4512,15 +4589,15 @@ function App() {
         </footer>
       </div>
       {showGuide && <ProductGuide onClose={()=>setShowGuide(false)} onPick={id=>{setShowGuide(false);requestAnimationFrame(()=>{if(id==="review")review("381");else if(id==="incident")preview("alert","alert-1");else preview("issue","PAY-382");});}}/>}
-      {notifications && workspaceMode === "connected" && <ConnectedAttention onClose={()=>setNotifications(false)} onOpen={setLiveObject}/>}
+      {notifications && workspaceMode === "connected" && <ConnectedAttention onClose={()=>dismissPopover(true)} onOpen={openLiveObject} onSettings={()=>navigate("Settings","Integrations")}/>}
       {notifications && workspaceMode === "demo" && (
-        <div className="notification-popover">
+        <div className="notification-popover" id="attention-popover" tabIndex={-1}>
           <div className="section-title">
             <h3>3 things need attention</h3>
             <button
               className="icon-button"
               aria-label="Close notifications"
-              onClick={() => setNotifications(false)}
+              onClick={() => dismissPopover(true)}
             >
               <I name="X" />
             </button>
@@ -4552,8 +4629,8 @@ function App() {
           </details>
         </div>
       )}
-      {liveObject && workspaceMode === "connected" && <ConnectedObjects object={liveObject} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>setLiveObject(null)}/>}
-      {palette && workspaceMode === "connected" && <ConnectedCommands mode={palette} onClose={()=>setPalette(null)} onOpen={setLiveObject} onNavigate={navigate}/>}
+      {liveObject && workspaceMode === "connected" && <ConnectedObjects object={liveObject} returnFocusRef={liveObjectFocus} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>setLiveObject(null)}/>}
+      {palette && workspaceMode === "connected" && <ConnectedCommands mode={palette} onClose={()=>setPalette(null)} onOpen={openLiveObject} onNavigate={navigate}/>}
       {palette && workspaceMode === "demo" && (
         <Palette
           mode={palette}

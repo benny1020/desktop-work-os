@@ -29,6 +29,7 @@ export default function ConnectedCommands({
     [success, setSuccess] = useState("");
   const version = useRef(0),
     create = mode !== "search";
+  const commandPanel = useRef(null);
   useEffect(() => {
     let alive = true;
     invoke("config.list")
@@ -161,7 +162,9 @@ export default function ConnectedCommands({
   }, [query, configs, create]);
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
+    commandPanel.current?.focus();
     setErrors([]);
     try {
       if (kind === "task") {
@@ -205,7 +208,10 @@ export default function ConnectedCommands({
   }
   function choose(o) {
     if (o.type === "task") {
-      onNavigate("My Work", "Today");
+      onNavigate("My Work", o.date ? "Today" : "Backlog", {
+        planDate: o.date,
+        taskId: o.id,
+      });
     } else onOpen(o);
     onClose();
   }
@@ -214,8 +220,15 @@ export default function ConnectedCommands({
       <Dialog.Portal>
         <Dialog.Overlay className="live-command-overlay" />
         <Dialog.Content
+          ref={commandPanel}
           className="live-command"
           onEscapeKeyDown={(e) => busy && e.preventDefault()}
+          onKeyDown={(event) => {
+            if (busy && (event.metaKey || event.ctrlKey) && ["k", "n"].includes(event.key.toLowerCase())) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
         >
           <Dialog.Title>
             {create ? "Quick create" : "Search your workspace"}
@@ -261,6 +274,7 @@ export default function ConnectedCommands({
                     Project
                     <select
                       aria-label="New issue project"
+                      disabled={busy}
                       value={project}
                       onChange={(e) => setProject(e.target.value)}
                     >
@@ -276,6 +290,7 @@ export default function ConnectedCommands({
                     Issue type
                     <select
                       aria-label="New issue type"
+                      disabled={busy}
                       value={type}
                       onChange={(e) => setType(e.target.value)}
                     >
@@ -296,6 +311,7 @@ export default function ConnectedCommands({
                   Confluence space
                   <select
                     aria-label="New document space"
+                    disabled={busy}
                     value={space}
                     onChange={(e) => setSpace(e.target.value)}
                   >
@@ -313,6 +329,7 @@ export default function ConnectedCommands({
                 <input
                   autoFocus
                   aria-label="New work title"
+                  disabled={busy}
                   value={title}
                   maxLength={255}
                   onChange={(e) => setTitle(e.target.value)}
@@ -330,6 +347,7 @@ export default function ConnectedCommands({
                     : "Document body · plain text"}
                   <textarea
                     aria-label="New work body"
+                    disabled={busy}
                     rows={6}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
@@ -430,7 +448,7 @@ export default function ConnectedCommands({
                             value={t.id}
                             key={t.id}
                             onSelect={() =>
-                              choose(t.object || { type: "task" })
+                              choose(t.object || { type: "task", id: t.id, date: t.date })
                             }
                           >
                             {t.title}

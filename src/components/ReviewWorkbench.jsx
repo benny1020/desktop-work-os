@@ -356,6 +356,7 @@ export default function ReviewWorkbench({
   const [source, setSource] = useState({});
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState("");
+  const [sourceAttempt, setSourceAttempt] = useState(0);
   const [guide, setGuide] = useState(snapshot.guide || null);
   const [guidelines, setGuidelines] = useState("");
   const [busy, setBusy] = useState("");
@@ -383,9 +384,13 @@ export default function ReviewWorkbench({
   const viewed = progress.key === progressKey ? progress.paths : [];
   const viewedCount = files.filter((f) => viewed.includes(f.path)).length;
   const storeKey = draftStoreKey(live, mr);
+  const [draftStorageError, setDraftStorageError] = useState("");
   const [drafts, setDrafts] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(storeKey) || "{}");
+      const saved = JSON.parse(localStorage.getItem(storeKey) || "{}");
+      return saved && typeof saved === "object" && !Array.isArray(saved)
+        ? Object.fromEntries(Object.entries(saved).filter(([, value]) => typeof value === "string"))
+        : {};
     } catch {
       return {};
     }
@@ -398,7 +403,12 @@ export default function ReviewWorkbench({
     };
   }, []);
   useEffect(() => {
-    localStorage.setItem(storeKey, JSON.stringify(drafts));
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(drafts));
+      setDraftStorageError("");
+    } catch {
+      setDraftStorageError("Draft could not be saved on this device. Keep this view open or copy your text before leaving.");
+    }
   }, [drafts, storeKey]);
   useEffect(() => {
     if (live) setDiscussions(snapshot.discussions || []);
@@ -410,8 +420,23 @@ export default function ReviewWorkbench({
         .catch(() => {});
   }, []);
   const file = files.find((f) => f.path === selected) || files[0];
-  const draftKey = `${file?.path}:${side}:${line || "file"}`;
+  const sourceRef = file?.deleted_file ? mr.diff_refs.base_sha : mr.diff_refs.head_sha;
+  const sourceKey = JSON.stringify([sourceRef, file?.deleted_file ? file?.old_path : file?.path]);
+  const legacyDraftKey = `${file?.path}:${side}:${line || "file"}`;
+  const diffVersion = JSON.stringify([mr.diff_refs.base_sha, mr.diff_refs.start_sha, mr.diff_refs.head_sha]);
+  const draftKey = side === "old" ? `${legacyDraftKey}:refs:${diffVersion}` : legacyDraftKey;
   const draft = drafts[draftKey] || "";
+  const unverifiedDraft = side === "old" && !Object.hasOwn(drafts, draftKey) ? drafts[legacyDraftKey] : "";
+  const previousDiffVersion = useRef(diffVersion);
+  useEffect(() => {
+    if (previousDiffVersion.current === diffVersion) return;
+    previousDiffVersion.current = diffVersion;
+    setLine(null);
+    setSide(file?.deleted_file ? "old" : "new");
+    setConfirmApproval(false);
+    setGuide(null);
+    setNotice("Diff base changed. Previous line drafts remain saved with their original version. Select a line to continue.");
+  }, [diffVersion]);
   const graph = useMemo(() => buildGraph(files, guide), [files, guide]);
   const layout = useMemo(() => dependencyLayout(graph), [graph]);
   const changeStats = useMemo(() => files.reduce((stats, item) => {
@@ -435,7 +460,7 @@ export default function ReviewWorkbench({
     return () => observer.disconnect();
   }, [autoFit, tab, layout]);
   useEffect(() => {
-    const content = source[file?.path];
+    const content = source[sourceKey];
     const sourceLines = typeof content === "string" ? content.split("\n") : null;
     const start = Math.max(0, (line || 1) - 11);
     const end = sourceLines ? Math.min(sourceLines.length, start + 21) : 0;
@@ -461,7 +486,7 @@ export default function ReviewWorkbench({
         guide: guide?.summary,
       }),
     );
-  }, [file?.path, file?.diff, line, side, codeMode, source, mr.id, mr.diff_refs.head_sha, guide?.summary]);
+  }, [file?.path, file?.diff, line, side, codeMode, source, sourceKey, mr.id, mr.diff_refs.head_sha, guide?.summary]);
   useEffect(() => {
     if (line !== null)
       requestAnimationFrame(() =>
@@ -473,11 +498,11 @@ export default function ReviewWorkbench({
   useEffect(() => {
     setSourceLoading(false);
     setSourceError("");
-    if (codeMode !== "Source" || !file || source[file.path] !== undefined)
+    if (codeMode !== "Source" || !file || source[sourceKey] !== undefined)
       return;
     let current = true;
     if (!live) {
-      setSource((s) => ({ ...s, [file.path]: file.content ?? null }));
+      setSource((s) => ({ ...s, [sourceKey]: file.content ?? null }));
       return;
     }
     setSourceLoading(true);
@@ -487,7 +512,7 @@ export default function ReviewWorkbench({
       ref: file.deleted_file ? mr.diff_refs.base_sha : mr.diff_refs.head_sha,
     })
       .then((data) => {
-        if (current) setSource((s) => ({ ...s, [file.path]: data.content }));
+        if (current) setSource((s) => ({ ...s, [sourceKey]: data.content }));
       })
       .catch((e) => {
         if (current) setSourceError(e.message);
@@ -498,13 +523,25 @@ export default function ReviewWorkbench({
     return () => {
       current = false;
     };
-  }, [codeMode, file?.path, live, mr.diff_refs.head_sha]);
+  }, [codeMode, sourceKey, sourceAttempt, live]);
   function select(path, targetLine) {
     setSelected(path);
     setLine(targetLine || null);
-    setSide("new");
+    setSide(files.find((item) => item.path === path)?.deleted_file ? "old" : "new");
     setError("");
     setNotice("");
+  }
+  function changeCodeMode(mode) {
+    if (mode === "Source") {
+      const sourceSide = file.deleted_file ? "old" : "new";
+      if (side !== sourceSide) {
+        const row = line === null ? null : file.rows.find((item) =>
+          item.kind !== "hunk" && (side === "old" ? item.oldLine : item.newLine) === line);
+        setLine(row ? (sourceSide === "old" ? row.oldLine : row.newLine) : null);
+        setSide(sourceSide);
+      }
+    }
+    setCodeMode(mode);
   }
   function markViewed(checked) {
     const paths = checked
@@ -759,7 +796,17 @@ export default function ReviewWorkbench({
                 key={name}
                 role="tab"
                 aria-selected={tab === name}
+                tabIndex={tab === name ? 0 : -1}
                 className={tab === name ? "active" : ""}
+                onKeyDown={(event) => {
+                  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                  event.preventDefault();
+                  const tabs = [...event.currentTarget.parentElement.querySelectorAll('[role="tab"]')];
+                  const index = tabs.indexOf(event.currentTarget);
+                  const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+                  tabs[next]?.focus();
+                  tabs[next]?.click();
+                }}
                 onClick={() => setTab(name)}
               >
                 <Icon size={14} />
@@ -968,7 +1015,7 @@ export default function ReviewWorkbench({
                 <button
                   key={t}
                   className={codeMode === t ? "active" : ""}
-                  onClick={() => setCodeMode(t)}
+                  onClick={() => changeCodeMode(t)}
                 >
                   {t}
                 </button>
@@ -1000,14 +1047,15 @@ export default function ReviewWorkbench({
             {sourceError && (
               <div role="alert" className="connection-error">
                 {sourceError}
+                <button className="btn" onClick={() => setSourceAttempt((n) => n + 1)}>Retry source</button>
                 <button className="btn" onClick={() => setCodeMode("Diff")}>
                   View diff
                 </button>
               </div>
             )}
             {codeMode === "Source" && !sourceLoading && !sourceError ? (
-              typeof source[file.path] === "string" ? (
-                source[file.path].split("\n").map((text, i) => (
+              typeof source[sourceKey] === "string" ? (
+                source[sourceKey].split("\n").map((text, i) => (
                   <button
                     key={i}
                     data-code-line={`${file.deleted_file ? "old" : "new"}-${i + 1}`}
@@ -1040,7 +1088,7 @@ export default function ReviewWorkbench({
                   <button
                     key={i}
                     data-code-line={`${r.newLine !== null ? "new" : "old"}-${r.newLine ?? r.oldLine}`}
-                    className={`visual-code-line ${r.kind} ${line === (side === "old" ? r.oldLine : r.newLine) ? "selected" : ""}`}
+                    className={`visual-code-line ${r.kind} ${line !== null && line === (side === "old" ? r.oldLine : r.newLine) ? "selected" : ""}`}
                     aria-label={`Select ${r.kind === "removed" ? "old" : "new"} line ${r.newLine ?? r.oldLine}`}
                     onClick={() => {
                       setLine(r.newLine ?? r.oldLine);
@@ -1081,6 +1129,16 @@ export default function ReviewWorkbench({
                   : "File-level review comment"}
               </span>
             </div>
+            {unverifiedDraft && (
+              <details className="legacy-review-draft">
+                <summary>Earlier draft needs a base revision check</summary>
+                <p>This draft has no saved base revision. Check the current code before reusing it.</p>
+                <pre>{unverifiedDraft}</pre>
+                <button className="btn" onClick={() => setDrafts((items) => ({ ...items, [draftKey]: unverifiedDraft }))}>
+                  Use text for this version
+                </button>
+              </details>
+            )}
             <textarea
               aria-label="Diagram review comment"
               value={draft}
@@ -1101,7 +1159,7 @@ export default function ReviewWorkbench({
               }}
             />
             <div className="visual-comment-actions">
-              <small>Draft saved locally · ⌘ / Ctrl + Enter</small>
+              <small>{draftStorageError ? "Draft not saved" : "Draft saved locally"} · ⌘ / Ctrl + Enter</small>
               <button
                 className="btn primary"
                 disabled={!draft.trim() || !!busy}
@@ -1115,6 +1173,7 @@ export default function ReviewWorkbench({
                     : "Add demo comment"}
               </button>
             </div>
+            {draftStorageError && <div className="connection-error" role="alert">{draftStorageError}</div>}
             {error && (
               <div className="connection-error" role="alert">
                 {error}
@@ -1147,6 +1206,7 @@ export default function ReviewWorkbench({
                 <span>Approve the changes in this commit?</span>
                 <button
                   className="btn"
+                  disabled={busy === "approve"}
                   onClick={() => setConfirmApproval(false)}
                 >
                   Cancel

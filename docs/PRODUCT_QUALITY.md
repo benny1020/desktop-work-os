@@ -26,6 +26,8 @@
 
 ## Verification
 
+The subsequent [four-cycle UI/UX audit](UX_REVIEW_CYCLES.md) extends this pass to **125/125 browser tests** and documents the latest fixes and independent release gate. The counts below describe this earlier visual/product pass.
+
 Three specialist agents worked on daily productivity, visual review and independent UI audit; the primary agent integrated and reviewed the changes. The audit reproduced three failures before their fixes: retained page scroll, inaccessible sidebar controls and an Assistant covering the preview close button. All three now pass at 980×650.
 
 - **83/83 browser tests**, zero skipped, unexpected or flaky results in the final combined local run. This includes **19 new quality regressions**.

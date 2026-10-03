@@ -53,6 +53,9 @@ export default function ConnectedWorkspace({
   onContext,
   configVersion,
   onOpen,
+  focusDate,
+  focusTaskId,
+  focusRequestId,
 }) {
   const [configs, setConfigs] = useState(null),
     [error, setError] = useState(""),
@@ -76,6 +79,13 @@ export default function ConnectedWorkspace({
   const requestId = useRef(0);
   const service =
     section === "Code" ? "gitlab" : section === "Docs" ? "confluence" : "jira";
+  const savedDocsView = section === "Docs" && ["Recent", "Favorites"].includes(view);
+  const savedPages = (view === "Recent" ? plan.recent : plan.favorites)
+    .filter((object) => object.type === "doc" && object.origin === configs?.confluence?.url)
+    .map((object) => ({ id: object.id, title: object.title }));
+  const visiblePages = savedDocsView
+    ? savedPages.filter((object) => !query.trim() || object.title.toLowerCase() === query.trim().toLowerCase())
+    : items;
   useEffect(() => {
     let alive = true;
     if (isDesktop())
@@ -104,7 +114,7 @@ export default function ConnectedWorkspace({
       configs?.[service]?.tokenConfigured &&
       !["Home", "My Work"].includes(section)
     )
-      load();
+      load(null, "");
   }, [section, view, project, space, configs]);
   useEffect(() => {
     if (configs?.confluence?.tokenConfigured && section === "Docs")
@@ -116,7 +126,7 @@ export default function ConnectedWorkspace({
         .then((d) => setProjects(d.items || []))
         .catch((e) => setError(e.message));
   }, [configs, section]);
-  async function load(cursor = null) {
+  async function load(cursor = null, searchQuery = query) {
     const ticket = ++requestId.current;
     setLoading(true);
     setError("");
@@ -126,7 +136,7 @@ export default function ConnectedWorkspace({
         if (view === "Repositories") {
           data = await invoke("gitlab.projects", {
             page: cursor || 1,
-            search: query,
+            search: searchQuery,
           });
           rows = data.items;
           more = data.nextPage;
@@ -146,21 +156,18 @@ export default function ConnectedWorkspace({
           more = data.nextPage;
         }
       } else if (section === "Docs") {
-        data = await invoke("confluence.pages", {
-          spaceId: space || undefined,
-          cursor: cursor || undefined,
-          title: query || undefined,
-        });
-        rows = data.results;
-        if (view === "Recent" || view === "Favorites") {
-          rows = (view === "Recent" ? plan.recent : plan.favorites)
-            .filter(
-              (o) => o.type === "doc" && o.origin === configs.confluence.url,
-            )
-            .map((o) => ({ id: o.id, title: o.title }));
+        if (savedDocsView) {
+          rows = savedPages;
+          more = null;
+        } else {
+          data = await invoke("confluence.pages", {
+            spaceId: space || undefined,
+            cursor: cursor || undefined,
+            title: searchQuery || undefined,
+          });
+          rows = data.results;
+          more = data.nextCursor;
         }
-        more =
-          view === "Recent" || view === "Favorites" ? null : data.nextCursor;
       } else {
         data = await invoke("jira.issues", {
           jql,
@@ -242,6 +249,9 @@ export default function ConnectedWorkspace({
         onOpen={onOpen}
         onNavigate={onNavigate}
         onSettings={onSettings}
+        focusDate={focusDate}
+        focusTaskId={focusTaskId}
+        focusRequestId={focusRequestId}
       />
     );
   if (!configs[service]?.tokenConfigured)
@@ -261,6 +271,9 @@ export default function ConnectedWorkspace({
           refreshing={loading}
           live
           onBack={() => {
+            requestId.current++;
+            setLoading(false);
+            setError("");
             setSnapshot(null);
             onContext?.("");
           }}
@@ -407,7 +420,7 @@ export default function ConnectedWorkspace({
         ) : section === "Docs" ? (
           <div className="connected-docs">
             <aside>
-              {items.map((p) => (
+              {visiblePages.map((p) => (
                 <button
                   key={p.id}
                   className={selected === p.id ? "active" : ""}
@@ -417,7 +430,7 @@ export default function ConnectedWorkspace({
                   {p.title}
                 </button>
               ))}
-              {!items.length && !loading && (
+              {!visiblePages.length && !loading && (
                 <p className="muted">No pages found.</p>
               )}
             </aside>
@@ -431,14 +444,18 @@ export default function ConnectedWorkspace({
                     <h1>{page.title}</h1>
                     <button
                       className="btn"
-                      onClick={() =>
-                        favoriteObject({
-                          type: "doc",
-                          id: page.id,
-                          title: page.title,
-                          origin: configs.confluence.url,
-                        })
-                      }
+                      onClick={() => {
+                        try {
+                          favoriteObject({
+                            type: "doc",
+                            id: page.id,
+                            title: page.title,
+                            origin: configs.confluence.url,
+                          });
+                        } catch (error) {
+                          setError(error.message);
+                        }
+                      }}
                     >
                       {plan.favorites.some(
                         (o) =>

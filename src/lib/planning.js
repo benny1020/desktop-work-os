@@ -57,7 +57,7 @@ export function parseQuick(text, fallback = dayKey()) {
   if (iso) {
     const d = new Date(iso[1] + "T12:00:00");
     if (Number.isNaN(+d) || dayKey(d) !== iso[1])
-      throw Error("날짜를 확인하세요.");
+      throw Error("Enter a valid date in YYYY-MM-DD format.");
     date = iso[1];
     title = title.replace(iso[0], "");
   }
@@ -68,15 +68,15 @@ export function parseQuick(text, fallback = dayKey()) {
     let h = Number(at[1] ?? at[4]),
       m = Number(at[2] ?? at[5] ?? 0);
     if (at[3]) {
-      if (h < 1 || h > 12) throw Error("시간을 확인하세요.");
+      if (h < 1 || h > 12) throw Error("Enter a valid time, such as 14:00 or 2pm.");
       h = (h % 12) + (/pm/i.test(at[3]) ? 12 : 0);
     }
-    if (h > 23 || m > 59) throw Error("시간을 확인하세요.");
+    if (h > 23 || m > 59) throw Error("Enter a valid time, such as 14:00 or 2pm.");
     time = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
     title = title.replace(at[0], "");
   }
   title = title.replace(/\s+/g, " ").trim();
-  if (!title) throw Error("업무 제목을 입력하세요.");
+  if (!title) throw Error("Enter a task title.");
   return { title, date, time };
 }
 export function addPlanTask(task) {

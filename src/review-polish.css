@@ -28,6 +28,10 @@
 .visual-review input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .visual-review .diagram-node:focus-visible > rect:first-child { stroke-width: 3; }
 .visual-review .dependency-edge:focus-visible > path:not(.edge-hit-area) { stroke-width: 3; }
+.legacy-review-draft { margin: 8px 0; padding: 9px; border: 1px solid var(--line-strong); border-radius: 4px; font-size: 11px; }
+.legacy-review-draft summary { cursor: pointer; color: var(--secondary); }
+.legacy-review-draft p { margin: 8px 0; color: var(--secondary); line-height: 1.5; }
+.legacy-review-draft pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; padding: 8px; background: var(--surface); max-height: 140px; overflow: auto; }
 @media (max-width: 1200px) {
   .review-reading-path { gap: 8px; }
   .reading-path-label { display: none; }

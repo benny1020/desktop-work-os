@@ -81,3 +81,8 @@ button:not(:disabled) { transition:background-color 120ms ease, border-color 120
   .sidebar .favorites-label, .sidebar .favorite-item, .sidebar .connection-icons {display:none;}
   .sidebar .connections-status {padding-top:10px; padding-bottom:10px;}
 }
+
+/* Utility popovers stay operable in short windows and with long object titles. */
+.recent-popover, .notification-popover, .connected-attention { max-height:calc(100dvh - 90px); overflow-y:auto; overscroll-behavior:contain; }
+.recent-popover > button, .connected-attention b { overflow-wrap:anywhere; }
+.live-inspector > .inspector-header { position:sticky; top:0; z-index:2; background:var(--surface); }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Link2,
@@ -38,6 +38,8 @@ const providers = [
 ];
 export default function IntegrationSettings({ onChange }) {
   const [configs, setConfigs] = useState({});
+  const drafts = useRef({});
+  const [loading, setLoading] = useState(isDesktop());
   const [models, setModels] = useState([]);
   const [selected, setSelected] = useState("gitlab");
   const [form, setForm] = useState({});
@@ -45,17 +47,25 @@ export default function IntegrationSettings({ onChange }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
-    if (isDesktop())
-      invoke("config.list")
-        .then(setConfigs)
-        .catch((e) => setError(e.message));
+    let active = true;
+    if (isDesktop()) invoke("config.list")
+      .then((data) => { if (active) { setConfigs(data); setForm({ ...data.gitlab, token: "" }); } })
+      .catch((e) => { if (active) setError(e.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
-  useEffect(() => {
-    setForm({ ...configs[selected], token: "" });
-  }, [selected, configs]);
+  function selectProvider(service) {
+    if (busy || loading || service === selected) return;
+    drafts.current[selected] = form;
+    setSelected(service);
+    setForm(drafts.current[service] || { ...configs[service], token: "" });
+    setError("");
+    setMessage("");
+  }
   const provider = providers.find((p) => p.id === selected);
   const update = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   async function run(kind) {
+    if (busy || loading) return;
     setBusy(kind);
     setError("");
     setMessage("");
@@ -67,6 +77,9 @@ export default function IntegrationSettings({ onChange }) {
           delete n[selected];
           return n;
         });
+        delete drafts.current[selected];
+        setForm({ token: "" });
+        if (selected === "claude") setModels([]);
         onChange?.();
         setMessage("Saved connection removed.");
       } else {
@@ -74,12 +87,17 @@ export default function IntegrationSettings({ onChange }) {
           service: selected,
           config: form,
         });
+        drafts.current[selected] = { ...saved, token: "" };
+        setForm(drafts.current[selected]);
         setConfigs((c) => ({ ...c, [selected]: saved }));
+        onChange?.();
         if (kind === "models") {
           const result = await invoke("claude.models");
           setModels(result.data || []);
-          if (result.data?.[0])
-            setForm((f) => ({ ...f, model: result.data[0].id }));
+          if (result.data?.[0] && !saved.model?.trim()) {
+            drafts.current[selected] = { ...drafts.current[selected], model: result.data[0].id };
+            setForm(drafts.current[selected]);
+          }
           setMessage(
             "Choose a model, then select Save & test connection.",
           );
@@ -91,7 +109,6 @@ export default function IntegrationSettings({ onChange }) {
           setMessage(
             "Saved securely. Test the connection to verify your account and access.",
           );
-        onChange?.();
       }
     } catch (e) {
       setError(e.message);
@@ -123,7 +140,8 @@ export default function IntegrationSettings({ onChange }) {
             <button
               key={p.id}
               className={selected === p.id ? "active" : ""}
-              onClick={() => setSelected(p.id)}
+              disabled={!!busy || loading}
+              onClick={() => selectProvider(p.id)}
             >
               <Plug size={17} />
               <span>
@@ -157,6 +175,8 @@ export default function IntegrationSettings({ onChange }) {
             run("test");
           }}
         >
+          <fieldset disabled={!!busy || loading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: "contents" }}>
+          {loading && <p role="status">Loading saved connections…</p>}
           <div className="provider-heading">
             <Link2 size={21} />
             <div>
@@ -314,6 +334,7 @@ export default function IntegrationSettings({ onChange }) {
               </button>
             )}
           </div>
+          </fieldset>
         </form>
       </div>
     </div>

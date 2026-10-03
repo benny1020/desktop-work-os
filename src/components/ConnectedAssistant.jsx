@@ -35,23 +35,37 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
     e.preventDefault();
     if (!input.trim() || busy) return;
     const question = input;
+    setProposal(null);
     if (
       /tomorrow|내일/i.test(question) &&
       /move|옮|미뤄|미루/i.test(question)
     ) {
-      const target = plan.tasks.find(
-        (t) =>
-          !t.done &&
-          (t.object?.key
-            ? question.includes(t.object.key)
-            : question.includes(t.title)),
+      const issueKeys = (question.match(/\b[A-Z][A-Z0-9_]*-\d+\b/gi) || []).map((key) => key.toUpperCase());
+      const candidates = plan.tasks.filter((task) => !task.done).map((task) => {
+        const exactKey = task.object?.key && issueKeys.includes(task.object.key.toUpperCase());
+        const title = task.title || "";
+        const titlePattern = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const titleMatch = title && new RegExp(`(^|[^a-z0-9_])${titlePattern}(?=$|[^a-z0-9_])`, "i").test(question);
+        const differentIssue = issueKeys.length && task.object?.key && !exactKey;
+        return { task, score: exactKey ? Infinity : !differentIssue && titleMatch ? title.length : 0 };
+      }).filter((match) => match.score > 0).sort((a, b) => b.score - a.score);
+      const best = candidates[0];
+      const ambiguous = best && candidates.slice(1).some((match) =>
+        match.score === best.score || (best.score !== Infinity && !best.task.title.toLowerCase().includes(match.task.title.toLowerCase())),
       );
+      if (ambiguous) {
+        setError("More than one task matches. Open My Work to choose which task to schedule.");
+        return;
+      }
+      const target = candidates[0]?.task;
       if (target) {
+        setError("");
         setProposal({
           id: target.id,
           title: target.title,
           from: target.date || "Backlog",
           to: shiftDay(dayKey(), 1),
+          original: { date: target.date, title: target.title, done: target.done },
         });
         setInput("");
         return;
@@ -134,6 +148,11 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
                 className="btn primary"
                 onClick={() => {
                   try {
+                    const current = plan.tasks.find((task) => task.id === proposal.id);
+                    if (!current || current.date !== proposal.original.date || current.title !== proposal.original.title || current.done !== proposal.original.done) {
+                      setProposal(null);
+                      throw Error("This task changed since the suggestion. Ask again to review its current schedule.");
+                    }
                     updateTask(proposal.id, { date: proposal.to });
                     setMessages((m) => [
                       ...m,

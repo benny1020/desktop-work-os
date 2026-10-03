@@ -22,8 +22,11 @@ export default function JiraIssue({
   onOpen,
   configs,
 }) {
+  const draftKey = `worklane:jira-comment:${origin || "unconfigured"}:${item.key}`;
   const mounted = useRef(false);
   const activeKey = useRef(item.key);
+  const sprintRequest = useRef(0);
+  const fieldSnapshot = useRef(null);
   activeKey.current = item.key;
   useEffect(() => {
     mounted.current = true;
@@ -34,7 +37,9 @@ export default function JiraIssue({
   const [issue, setIssue] = useState(null),
     [transitions, setTransitions] = useState([]),
     [transition, setTransition] = useState(""),
-    [text, setText] = useState(""),
+    [text, setText] = useState(() => {
+      try { return localStorage.getItem(draftKey) || ""; } catch { return ""; }
+    }),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [people, setPeople] = useState([]),
@@ -43,9 +48,22 @@ export default function JiraIssue({
     [due, setDue] = useState(""),
     [notice, setNotice] = useState("");
   useEffect(() => {
+    try {
+      if (text) localStorage.setItem(draftKey, text);
+      else localStorage.removeItem(draftKey);
+    } catch {
+      setError("Your comment draft could not be saved on this device. Keep this issue open to preserve it.");
+    }
+  }, [text, draftKey]);
+  useEffect(() => {
     if (issue) {
-      setAccount(issue.fields.assignee?.accountId || "");
-      setDue(issue.fields.duedate || "");
+      const previous = fieldSnapshot.current;
+      const next = { account: issue.fields.assignee?.accountId || "", due: issue.fields.duedate || "" };
+      // A comment/status refresh may finish while another field is being edited.
+      // Only pristine fields follow the server; pending user edits stay intact.
+      setAccount((current) => !previous || current === previous.account ? next.account : current);
+      setDue((current) => !previous || current === previous.due ? next.due : current);
+      fieldSnapshot.current = next;
     }
   }, [issue]);
   async function searchPeople() {
@@ -60,6 +78,7 @@ export default function JiraIssue({
   async function editField(field) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       await invoke("jira.edit", {
         key: item.key,
@@ -95,18 +114,25 @@ export default function JiraIssue({
     }
   }
   async function chooseBoard(id) {
+    const ticket = ++sprintRequest.current;
+    const key = item.key;
     setSprints([]);
     setSprint("");
+    setError("");
     if (!id) return;
     try {
-      setSprints((await invoke("jira.sprints", { boardId: id })).values || []);
+      const result = await invoke("jira.sprints", { boardId: id });
+      if (mounted.current && activeKey.current === key && sprintRequest.current === ticket)
+        setSprints(result.values || []);
     } catch (e) {
-      setError(e.message);
+      if (mounted.current && activeKey.current === key && sprintRequest.current === ticket)
+        setError(e.message);
     }
   }
   async function savePlanning(kind) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       if (kind === "sprint")
         await invoke("jira.moveSprint", { key: item.key, sprintId: sprint });
@@ -159,10 +185,17 @@ export default function JiraIssue({
   async function update(kind) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       if (kind === "comment") {
         const submittedText = text;
         await invoke("jira.comment", { key: item.key, body: submittedText });
+        if (mounted.current) setNotice("Comment posted to Jira.");
+        try {
+          if (localStorage.getItem(draftKey) === submittedText) localStorage.removeItem(draftKey);
+        } catch {
+          if (mounted.current) setError("Your comment was posted, but its saved draft could not be cleared.");
+        }
         setText((current) => (current === submittedText ? "" : current));
       } else
         await invoke("jira.transition", {
@@ -426,6 +459,7 @@ export default function JiraIssue({
             onChange={(e) => setText(e.target.value)}
             placeholder="Write a comment for Jira…"
           />
+          <small className="form-note">Comment drafts are stored on this device.</small>
           <button
             className="btn primary"
             disabled={!text.trim() || busy}

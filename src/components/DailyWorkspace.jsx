@@ -33,6 +33,7 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit }) {
   return (
     <div
       className={`plan-task ${task.done ? "done" : ""} ${task.kind}`}
+      data-plan-task-id={task.id}
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/orbit-task", task.id)}
       onDragOver={(e) => e.preventDefault()}
@@ -143,12 +144,16 @@ export default function DailyWorkspace({
   onOpen,
   onNavigate,
   onSettings,
+  focusDate,
+  focusTaskId,
+  focusRequestId,
 }) {
   const plan = usePlan(),
     today = dayKey();
   const [editing, setEditing] = useState(null);
   const [removed, setRemoved] = useState(null);
   const quickInput = useRef(null);
+  const rootRef = useRef(null);
   const [quickDate, setQuickDate] = useState(null);
   const [date, setDate] = useState(today),
     [mode, setMode] = useState("Week"),
@@ -159,6 +164,17 @@ export default function DailyWorkspace({
     [feed, setFeed] = useState({ issues: [], mrs: [], errors: [] }),
     [refresh, setRefresh] = useState(0),
     [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) setDate(focusDate);
+    if (!focusTaskId) return;
+    const frame = requestAnimationFrame(() => {
+      const row = [...(rootRef.current?.querySelectorAll("[data-plan-task-id]") || [])].find((item) => item.dataset.planTaskId === focusTaskId);
+      const button = row?.querySelector(".plan-task-main > button");
+      button?.focus({ preventScroll: true });
+      row?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusDate, focusTaskId, focusRequestId]);
   useEffect(() => {
     let alive = true;
     setLoading(true);
@@ -251,7 +267,7 @@ export default function DailyWorkspace({
   const nextReview = feed.mrs[0];
   const nextIssue = !nextReview && due[0];
   return (
-    <div className={`page daily-connected ${home ? "daily-command-center" : ""}`}>
+    <div ref={rootRef} className={`page daily-connected ${home ? "daily-command-center" : ""}`}>
 
       <header className="page-heading">
         <div>
@@ -477,11 +493,13 @@ export default function DailyWorkspace({
                 className="btn"
                 onClick={() =>
                   act(() => {
-                    tasks
-                      .filter((t) => !t.done)
-                      .forEach((t) =>
-                        updateTask(t.id, { date: shiftDay(date, 1) }),
-                      );
+                    const ids = new Set(tasks.filter((t) => !t.done).map((t) => t.id));
+                    const nextDate = shiftDay(date, 1);
+                    planChange((p) => ({
+                      ...p,
+                      tasks: p.tasks.map((task) => ids.has(task.id) ? { ...task, date: nextDate } : task),
+                      activity: [...p.tasks.filter((task) => ids.has(task.id)).map((task) => ({ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${task.title}: Scheduled ${nextDate}` })), ...p.activity].slice(0, 100),
+                    }));
                     setDate(shiftDay(date, 1));
                     setNotice("Unfinished work moved to the next day.");
                   })

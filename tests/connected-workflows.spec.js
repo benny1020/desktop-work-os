@@ -311,7 +311,7 @@ test("Invalid quick-add date retains text and does not create task", async ({
     .getByLabel("Quick add personal work")
     .fill("Prepare release 2026-02-31");
   await page.getByRole("button", { name: "Add to plan", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("날짜");
+  await expect(page.getByRole("alert")).toContainText("valid date");
   await expect(page.getByLabel("Quick add personal work")).toHaveValue(
     "Prepare release 2026-02-31",
   );
