@@ -28,6 +28,7 @@ try {
     localStorage.setItem('orbit-workspaceMode', JSON.stringify('connected'));
     localStorage.setItem('orbit.connected.plan.v1', JSON.stringify({tasks:[{id:'legacy-task',title:'Existing plan survives rename',kind:'task',date:'',time:'',done:false}],recent:[],favorites:[],activity:[]}));
   });
+  await legacy.evaluate(({session})=>session.defaultSession.flushStorageData());
   await legacy.close(); legacy=null;
   renamed = await electron.launch({args:[root], env:{...process.env,WORKLANE_USER_DATA_DIR:profile}});
   const page = await renamed.firstWindow();
@@ -36,7 +37,7 @@ try {
   if(!config.gitlab?.tokenConfigured || config.gitlab.token) throw Error('Encrypted legacy token not readable or exposed');
   await renamed.evaluate(({protocol})=>protocol.handle('https', request=> {
     if(new URL(request.url).hostname==='gitlab.fixture.invalid' && request.headers.get('private-token')==='upgrade-fixture-token-not-real')
-      return new Response(JSON.stringify({id:3,name:'Upgrade fixture'}),{headers:{'content-type':'application/json'}});
+      return new Response(JSON.stringify(new URL(request.url).pathname.endsWith('/user') ? {id:3,name:'Upgrade fixture'} : []),{headers:{'content-type':'application/json'}});
     return new Response('',{status:401});
   }));
   await page.evaluate(()=>window.orbit.invoke('config.test',{service:'gitlab'}));

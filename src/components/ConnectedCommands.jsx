@@ -222,7 +222,7 @@ export default function ConnectedCommands({
           </Dialog.Title>
           <Dialog.Description>
             {create
-              ? "개인 업무는 로컬 저장, 이슈·문서는 선택한 서비스에 생성합니다."
+              ? "Tasks stay on this device. Issues and documents are created in the selected service."
               : "Jira · GitLab · Confluence · Personal plan"}
           </Dialog.Description>
           <Dialog.Close
@@ -338,11 +338,11 @@ export default function ConnectedCommands({
               )}
               {kind !== "task" && (
                 <p className="form-note">
+                  This will be created in{" "}
                   {kind === "issue"
                     ? configs.jira?.url
                     : configs.confluence?.url}
-                  에 생성됩니다. 실패하면 입력은 유지되며 자동 재시도하지
-                  않습니다.
+                  . Your draft is kept if creation fails. You can retry when ready.
                 </p>
               )}
               <button

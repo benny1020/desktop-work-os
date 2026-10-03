@@ -184,8 +184,8 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
   if (mismatch)
     return (
       <div className="connection-error" role="alert">
-        이 항목은 다른 서비스 주소에서 저장했습니다. Settings에서{" "}
-        {object.origin} 연결을 복원한 뒤 여세요.
+        This item belongs to a different service URL. Reconnect to{" "}
+        {object.origin} in Settings to open it.
       </div>
     );
   if (object.type === "issue")
@@ -333,8 +333,8 @@ function RemoteObject({ object, configs, onOpen, onContext, onBack }) {
         <>
           <h1>{object.title}</h1>
           <p className="form-note">
-            이슈 키가 제목·본문에 등장하는 검색 결과입니다. 자동으로 검증된
-            연결은 아닙니다.
+            These results mention the issue key in their title or content.
+            They may be related; the links have not been verified.
           </p>
           {data.map((group) => (
             <section key={group.label}>

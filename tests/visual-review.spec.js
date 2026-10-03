@@ -121,7 +121,7 @@ test("Integration scope: browser cannot save tokens; Dooray and Observe remain p
   ).toBeDisabled();
   await expect(
     page.locator(".deferred-provider").filter({ hasText: "Dooray" }),
-  ).toContainText("메뉴만 제공");
+  ).toContainText("Menu only");
   await page.getByRole("button", { name: /Confluence Cloud/ }).click();
   await expect(page.getByLabel("Atlassian email")).toBeVisible();
   await page.getByRole("button", { name: /Claude · Anthropic API/ }).click();
@@ -369,7 +369,7 @@ test("Connected settings: separate URLs and tokens flow through bridge, never lo
     .getByRole("button", { name: "Save & test connection", exact: true })
     .click();
   await expect(
-    page.getByRole("status").filter({ hasText: "연결 확인 완료" }),
+    page.getByRole("status").filter({ hasText: "Connection verified" }),
   ).toBeVisible();
   const save = await page.evaluate(() =>
     window.__calls.find((c) => c.action === "config.save"),

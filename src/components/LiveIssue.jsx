@@ -343,8 +343,8 @@ export default function JiraIssue({
                   Move to sprint in Jira
                 </button>
                 <p className="form-note">
-                  최대 50개 보드·스프린트. 프로젝트 권한과 Jira 설정에 따라
-                  선택지가 제한될 수 있습니다.
+                  Showing up to 50 boards and sprints. Available options depend
+                  on your project access and Jira settings.
                 </p>
               </>
             )}
@@ -424,7 +424,7 @@ export default function JiraIssue({
             aria-label="Live Jira comment"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Jira에 남길 댓글…"
+            placeholder="Write a comment for Jira…"
           />
           <button
             className="btn primary"

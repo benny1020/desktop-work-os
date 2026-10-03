@@ -40,10 +40,10 @@ try {
   await p.getByLabel("API token").fill("native-fixture-secret-not-real");
   await p.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
-    p.getByRole("status").filter({ hasText: "암호화하여 저장" }),
+    p.getByRole("status").filter({ hasText: "Saved securely" }),
   ).toBeVisible();
   await p.getByRole('button',{name:'Save & test connection',exact:true}).click();
-  await expect(p.getByRole('status').filter({hasText:'연결 확인 완료'})).toBeVisible();
+  await expect(p.getByRole('status').filter({hasText:'Connection verified'})).toBeVisible();
   evidence.nativeFetchAndAuth=await app.evaluate(()=>globalThis.__nativeRequestVerified);
   const file = path.join(temp, "integrations.enc");
   const encrypted = await fs.readFile(file);
@@ -62,7 +62,7 @@ try {
   await p.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(p.getByLabel("API token")).toHaveAttribute(
     "placeholder",
-    "저장된 토큰 유지 · 변경하려면 새 토큰 입력",
+    "Keep saved token, or enter a replacement",
   );
   evidence.reloadPersistence = true;
   const invalid = await p.evaluate(async () => {

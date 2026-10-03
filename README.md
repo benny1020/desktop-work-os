@@ -4,15 +4,17 @@
 
 **Your workday, connected.**
 
-An Electron workspace for developers — plan the day, follow an issue across tools, and review code through diagrams.
+An Electron workspace for developers. Follow an issue across tools, understand a code change through diagrams, and return to your day.
 
 ![Electron](https://img.shields.io/badge/Electron-44-47848F?style=flat-square) ![React](https://img.shields.io/badge/React-19-149ECA?style=flat-square) ![Status](https://img.shields.io/badge/status-early_preview-267469?style=flat-square)
+
+[![Quality checks](https://github.com/benny1020/worklane/actions/workflows/quality.yml/badge.svg)](https://github.com/benny1020/worklane/actions/workflows/quality.yml)
 
 [Quick start](#quick-start) · [Visual review](#review-the-change-not-just-the-files) · [Integrations](#integrations) · [Screenshots](docs/SCREENSHOTS.md) · [한국어 설정 안내](docs/INTEGRATIONS_AND_REVIEW.md)
 
 </div>
 
-![Worklane daily command center — sample data](docs/media/daily-command-center.png)
+![Worklane dependency review — follow the structure into actual code](docs/media/visual-review.png)
 
 Worklane connects daily planning, Jira issues, Confluence documents, GitLab reviews and a contextual Claude assistant. Open related work in an inspector, follow its context, and return to the same list.
 
@@ -24,7 +26,8 @@ Move between a **dependency graph**, a **sequence diagram**, and the exact sourc
 
 ![Dependency graph → sequence → source → review comment → sample AI guide](docs/media/visual-review.gif)
 
-- Separate dependency and sequence views, with clickable components and source references.
+- Dependency-layer layout and a clickable reading path, with separate sequence views and exact source references.
+- Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.
 - Old/new diff positions and commit SHA checks before posting comments or approving.
 - Per-file **Viewed** state, commit-scoped progress, and **Next unreviewed** navigation.
 - Per-file and per-line local drafts, retained after failed submissions and edits during posting.
@@ -51,6 +54,7 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 - Personal tasks and events, with Day / Week / Month calendar views.
 - Drag-to-schedule, keyboard reordering, and editable linked personal plans.
 - Click a calendar date to focus quick add without losing the current month.
+- A clear next review from real requests, daily planning summaries and undo for local task deletion.
 - Review requests and imminent deadlines collected in an attention center.
 - Global search across local tasks, Jira, GitLab and Confluence.
 
@@ -58,6 +62,12 @@ Personal planning changes stay local. Checking a task or moving its date does **
 
 <details>
 <summary><strong>More screens: dark mode, calendar, wiki and contextual assistant</strong></summary>
+
+### Start with the day
+![Daily command center and connected work trail](docs/media/daily-command-center.png)
+
+### Explore the workflows
+![Three actionable product walkthroughs](docs/media/product-guide.png)
 
 ### Dark workspace
 ![Dark daily planning workspace](docs/media/dark-workspace.png)
@@ -126,7 +136,7 @@ For details and limits, see the [integration and review guide](docs/INTEGRATIONS
 | `G`, then `H` / `M` / `P` / `C` / `O` | Home / My Work / Projects / Code / Observe |
 | `Esc` | Close the active overlay |
 
-Every global action also has a visible button. Light/dark themes, a collapsible sidebar, recent objects and navigation history support longer work sessions.
+The Home workflow guide opens real sample workflows in one click. Every global action also has a visible button. Light/dark themes, a collapsible sidebar, recent objects and navigation history support longer work sessions.
 
 ## Data and execution boundaries
 
@@ -150,7 +160,7 @@ npm run test:connected-desktop   # Native UI → IPC → service adapters
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **64 browser tests**, **24 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **83 browser tests**, **24 adapter tests**, and **7 native connected workflow checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI
@@ -171,4 +181,4 @@ Background synchronization, offline external writes, rich-text editing of existi
 
 Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [team review](docs/WORKLANE_REVIEW.md) records reproduced defects and validation.
 
-Dependencies retain their respective licenses. **No project-wide license has been selected for Worklane yet**; making this repository public does not grant a new open-source license.
+DM Sans and IBM Plex Mono are bundled locally under their SIL Open Font Licenses; the app makes no external font requests. Dependencies retain their respective licenses. **No project-wide license has been selected for Worklane yet**; making this repository public does not grant a new open-source license.

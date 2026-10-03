@@ -335,7 +335,7 @@ test("Saved links from another endpoint cannot fetch a same-id resource from the
     .locator(".plan-task-main")
     .getByRole("button", { name: /PAY-382/ })
     .click();
-  await expect(page.getByRole("alert")).toContainText("다른 서비스 주소");
+  await expect(page.getByRole("alert")).toContainText("different service URL");
   expect(
     await page.evaluate(
       () =>

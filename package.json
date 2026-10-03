@@ -14,6 +14,8 @@
     "screenshots:connected": "node scripts/capture-connected-workflows.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
     "@radix-ui/react-dialog": "1.1.6",
     "cmdk": "1.1.1",
     "dompurify": "3.4.16",

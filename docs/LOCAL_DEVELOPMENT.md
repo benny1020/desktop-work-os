@@ -87,3 +87,8 @@ The user authorized creating one **private** GitHub repository, then explicitly 
 The product is now **Worklane**, and the public repository is https://github.com/benny1020/worklane. The local checkout directory can keep its original name. Electron keeps the existing `desktop-work-os` user-data directory and legacy `orbit-*` storage/IPC names to preserve encrypted connection settings, personal plans and drafts. `WORKLANE_USER_DATA_DIR` can select an isolated profile; `ORBIT_USER_DATA_DIR` remains a compatibility alias.
 
 The latest [team review and validation](WORKLANE_REVIEW.md) supersedes the test counts above. Three specialist agents reviewed planning usability, API/context correctness and open-source review patterns. Source provenance is recorded in [REVIEW_REFERENCES.md](REVIEW_REFERENCES.md).
+
+
+## Product quality pass
+
+See [PRODUCT_QUALITY.md](PRODUCT_QUALITY.md) for the latest 83-test browser result, workflow/visual improvements, native checks and scope limits. This supersedes earlier test counts.

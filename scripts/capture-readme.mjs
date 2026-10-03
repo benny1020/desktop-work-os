@@ -16,6 +16,12 @@ await hero.goto('http://127.0.0.1:5178');
 await expect(hero.getByRole('heading',{name:'Good morning, Alex.'})).toBeVisible();
 await hero.evaluate(() => document.fonts.ready);
 await screenshot(hero, 'daily-command-center');
+await hero.getByRole('button',{name:'Explore workflows',exact:true}).click();
+await screenshot(hero, 'product-guide');
+await hero.getByRole('button',{name:/See the change before the code/}).click();
+await expect(hero.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();
+await hero.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+await screenshot(hero, 'visual-review');
 await hero.close();
 async function scene(name, actions) {
   const folder = `${root}/artifacts/readme-recording/${name}`;

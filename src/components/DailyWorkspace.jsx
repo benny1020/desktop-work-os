@@ -10,6 +10,10 @@ import {
   Pencil,
   CalendarDays,
   GitPullRequest,
+  ArrowUpRight,
+  CheckCircle2,
+  Link2,
+  Undo2,
 } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import {
@@ -143,6 +147,7 @@ export default function DailyWorkspace({
   const plan = usePlan(),
     today = dayKey();
   const [editing, setEditing] = useState(null);
+  const [removed, setRemoved] = useState(null);
   const quickInput = useRef(null);
   const [quickDate, setQuickDate] = useState(null);
   const [date, setDate] = useState(today),
@@ -240,8 +245,14 @@ export default function DailyWorkspace({
   const due = feed.issues.filter(
     (i) => i.fields.duedate && i.fields.duedate <= shiftDay(today, 1),
   );
+  const remaining = tasks.filter((t) => !t.done);
+  const completed = tasks.filter((t) => t.done);
+  const connected = Boolean(configs.jira?.tokenConfigured || configs.gitlab?.tokenConfigured);
+  const nextReview = feed.mrs[0];
+  const nextIssue = !nextReview && due[0];
   return (
-    <div className="page daily-connected">
+    <div className={`page daily-connected ${home ? "daily-command-center" : ""}`}>
+
       <header className="page-heading">
         <div>
           <span className="eyebrow">
@@ -254,8 +265,14 @@ export default function DailyWorkspace({
               month: "long",
               day: "numeric",
             })}{" "}
-            · Personal plan + connected work
+            · {date === today ? "Make room for what matters." : "Plan ahead with a clear view."}
           </p>
+          {home && <div className="daily-day-summary" aria-label="Daily summary">
+            <span><span className="summary-dot" />{remaining.length} planned {remaining.length === 1 ? "item" : "items"}</span>
+            <span><GitPullRequest size={12} />{!configs.gitlab?.tokenConfigured ? "GitLab not connected" : loading ? "Checking reviews…" : `${feed.mrs.length} ${feed.mrs.length === 1 ? "review" : "reviews"} requested`}</span>
+            <span><CheckCircle2 size={12} />{completed.length} completed locally</span>
+          </div>}
+
         </div>
         <button
           className="btn"
@@ -340,10 +357,10 @@ export default function DailyWorkspace({
       <div id="plan-quick-target" className="plan-quick-target">
         Adding to {view === "Backlog" ? "Backlog" : quickDate || date} · explicit dates in your text take priority
       </div>
-      <div className="plan-boundary">
-        개인 계획은 이 기기에 저장됩니다. 체크·날짜 이동은 Jira 상태나 기한을
-        변경하지 않습니다. Dooray 일정은 연동하지 않습니다.
-      </div>
+      <details className="plan-boundary">
+        <summary><Link2 size={11} /> Personal plan · saved on this device</summary>
+        <p>Completing or scheduling items here does not change Jira status or due dates. Linked items open their original work context. Dooray calendars are not connected.</p>
+      </details>
       {error && !editing && (
         <div role="alert" className="connection-error">
           {error}
@@ -354,6 +371,20 @@ export default function DailyWorkspace({
           {notice}
         </p>
       )}
+      {removed && <div role="status" className="plan-undo">
+        <span>Removed <b>{removed.task.title}</b> from your plan.</span>
+        <button className="quiet-button" onClick={() => act(() => {
+          planChange((p) => {
+            if (p.tasks.some((task) => task.id === removed.task.id)) return p;
+            const tasks = [...p.tasks];
+            tasks.splice(Math.min(removed.index, tasks.length), 0, removed.task);
+            return { ...p, tasks };
+          });
+          setNotice(`Restored ${removed.task.title}`);
+          setRemoved(null);
+        })}><Undo2 size={13} /> Undo removal</button>
+        <button className="quiet-button" aria-label="Dismiss undo removal" onClick={() => setRemoved(null)}>Dismiss</button>
+      </div>}
       {feed.errors.map((e, i) => (
         <div key={i} role="alert" className="connection-error">
           {e} <button onClick={onSettings}>Settings</button>
@@ -433,8 +464,12 @@ export default function DailyWorkspace({
               tasks.map(taskRow)
             ) : (
               <div className="plan-empty">
-                계획된 업무가 없습니다. 아래 실제 업무를 Today에 추가하거나 개인
-                업무를 입력하세요.
+                <div className="plan-empty-icon"><CalendarDays size={22} strokeWidth={1.5} /></div>
+                <h3>{view === "Backlog" ? "A place for your next ideas" : "Start with one thing"}</h3>
+                <p>{connected ? "Bring an issue or review into your day, or make space for work of your own." : "Add a task now. Connect Jira and GitLab when you’re ready to bring issues and reviews into the same view."}</p>
+                <button className="btn primary" onClick={() => quickInput.current?.focus()}><Plus size={13} /> Plan your first item</button>
+                {!connected && <button className="quiet-button" onClick={onSettings}>Connect your tools <ArrowUpRight size={12} /></button>}
+                <small>Try “Review retry policy tomorrow 2pm”</small>
               </div>
             )}
             {tasks.some((t) => !t.done) && (
@@ -448,7 +483,7 @@ export default function DailyWorkspace({
                         updateTask(t.id, { date: shiftDay(date, 1) }),
                       );
                     setDate(shiftDay(date, 1));
-                    setNotice("미완료 업무를 다음 날로 옮겼습니다.");
+                    setNotice("Unfinished work moved to the next day.");
                   })
                 }
               >
@@ -461,25 +496,26 @@ export default function DailyWorkspace({
               Needs your attention{" "}
               <span className="pill">{feed.mrs.length + due.length}</span>
             </h2>
-            <p className="form-note">
-              리뷰 요청과 임박한 기한을 모았습니다. AI를 자동 호출하지 않습니다.
-            </p>
+            <p className="form-note">Reviews waiting on you and deadlines coming up.</p>
             {feed.mrs.slice(0, 5).map((m) => (
-              <div key={m.id} className="attention-row">
+              <div key={m.id} className={`attention-row ${home && m === nextReview ? "attention-recommended" : ""}`}>
+                {home && m === nextReview && <span className="attention-kicker">A good place to start <ArrowUpRight size={12} /></span>}
                 <GitPullRequest size={16} />
                 <button onClick={() => onOpen(mrObject(m))}>
                   <b>
                     !{m.iid} {m.title}
                   </b>
-                  <small>Review requested · {m.author?.name}</small>
+                  <small>Review requested · {m.author?.name || "GitLab"}</small>
                 </button>
+                {home && m === nextReview && <button className="btn primary attention-review" onClick={() => onOpen(mrObject(m))}>Review changes <ArrowUpRight size={12} /></button>}
                 <button className="btn" onClick={() => planObject(mrObject(m))}>
                   Today
                 </button>
               </div>
             ))}
             {due.slice(0, 5).map((i) => (
-              <div key={i.key} className="attention-row">
+              <div key={i.key} className={`attention-row ${home && i === nextIssue ? "attention-recommended" : ""}`}>
+                {home && i === nextIssue && <span className="attention-kicker">Coming up next <ArrowUpRight size={12} /></span>}
                 <button onClick={() => onOpen(issueObject(i))}>
                   <b>
                     {i.key} {i.fields.summary}
@@ -495,9 +531,10 @@ export default function DailyWorkspace({
               </div>
             ))}
             {!feed.mrs.length && !due.length && !loading && (
-              <p className="muted">
-                No pending reviews or imminent deadlines in loaded results.
-              </p>
+              <div className="attention-clear"><CheckCircle2 size={20} />
+                <b>{connected ? "Nothing urgent in loaded work" : "Your work, in one place"}</b>
+                <p>{connected ? "No pending reviews or imminent deadlines in loaded results. Your plan is ready when you are." : "Connect your tools to surface review requests and upcoming deadlines here."}</p>
+              </div>
             )}
           </aside>
         </div>
@@ -542,10 +579,7 @@ export default function DailyWorkspace({
             Connect Jira to see assigned issues
           </button>
         )}
-        <p className="form-note">
-          서비스별 최대 50개를 우선 표시합니다. 전체 업무는 Projects와 My
-          Reviews에서 검색하세요.
-        </p>
+        <details className="plan-boundary available-work-details"><summary>About this work feed</summary><p>Shows up to 50 items per service. Search Projects and My Reviews for all work. Attention items use service data; no AI request runs automatically.</p></details>
       </section>
       {editing && (
         <Dialog.Root open onOpenChange={(v) => !v && setEditing(null)}>
@@ -554,7 +588,7 @@ export default function DailyWorkspace({
             <Dialog.Content className="live-command">
               <Dialog.Title>Edit personal work</Dialog.Title>
               <Dialog.Description>
-                이 기기의 개인 계획만 변경합니다.
+                Changes stay in your personal plan on this device.
               </Dialog.Description>
               {error && <p role="alert" className="connection-error">{error}</p>}
               <form
@@ -632,10 +666,14 @@ export default function DailyWorkspace({
                     type="button"
                     onClick={() =>
                       act(() => {
+                        const index = plan.tasks.findIndex((t) => t.id === editing.id);
+                        const task = plan.tasks[index];
                         planChange((p) => ({
                           ...p,
                           tasks: p.tasks.filter((t) => t.id !== editing.id),
                         }));
+                        if (task) setRemoved({ task, index });
+                        setNotice("");
                         setEditing(null);
                       })
                     }

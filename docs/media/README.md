@@ -2,7 +2,9 @@
 
 These files are curated recordings and screenshots of the actual Worklane UI. All task names, documents, code, identities, service addresses and responses are synthetic demo/fixture data. No real credentials or company responses are captured.
 
-- `daily-command-center.png`: built-in demo home.
+- `daily-command-center.png`: built-in demo home and connected work trail.
+- `product-guide.png`: actionable sample workflows.
+- `visual-review.png`: layered dependency map, reading path and actual code.
 - `calendar.png`, `wiki-preview.png`, `contextual-assistant.png`, `dark-workspace.png`: connected UI with `tests/fixtures/connected.mjs` responses.
 - `visual-review.gif`: dependency → viewed progress → sequence → source → comment → guide → assistant.
 - `connected-context.gif`: issue → wiki → MR → pipeline → home.

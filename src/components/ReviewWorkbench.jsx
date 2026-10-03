@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import "../review-polish.css";
 import {
   ArrowLeft,
   ArrowRight,
@@ -48,26 +49,63 @@ function CodeText({ text }) {
     </>
   );
 }
-function DependencyDiagram({ graph, selected, onSelect, zoom }) {
-  const columns = 3,
-    nodeW = 194,
-    nodeH = 74,
-    gapX = 48,
-    gapY = 58;
-  const positions = new Map(
-    graph.nodes.map((n, i) => [
-      n.id,
-      {
-        x: 28 + (i % columns) * (nodeW + gapX),
-        y: 36 + Math.floor(i / columns) * (nodeH + gapY),
-      },
-    ]),
-  );
-  const w = columns * (nodeW + gapX) + 8,
-    h = Math.max(
-      280,
-      Math.ceil(graph.nodes.length / columns) * (nodeH + gapY) + 60,
-    );
+// Collapse strongly connected components before layering: cycles stay together,
+// while every edge between groups flows from an earlier layer to a later one.
+function dependencyLayout(graph) {
+  const adjacency = new Map(graph.nodes.map((n) => [n.id, []]));
+  graph.dependencies.forEach((edge) => {
+    if (adjacency.has(edge.from) && adjacency.has(edge.to)) adjacency.get(edge.from).push(edge.to);
+  });
+  let nextIndex = 0;
+  const indices = new Map(), low = new Map(), stack = [], active = new Set(), groups = [];
+  function visit(id) {
+    indices.set(id, nextIndex); low.set(id, nextIndex++); stack.push(id); active.add(id);
+    for (const target of adjacency.get(id)) {
+      if (!indices.has(target)) { visit(target); low.set(id, Math.min(low.get(id), low.get(target))); }
+      else if (active.has(target)) low.set(id, Math.min(low.get(id), indices.get(target)));
+    }
+    if (low.get(id) === indices.get(id)) {
+      const group = []; let member;
+      do { member = stack.pop(); active.delete(member); group.push(member); } while (member !== id);
+      groups.push(group);
+    }
+  }
+  graph.nodes.forEach((n) => { if (!indices.has(n.id)) visit(n.id); });
+  const groupOf = new Map(groups.flatMap((group, i) => group.map((id) => [id, i])));
+  const parents = groups.map(() => new Set());
+  graph.dependencies.forEach((edge) => {
+    const from = groupOf.get(edge.from), to = groupOf.get(edge.to);
+    if (from !== undefined && to !== undefined && from !== to) parents[to].add(from);
+  });
+  const depths = new Map();
+  function depth(i) {
+    if (!depths.has(i)) depths.set(i, parents[i].size ? Math.max(...[...parents[i]].map(depth)) + 1 : 0);
+    return depths.get(i);
+  }
+  const layers = [];
+  graph.nodes.forEach((node) => { const d = depth(groupOf.get(node.id)); (layers[d] ||= []).push(node); });
+  const nodeW = 204, nodeH = 76, gap = 40;
+  const width = Math.max(480, ...layers.map((layer) => layer.length * (nodeW + gap) + gap));
+  const positions = new Map();
+  layers.forEach((layer, i) => layer.forEach((node, j) => positions.set(node.id, {
+    x: (width - (layer.length * (nodeW + gap) - gap)) / 2 + j * (nodeW + gap),
+    y: 36 + i * 134,
+    layer: i,
+    cyclic: groups[groupOf.get(node.id)].length > 1,
+  })));
+  return { positions, layers, nodeW, nodeH, width, height: Math.max(200, layers.length * 134 + 12) };
+}
+function diagramKeys(event, onActivate) {
+  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onActivate(); return; }
+  if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  const nodes = [...event.currentTarget.closest("svg").querySelectorAll('[role="button"]')];
+  const index = nodes.indexOf(event.currentTarget);
+  const next = event.key === "Home" ? 0 : event.key === "End" ? nodes.length - 1
+    : (index + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + nodes.length) % nodes.length;
+  event.preventDefault(); nodes[next]?.focus();
+}
+function DependencyDiagram({ graph, selected, onSelect, zoom, layout }) {
+  const { positions, layers, nodeW, nodeH, width: w, height: h } = layout;
   return (
     <div className="diagram-scroll">
       <svg
@@ -91,17 +129,23 @@ function DependencyDiagram({ graph, selected, onSelect, zoom }) {
             <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
           </marker>
         </defs>
+        {layers.map((layer, index) => (
+          <g key={index} className="dependency-layer" aria-hidden="true">
+            <text x="20" y={22 + index * 134}>{graph.dependencies.length ? index === 0 ? "Root components" : `Dependency layer ${index}` : "Changed components"}</text>
+            <line x1="20" x2={w - 20} y1={29 + index * 134} y2={29 + index * 134} />
+          </g>
+        ))}
         {graph.dependencies.map((e, i) => {
           const a = positions.get(e.from),
             b = positions.get(e.to);
           if (!a || !b) return null;
-          const sameRow = a.y === b.y;
+          const sameRow = a.layer === b.layer;
           const startX = a.x + nodeW / 2,
             startY = a.y + nodeH,
             endX = b.x + nodeW / 2,
             endY = b.y;
           const d = sameRow
-            ? `M ${a.x + nodeW} ${a.y + nodeH / 2} C ${a.x + nodeW + 30} ${a.y + nodeH / 2}, ${b.x - 30} ${b.y + nodeH / 2}, ${b.x} ${b.y + nodeH / 2}`
+            ? `M ${startX} ${startY} C ${startX} ${startY + 34}, ${endX} ${startY + 34}, ${endX} ${startY}`
             : `M ${startX} ${startY} C ${startX} ${startY + 36}, ${endX} ${endY - 36}, ${endX} ${endY}`;
           return (
             <g
@@ -111,10 +155,9 @@ function DependencyDiagram({ graph, selected, onSelect, zoom }) {
               tabIndex={0}
               aria-label={`Inspect ${basename(e.from)} ${e.label} ${basename(e.to)}`}
               onClick={() => onSelect(e.path, e.line)}
-              onKeyDown={(k) => {
-                if (k.key === "Enter") onSelect(e.path, e.line);
-              }}
+              onKeyDown={(event) => diagramKeys(event, () => onSelect(e.path, e.line))}
             >
+              <path className="edge-hit-area" d={d} />
               <path d={d} markerEnd="url(#dep-arrow)" />
               <title>{`${e.label} · ${e.path}:${e.line} · ${e.evidence}`}</title>
             </g>
@@ -130,13 +173,10 @@ function DependencyDiagram({ graph, selected, onSelect, zoom }) {
               role="button"
               tabIndex={0}
               aria-label={`Open component ${basename(n.path)}`}
+              aria-pressed={selected === n.id}
+              data-dependency-layer={p.layer}
               onClick={() => onSelect(n.path)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(n.path);
-                }
-              }}
+              onKeyDown={(event) => diagramKeys(event, () => onSelect(n.path))}
             >
               <rect width={nodeW} height={nodeH} rx="6" />
               <rect
@@ -153,7 +193,7 @@ function DependencyDiagram({ graph, selected, onSelect, zoom }) {
                 {basename(n.path).slice(0, 26)}
               </text>
               <text className="node-meta" x="15" y="62">
-                {n.change} · {n.lines} changed lines
+                {p.cyclic ? "Cyclic dependency" : n.change} · {n.lines} changed lines
               </text>
               <title>{n.path}</title>
             </g>
@@ -162,8 +202,8 @@ function DependencyDiagram({ graph, selected, onSelect, zoom }) {
       </svg>
       {!graph.dependencies.length && (
         <p className="diagram-empty-note">
-          현재 diff에서 파일 간 의존성을 확정할 수 없습니다. 컴포넌트를 눌러
-          코드를 확인하거나 AI guide로 관계를 분석하세요.
+          No file dependencies were resolved from this diff. Open a component
+          to inspect its code, or generate an AI guide to explore possible relationships.
         </p>
       )}
     </div>
@@ -216,9 +256,8 @@ function SequenceDiagram({ graph, selected, onSelect, zoom }) {
               tabIndex={0}
               aria-label={`Open component ${basename(n.path)}`}
               onClick={() => onSelect(n.path)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSelect(n.path);
-              }}
+              aria-pressed={selected === n.id}
+              onKeyDown={(event) => diagramKeys(event, () => onSelect(n.path))}
             >
               <rect x={x(n.id) - 80} y="25" width="160" height="55" rx="5" />
               <text
@@ -250,9 +289,7 @@ function SequenceDiagram({ graph, selected, onSelect, zoom }) {
               tabIndex={0}
               aria-label={`Inspect sequence step ${i + 1}: ${e.label}`}
               onClick={() => onSelect(e.path, e.line)}
-              onKeyDown={(k) => {
-                if (k.key === "Enter") onSelect(e.path, e.line);
-              }}
+              onKeyDown={(event) => diagramKeys(event, () => onSelect(e.path, e.line))}
             >
               <rect
                 className="step-hit"
@@ -289,8 +326,8 @@ function SequenceDiagram({ graph, selected, onSelect, zoom }) {
       </svg>
       {!graph.sequence.length && (
         <p className="diagram-empty-note">
-          호출 순서를 구성할 근거가 아직 없습니다. AI guide에서 diff 기반
-          시퀀스를 생성할 수 있습니다. 런타임 추적 결과는 아닙니다.
+          No call sequence was found in this diff. Generate an AI guide to explore
+          a possible sequence. This is static analysis, not a runtime trace.
         </p>
       )}
     </div>
@@ -325,6 +362,8 @@ export default function ReviewWorkbench({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [zoom, setZoom] = useState(0.85);
+  const [autoFit, setAutoFit] = useState(true);
+  const mapPanel = useRef(null);
   const [discussions, setDiscussions] = useState(snapshot.discussions || []);
   const [configs, setConfigs] = useState({});
   const [approved, setApproved] = useState(mr.status === "Approved");
@@ -374,6 +413,27 @@ export default function ReviewWorkbench({
   const draftKey = `${file?.path}:${side}:${line || "file"}`;
   const draft = drafts[draftKey] || "";
   const graph = useMemo(() => buildGraph(files, guide), [files, guide]);
+  const layout = useMemo(() => dependencyLayout(graph), [graph]);
+  const changeStats = useMemo(() => files.reduce((stats, item) => {
+    for (const row of item.rows || []) {
+      if (row.kind === "added") stats.added++;
+      if (row.kind === "removed") stats.removed++;
+    }
+    return stats;
+  }, { added: 0, removed: 0 }), [files]);
+  useEffect(() => {
+    if (!autoFit || tab === "AI guide") return;
+    const canvas = mapPanel.current?.querySelector(".diagram-scroll");
+    if (!canvas) return;
+    function fit() {
+      const svg = canvas.querySelector("svg");
+      if (svg) setZoom(Math.min(1, Math.max(0.15, (canvas.clientWidth - 24) / svg.viewBox.baseVal.width)));
+    }
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [autoFit, tab, layout]);
   useEffect(() => {
     const content = source[file?.path];
     const sourceLines = typeof content === "string" ? content.split("\n") : null;
@@ -454,7 +514,7 @@ export default function ReviewWorkbench({
     try {
       localStorage.setItem(progressKey, JSON.stringify(paths));
     } catch {
-      setNotice("진행도를 이 기기에 저장하지 못했습니다. 현재 화면에서는 유지됩니다.");
+      setNotice("Progress could not be saved on this device. It is retained while this view stays open.");
     }
   }
   function nextUnreviewed() {
@@ -542,8 +602,8 @@ export default function ReviewWorkbench({
           : d);
         setNotice(
           live
-            ? "GitLab에 리뷰 댓글을 등록했습니다."
-            : "데모 리뷰 댓글을 등록했습니다.",
+            ? "Review comment posted to GitLab."
+            : "Demo review comment added.",
         );
       }
     } catch (e) {
@@ -567,8 +627,8 @@ export default function ReviewWorkbench({
       setConfirmApproval(false);
       setNotice(
         live
-          ? "GitLab에 승인을 등록했습니다. MR은 merge하지 않았습니다."
-          : "데모 MR을 승인했습니다.",
+          ? "Approval submitted to GitLab. The MR has not been merged."
+          : "Demo MR approved.",
       );
     } catch (e) {
       setError(e.message);
@@ -617,8 +677,7 @@ export default function ReviewWorkbench({
           <div>
             <h1>{mr.title}</h1>
             <p>
-              {mr.source_branch} <ArrowRight size={12} /> {mr.target_branch} ·{" "}
-              {files.length} changed files
+              {mr.source_branch} <ArrowRight size={12} /> {mr.target_branch}
             </p>
           </div>
           <div className="inline">
@@ -644,6 +703,24 @@ export default function ReviewWorkbench({
             </button>
           </div>
         </div>
+        <div className="review-reading-path" aria-label="Review reading path">
+          <div className="review-change-summary">
+            <span>{files.length} files</span>
+            <b className="added">+{changeStats.added}</b><b className="removed">−{changeStats.removed}</b>
+            <span>{discussions.filter((d) => d.notes?.some((n) => !n.system)).length} threads</span>
+          </div>
+          <span className="reading-path-label">Read by dependency</span>
+          <div className="reading-path-files">
+            {layout.layers.flat().map((node) => (
+              <button key={node.id} className={selected === node.id ? "active" : ""}
+                aria-label={`Read ${basename(node.path)}`} aria-pressed={selected === node.id}
+                title={node.path} onClick={() => select(node.path)}>
+                {viewed.includes(node.path) ? <Check size={11} /> : <FileCode2 size={11} />}
+                {node.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
       {externalError && (
         <div role="alert" className="connection-error">
@@ -652,12 +729,12 @@ export default function ReviewWorkbench({
       )}
       {(snapshot.truncated || files.some((f) => f.unavailable)) && (
         <div className="review-notice">
-          일부 diff가 생략되었거나 GitLab의 크기 제한에 걸렸습니다. 전체
-          저장소를 분석한 결과가 아닙니다.
+          Some diffs were omitted or exceeded GitLab’s size limit. This view
+          does not cover the entire repository.
         </div>
       )}
       <div className="visual-review-grid">
-        <section className="visual-map-panel">
+        <section className="visual-map-panel" ref={mapPanel}>
           <div className="review-file-progress">
             <div>
               <strong role="status">{viewedCount} / {files.length} files viewed</strong>
@@ -696,29 +773,30 @@ export default function ReviewWorkbench({
                 <div>
                   <strong>
                     {tab === "Dependency flow"
-                      ? "Change structure"
+                      ? "Dependency map"
                       : "Interaction sequence"}
                   </strong>
+                  {tab === "Dependency flow" && <span className="diagram-evidence-count">{graph.dependencies.filter((e) => e.evidence === "code").length} resolved · {graph.dependencies.filter((e) => e.evidence !== "code").length} inferred</span>}
                   <small>
                     {tab === "Dependency flow"
-                      ? "Solid: resolved import · Dashed: inferred"
+                      ? "Changed files only. Solid imports; dashed inferred references."
                       : "Static code / AI inferred · not a runtime trace"}
                   </small>
                 </div>
                 <button
                   className="icon-button"
                   aria-label="Zoom out diagram"
-                  onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+                  onClick={() => { setAutoFit(false); setZoom((z) => Math.max(0.15, z - 0.1)); }}
                 >
                   <ZoomOut size={15} />
                 </button>
-                <button className="quiet-button" aria-label="Fit diagram to panel" title="Fit to panel" onClick={e => { const panel=e.currentTarget.closest(".diagram-toolbar")?.parentElement;const canvas=panel?.querySelector(".diagram-scroll");const svg=canvas?.querySelector("svg");if(canvas&&svg)setZoom(Math.min(1,(canvas.clientWidth-16)/svg.viewBox.baseVal.width)); }}>
-                  {Math.round(zoom * 100)}%
+                <button className={`quiet-button ${autoFit ? "is-fitted" : ""}`} aria-label="Fit diagram to panel" title="Fit to panel" onClick={() => setAutoFit(true)}>
+                  Fit <span>{Math.round(zoom * 100)}%</span>
                 </button>
                 <button
                   className="icon-button"
                   aria-label="Zoom in diagram"
-                  onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
+                  onClick={() => { setAutoFit(false); setZoom((z) => Math.min(1.5, z + 0.1)); }}
                 >
                   <ZoomIn size={15} />
                 </button>
@@ -726,6 +804,7 @@ export default function ReviewWorkbench({
               {tab === "Dependency flow" ? (
                 <DependencyDiagram
                   graph={graph}
+                  layout={layout}
                   selected={selected}
                   onSelect={select}
                   zoom={zoom}
@@ -749,7 +828,7 @@ export default function ReviewWorkbench({
                   <i className="removed" /> Removed
                 </span>
                 <small>
-                  컴포넌트·화살표를 클릭하면 코드 위치로 이동합니다.
+                  Solid: resolved import · Dashed: inferred reference. Arrows navigate; Enter opens code.
                 </small>
               </div>
               <div className="review-component-list">
@@ -780,38 +859,38 @@ export default function ReviewWorkbench({
                   <p>
                     {guide
                       ? `${guide.model || "AI"} · ${mr.diff_refs.head_sha.slice(0, 8)}`
-                      : "변경 의도부터 확인할 위험 지점까지"}
+                      : "Understand the change and decide what to check next"}
                   </p>
                 </div>
               </div>
               <details className="guideline-settings">
-                <summary>팀 리뷰 가이드라인</summary>
+                <summary>Team review guidelines</summary>
                 <textarea
                   aria-label="Team review guidelines"
                   value={guidelines}
                   onChange={(e) => setGuidelines(e.target.value)}
-                  placeholder="예: 트랜잭션 경계, 멱등성, 오류 처리, 테스트 누락을 우선 확인"
+                  placeholder="Prioritize transaction boundaries, idempotency, error handling, and missing tests."
                 />
               </details>
               <p className="ai-transmission-note">
                 {live
-                  ? `Generate AI guide를 누르면 MR diff와 가이드라인을 ${configs.claude?.url || "설정한 Claude 엔드포인트"}로 보냅니다.`
-                  : "샘플 가이드입니다. 실제 Claude 호출은 Connected workspace에서 수행합니다."}
+                  ? `Generate AI guide sends this MR’s diff and your guidelines to ${configs.claude?.url || "your configured Claude endpoint"}.`
+                  : "This is a sample guide. Use Connected workspace to generate a guide with Claude."}
               </p>
               {!guide ? (
                 <div className="guide-empty">
                   <Network size={30} />
-                  <h3>코드에 근거한 리뷰 순서를 만드세요</h3>
+                  <h3>Build a review plan from the code</h3>
                   <p>
-                    변경 요약, 의존 관계, 추정 시퀀스, 점검할 테스트를 파일·줄과
-                    연결합니다.
+                    Connect the change summary, dependencies, inferred sequences, and
+                    suggested tests to specific files and lines.
                   </p>
                   <button
                     className="btn primary"
                     disabled={!!busy}
                     onClick={generate}
                   >
-                    {busy === "guide" ? "분석 중…" : "Generate review guide"}
+                    {busy === "guide" ? "Analyzing…" : "Generate review guide"}
                   </button>
                 </div>
               ) : (
@@ -865,8 +944,8 @@ export default function ReviewWorkbench({
                   ))}
                   {!guide.findings?.length && (
                     <p className="muted">
-                      제공된 diff에서 추가 점검 제안이 없습니다. 결함이 없음을
-                      보증하지는 않습니다.
+                      No additional checks were suggested for this diff. Continue your
+                      review; this does not establish that the change is defect-free.
                     </p>
                   )}
                 </>
@@ -947,8 +1026,8 @@ export default function ReviewWorkbench({
                 ))
               ) : (
                 <div className="code-state">
-                  전체 원문이 없는 샘플입니다. Diff 탭에서 제공된 변경 코드를
-                  확인하세요.
+                  Full source is not available for this sample. Open the Diff tab
+                  to inspect the supplied changes.
                 </div>
               )
             ) : codeMode === "Diff" ? (
@@ -1008,7 +1087,7 @@ export default function ReviewWorkbench({
               onChange={(e) =>
                 setDrafts((d) => ({ ...d, [draftKey]: e.target.value }))
               }
-              placeholder="선택한 코드에 리뷰 의견을 남기세요…"
+              placeholder="Leave a review comment on the selected code…"
               onKeyDown={(e) => {
                 if (
                   (e.ctrlKey || e.metaKey) &&
@@ -1022,7 +1101,7 @@ export default function ReviewWorkbench({
               }}
             />
             <div className="visual-comment-actions">
-              <small>초안 자동 저장 · ⌘ / Ctrl + Enter</small>
+              <small>Draft saved locally · ⌘ / Ctrl + Enter</small>
               <button
                 className="btn primary"
                 disabled={!draft.trim() || !!busy}
@@ -1065,7 +1144,7 @@ export default function ReviewWorkbench({
           <div className="visual-review-approval">
             {confirmApproval ? (
               <>
-                <span>현재 커밋의 변경을 승인할까요?</span>
+                <span>Approve the changes in this commit?</span>
                 <button
                   className="btn"
                   onClick={() => setConfirmApproval(false)}
@@ -1083,7 +1162,7 @@ export default function ReviewWorkbench({
             ) : (
               <>
                 <small>
-                  검토 후 명시적으로 승인합니다. Merge는 실행하지 않습니다.
+                  Approve when your review is complete. This does not merge the MR.
                 </small>
                 <button
                   className="btn"

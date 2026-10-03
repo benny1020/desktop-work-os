@@ -39,3 +39,12 @@ Local tasks and events share Today, Week, Backlog and Calendar. They do not sile
 ## Work in dark mode
 
 ![Dark workspace](media/dark-workspace.png)
+
+
+## Guided workflows
+
+![Product guide](media/product-guide.png)
+
+## Dependency review
+
+![Review map and source](media/visual-review.png)

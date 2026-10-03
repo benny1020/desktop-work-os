@@ -1,0 +1,83 @@
+/* Worklane: quiet surfaces, a clear work trail, and controls that stay reachable. */
+:root { --muted:#697881; --secondary:#5e6e77; --line:#e6ebed; --sidebar:#f5f7f8; }
+:root[data-theme="dark"] { --muted:#97a5ad; --secondary:#b0bdc4; --line:#303a42; --sidebar:#171c21; }
+button, a, input, select, textarea { -webkit-tap-highlight-color:transparent; }
+button { touch-action:manipulation; }
+button:not(:disabled) { transition:background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+:focus-visible { scroll-margin:16px; }
+.sidebar { overflow:hidden; flex-shrink:0; }
+.sidebar > nav { overflow-y:auto; min-height:80px; flex:1 1 auto; scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent; }
+.sidebar > :not(nav) { flex-shrink:0; }
+.brand-mark { width:32px; height:34px; border-radius:8px; background:#235f55; }
+.workspace-switcher { padding-bottom:17px; }
+.workspace-switcher b { font-size:23px; letter-spacing:-1px; font-weight:680; }
+.nav-item { position:relative; }
+.nav-item.active::before { content:""; position:absolute; left:0; height:16px; width:2px; background:var(--accent); border-radius:2px; }
+.topbar { box-shadow:0 1px 0 var(--line); border-bottom:0; }
+.home-page { padding:28px 34px 28px; }
+.home-greeting { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:22px; }
+.home-greeting h1 { font-size:28px; font-weight:580; }
+.home-greeting .date-label { margin-bottom:9px; }
+.home-greeting > .home-entry-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+.home-entry-actions .btn { min-height:32px; }
+.work-thread { border:1px solid var(--line-strong); border-left:3px solid var(--accent); border-radius:6px; padding:15px 17px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:26px; background:var(--surface); }
+.work-thread-intro { min-width:0; }
+.work-thread-intro > small { display:block; color:var(--secondary); margin-bottom:5px; font-size:10px; }
+.work-thread-title { display:flex; align-items:center; gap:8px; text-align:left; font-size:13px; font-weight:600; padding:0; }
+.work-thread-title span { font-size:10px; color:var(--secondary); font-weight:450; }
+.work-thread-title:hover { color:var(--accent); }
+.work-trail { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.work-trail > svg { color:var(--muted); }
+.work-trail button { display:flex; align-items:center; gap:7px; padding:8px 9px; background:var(--bg); border:1px solid var(--line-strong); border-radius:5px; font-size:11px; }
+.work-trail button:hover { border-color:var(--accent); color:var(--accent); }
+.work-trail button svg { color:var(--accent); }
+.home-grid { grid-template-columns:minmax(0,1fr) 320px; gap:30px; }
+.greeting h1 > span { color:inherit; }
+.home-page .brief { border-radius:7px; box-shadow:none; }
+.home-page .brief-header { padding-bottom:2px; }
+.home-page .brief-intro { color:var(--secondary); }
+.home-page .sprint-title { margin-top:23px; }
+.home-page .recent-heading { margin-top:23px; }
+.home-page .sprint-summary { border-bottom:1px solid var(--line); padding-bottom:18px; }
+.statusbar { font-size:10px; height:29px; }
+.statusbar button { font-size:10px; color:var(--secondary); }
+.statusbar button:hover { color:var(--accent); }
+.object-content-grid > .live-assistant { position:relative; inset:auto; box-shadow:none; min-width:0; height:100%; }
+.guide-overlay { position:fixed; inset:0; z-index:120; background:#101d2859; backdrop-filter:blur(3px); }
+.product-guide { position:fixed; z-index:121; top:50%; left:50%; transform:translate(-50%,-50%); width:min(580px,calc(100vw - 40px)); max-height:calc(100dvh - 48px); overflow:auto; background:var(--bg); border:1px solid var(--line-strong); border-radius:12px; padding:23px; box-shadow:0 22px 90px #10252a40; }
+.product-guide header { display:flex; align-items:center; justify-content:space-between; margin-bottom:23px; }
+.guide-wordmark { display:flex; align-items:center; gap:8px; font-size:19px; font-weight:650; letter-spacing:-.6px; color:var(--accent); }
+.product-guide h2 { font-size:23px; letter-spacing:-.6px; margin-bottom:8px; }
+.product-guide > p { color:var(--secondary); font-size:12px; }
+.guide-journeys { margin-top:20px; border-top:1px solid var(--line); }
+.guide-journey { display:flex; width:100%; gap:14px; text-align:left; padding:17px 9px; border-bottom:1px solid var(--line); border-radius:3px; }
+.guide-journey:hover { background:var(--surface); }
+.guide-journey-icon { width:33px; height:33px; display:grid; place-items:center; color:var(--accent); background:var(--accent-soft); border-radius:7px; flex-shrink:0; }
+.guide-journey strong { font-size:13px; font-weight:600; }
+.guide-detail { display:block; color:var(--secondary); font-size:12px; line-height:1.65; margin:5px 0; }
+.guide-journey small { color:var(--muted); font-size:10px; }
+.guide-action { display:flex; align-items:center; gap:6px; color:var(--accent); font-weight:550; font-size:11px; margin-top:8px; }
+.product-guide footer { display:flex; align-items:center; gap:8px; margin-top:18px; font-size:10px; color:var(--secondary); }
+.product-guide footer > span:last-child { margin-left:auto; }
+@media(max-width:1200px) {
+  .home-greeting { align-items:flex-start; }
+  .home-entry-actions { flex-direction:column; align-items:stretch!important; }
+  .work-thread { align-items:flex-start; flex-direction:column; gap:12px; }
+  .home-grid { grid-template-columns:minmax(0,1fr) 295px; gap:22px; }
+  .object-content-grid > .live-assistant { width:300px; flex-basis:300px; }
+}
+@media(max-width:1000px) {
+  .home-page { padding:25px; }
+  .home-grid { grid-template-columns:minmax(0,1fr); }
+  .home-grid .context-column { display:block; }
+  .home-greeting h1 { font-size:26px; }
+  .home-entry-actions .btn { font-size:10px; }
+  .statusbar > span:last-child { gap:4px; }
+  .object-panel.wide { width:calc(100vw - 58px); }
+  .object-content-grid > .live-assistant { position:relative; top:auto; bottom:auto; right:auto; width:290px; flex-basis:290px; }
+}
+@media(prefers-reduced-motion:reduce) { button {transition:none!important;} .guide-overlay {backdrop-filter:none;} }
+@media(max-height:760px) {
+  .sidebar .favorites-label, .sidebar .favorite-item, .sidebar .connection-icons {display:none;}
+  .sidebar .connections-status {padding-top:10px; padding-bottom:10px;}
+}

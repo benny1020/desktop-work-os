@@ -1,0 +1,59 @@
+.visual-review { container-type: inline-size; }
+.visual-review .visual-review-heading { padding-top: 16px; padding-bottom: 0; }
+.visual-review .visual-review-title { margin-top: 12px; }
+.review-reading-path { display: flex; align-items: center; gap: 12px; margin-top: 17px; padding: 11px 0; border-top: 1px solid var(--line); min-width: 0; }
+.review-change-summary { display: flex; gap: 9px; align-items: center; font-size: 10px; white-space: nowrap; padding-right: 14px; border-right: 1px solid var(--line-strong); }
+.review-change-summary span { color: var(--secondary); }
+.review-change-summary .added { color: var(--accent); }
+.review-change-summary .removed { color: var(--red); }
+.reading-path-label { font-size: 10px; color: var(--secondary); white-space: nowrap; }
+.reading-path-files { display: flex; align-items: center; gap: 5px; min-width: 0; overflow-x: auto; }
+.reading-path-files button { display: flex; gap: 5px; align-items: center; font-size: 10px; white-space: nowrap; padding: 5px 8px; border-radius: 4px; color: var(--secondary); }
+.reading-path-files button.active { color: var(--accent); background: var(--accent-soft); }
+.reading-path-files button:hover { background: var(--hover); color: var(--text); }
+.visual-review .diagram-scroll { background-image: none; max-height: 440px; min-height: 200px; }
+.visual-review .diagram-scroll svg { margin: 0 auto; }
+.dependency-layer text { fill: var(--secondary); font-family: inherit; font-size: 10px; }
+.dependency-layer line { stroke: var(--line); stroke-dasharray: 2 5; }
+.visual-review .dependency-edge > .edge-hit-area { stroke: transparent; stroke-width: 16; stroke-dasharray: none; }
+.visual-review .diagram-toolbar { padding: 14px 18px 9px; }
+.visual-review .diagram-toolbar small { max-width: 340px; line-height: 1.5; margin-top: 5px; }
+.diagram-evidence-count { display: inline-block; margin-left: 9px; font-size: 9px; color: var(--secondary); }
+.visual-review .diagram-toolbar .is-fitted { color: var(--accent); }
+.visual-review .diagram-toolbar .quiet-button span { margin-left: 3px; font-size: 9px; opacity: .75; }
+.visual-review .diagram-legend { padding-top: 9px; padding-bottom: 9px; gap: 10px; }
+.visual-review .review-component-list { padding-top: 5px; }
+.visual-review .review-component-list button { padding-top: 8px; padding-bottom: 8px; }
+.visual-review button:focus-visible,
+.visual-review input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.visual-review .diagram-node:focus-visible > rect:first-child { stroke-width: 3; }
+.visual-review .dependency-edge:focus-visible > path:not(.edge-hit-area) { stroke-width: 3; }
+@media (max-width: 1200px) {
+  .review-reading-path { gap: 8px; }
+  .reading-path-label { display: none; }
+  .review-change-summary { padding-right: 8px; }
+}
+@container (max-width: 900px) {
+  .visual-review-grid { grid-template-columns: minmax(270px, .95fr) minmax(300px, 1fr); }
+  .visual-review-title { align-items: flex-start; gap: 10px; }
+  .visual-review-title h1 { font-size: 17px; }
+  .review-file-progress { flex-wrap: wrap; gap: 7px; }
+  .review-file-progress progress { min-width: 30px; }
+  .review-file-progress small { display: none; }
+  .review-file-progress .btn { margin-left: auto; }
+  .visual-tabs { gap: 10px; padding-inline: 12px; }
+  .visual-tabs button { font-size: 10px; }
+  .diagram-toolbar { flex-wrap: wrap; }
+  .diagram-toolbar > div { flex-basis: 100%; }
+  .visual-code-heading { flex-wrap: wrap; gap: 6px; }
+  .visual-code-heading strong { min-width: 120px; }
+}
+@container (max-width: 590px) {
+  .visual-review-grid { display: block; overflow: auto; }
+  .visual-map-panel { max-height: 420px; border-bottom: 1px solid var(--line-strong); }
+  .visual-code-panel { min-height: 550px; }
+  .visual-review-title { flex-wrap: wrap; }
+  .review-reading-path { flex-wrap: wrap; }
+  .review-change-summary { border-right: 0; }
+  .reading-path-files { width: 100%; }
+}

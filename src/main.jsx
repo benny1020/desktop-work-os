@@ -297,7 +297,10 @@ import ConnectedObjects from "./components/ConnectedObjects";
 import ConnectedAttention from "./components/ConnectedAttention";
 import {usePlan} from "./lib/planning";
 import "./workspace.css";
+import "./product-polish.css";
+import ProductGuide, { WorklaneMark } from "./components/ProductGuide";
 function App() {
+  const [showGuide,setShowGuide] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState(()=>persisted("workspaceMode","demo"));
   const [liveObject,setLiveObject]=useState(null);
   const livePlan=usePlan();
@@ -377,6 +380,9 @@ function App() {
   const [quickText, setQuickText] = useState("");
   const [activePop, setActivePop] = useState(null);
   const toastTimer = useRef();
+  useEffect(() => {
+    document.getElementById("main-content")?.scrollTo({top:0,left:0});
+  }, [route.section, route.view]);
   function notify(message) {
     setToast(message);
     clearTimeout(toastTimer.current);
@@ -882,8 +888,8 @@ function App() {
     );
     return (
       <div className="home-page">
-        <div className="greeting">
-          <div className="date-label">
+        <div className="greeting home-greeting">
+          <div><div className="date-label">
             <span className="sun-mark">
               <I name="Sun" size={16} />
             </span>{" "}
@@ -895,8 +901,23 @@ function App() {
           <p>
             You have {tasks.length} tasks and 3 meetings today. Let’s make room
             for the important work.
-          </p>
+          </p></div>
+          <div className="home-entry-actions">
+            <Btn onClick={() => setShowGuide(true)} aria-label="Explore workflows"><I name="MousePointer2" size={14}/> Explore workflows</Btn>
+            <Btn onClick={() => navigate("Settings", "Integrations")}><I name="Link2" size={14}/> Connect tools</Btn>
+          </div>
         </div>
+        <section className="work-thread" aria-label="Connected work trail">
+          <div className="work-thread-intro"><small>In focus · Payment reliability</small>
+            <button className="work-thread-title" aria-label="Resume payment retry context" onClick={() => preview("issue", "PAY-382")}><span>PAY-382</span> Payment retry implementation <I name="ArrowUpRight" size={13}/></button>
+          </div>
+          <div className="work-trail">
+            <button aria-label="Open PAY-382 context" onClick={() => preview("issue", "PAY-382")}><I name="CircleDot" size={14}/> Issue</button><I name="ChevronRight" size={12}/>
+            <button aria-label="Open linked MR !381" onClick={() => preview("mr", "381")}><I name="GitPullRequest" size={14}/> !381</button><I name="ChevronRight" size={12}/>
+            <button aria-label="Open linked pipeline #482" onClick={() => preview("pipeline", "482")}><I name="GitBranch" size={14}/> Pipeline</button><I name="ChevronRight" size={12}/>
+            <button aria-label="Open linked payment policy" onClick={() => preview("doc", "retry-policy")}><I name="BookOpen" size={14}/> Wiki</button>
+          </div>
+        </section>
         <div className="home-grid">
           <div className="daily-column">
             <div className="section-title">
@@ -3274,6 +3295,13 @@ function App() {
               </button>
             </div>
           ))
+        ) : route.view === "Workspace" && workspaceMode === "connected" ? (
+          <>
+            <div className="setting-row"><div><h3>My workspace</h3><p>Your personal plan and connected tools on this device.</p></div><span className="pill">Connected</span></div>
+            <div className="setting-row"><div><h3>Connected services</h3><p>Each service uses its own URL, account permissions and credentials.</p></div><Btn onClick={()=>navigate("Settings","Integrations")}>Manage integrations</Btn></div>
+            <div className="setting-row"><div><h3>Local planning</h3><p>{livePlan.tasks.length} tasks and events · {livePlan.favorites.length} saved references. Planning changes do not change external issue status or deadlines.</p></div></div>
+            <div className="setting-row"><div><h3>Your data</h3><p>Connection credentials are encrypted by the operating system. Plans, favorites and review drafts are stored locally without encryption.</p></div></div>
+          </>
         ) : route.view === "Workspace" ? (
           <>
             <div className="setting-row">
@@ -4073,7 +4101,7 @@ function App() {
           aria-label="Workspace switcher"
         >
           <span className="brand-mark">
-            <I name="Orbit" size={24} />
+            <WorklaneMark size={25} />
           </span>
           {!collapsed && (
             <>
@@ -4473,6 +4501,7 @@ function App() {
             </span>
           </span>
           <span>
+            {workspaceMode === "demo" && <><button onClick={() => setShowGuide(true)}>Product guide</button><span className="status-separator">/</span></>}
             <I name="Command" size={11} /> K to search{" "}
             <span className="status-separator">/</span> G then H for home{" "}
             <span className="status-separator">/</span>
@@ -4482,6 +4511,7 @@ function App() {
           </span>
         </footer>
       </div>
+      {showGuide && <ProductGuide onClose={()=>setShowGuide(false)} onPick={id=>{setShowGuide(false);requestAnimationFrame(()=>{if(id==="review")review("381");else if(id==="incident")preview("alert","alert-1");else preview("issue","PAY-382");});}}/>}
       {notifications && workspaceMode === "connected" && <ConnectedAttention onClose={()=>setNotifications(false)} onOpen={setLiveObject}/>}
       {notifications && workspaceMode === "demo" && (
         <div className="notification-popover">

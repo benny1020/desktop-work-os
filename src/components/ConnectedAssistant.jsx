@@ -1,12 +1,30 @@
-import React, { useState } from "react";
-import { X } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { X, Focus, ArrowUpRight } from "lucide-react";
 import { invoke } from "../lib/integration-client";
 import { usePlan, updateTask, dayKey, shiftDay } from "../lib/planning";
+function describeContext(context) {
+  let selected;
+  try { selected = typeof context === "string" ? JSON.parse(context) : context; } catch { selected = null; }
+  if (!selected || typeof selected !== "object" || Array.isArray(selected)) return { label: "Current view", prompts: ["Help me prioritize my personal plan", "Summarize the selected context"] };
+  const text = (value) => typeof value === "string" ? value.slice(0, 160) : "";
+  if (["mr", "merge_request"].includes(selected.type) && (typeof selected.iid === "number" || typeof selected.iid === "string")) {
+    const file = text(selected.file);
+    const line = Number.isInteger(selected.line) && selected.line > 0 ? `:${selected.line}` : "";
+    return { label: `MR !${selected.iid}${file ? ` · ${file}${line}` : ""}`, prompts: ["Summarize this change", "What should I review first?", "Explain the selected code"] };
+  }
+  if (text(selected.key)) return { label: text(selected.key), prompts: ["Summarize this issue", "What should I do next on this issue?", "Help me draft a review checklist"] };
+  if (selected.type === "doc" || (text(selected.title) && selected.body)) return { label: text(selected.title) || "Selected document", prompts: ["Summarize this document", "Extract decisions and follow-up tasks"] };
+  const section = text(selected.section);
+  const view = text(selected.view);
+  return { label: section ? `${section}${view && view !== section ? ` · ${view}` : ""}` : "Current view", prompts: ["Help me prioritize my personal plan", "What unfinished work should I plan next?"] };
+}
 function Pending() {
   return <p role="status">Claude is responding…</p>;
 }
 export default function ConnectedAssistant({ context, onClose, onSettings }) {
   const plan = usePlan();
+  const inputRef = useRef(null);
+  const currentContext = describeContext(context);
   const [proposal, setProposal] = useState(null);
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState(""),
@@ -80,7 +98,7 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
     <aside className="assistant-panel live-assistant">
       <div className="inspector-header">
         <b>Claude assistant</b>
-        <span className="pill">Connected</span>
+        <span className="pill">On demand</span>
         <button
           className="icon-button push-right"
           aria-label="Close assistant"
@@ -89,12 +107,15 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
           <X size={15} />
         </button>
       </div>
+      <div className="assistant-context" aria-label="Assistant selected context">
+        <Focus size={13} /><span title={currentContext.label}>{currentContext.label}</span><span className="pill">Read & draft</span>
+      </div>
       <div className="live-assistant-body">
-        <p className="form-note">
-          질문·최근 대화 3회·선택한 업무·개인 계획을 설정한 Claude로 전송합니다. 외부 상태
-          변경·댓글 등록은 실행하지 않습니다. “PAY-382 내일로 옮겨줘”는 확인 후
-          로컬 계획만 변경합니다.
-        </p>
+        <p className="form-note">Ask about the work in front of you. You decide what happens next.</p>
+        <details className="form-note"><summary>What is shared with Claude?</summary><p>Your question, up to three recent exchanges, selected work, and personal plan are sent to your configured endpoint. The assistant does not post comments or change external services. Local rescheduling requires confirmation.</p></details>
+        {!messages.length && <div className="assistant-suggestions" aria-label="Suggested assistant prompts">
+          {currentContext.prompts.map((prompt) => <button key={prompt} type="button" disabled={busy} onClick={() => { setInput(prompt); inputRef.current?.focus(); }}>{prompt}<ArrowUpRight size={12} /></button>)}
+        </div>}
         {messages.map((m, i) => (
           <div key={i} className={`live-chat-message ${m.role}`}>
             <b>{m.role === "user" ? "You" : "Claude"}</b>
@@ -118,7 +139,7 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
                       ...m,
                       {
                         role: "assistant",
-                        text: `개인 계획의 ${proposal.title}을 ${proposal.to}로 옮겼습니다.`,
+                        text: `Moved ${proposal.title} to ${proposal.to} in your personal plan.`,
                       },
                     ]);
                     setProposal(null);
@@ -147,10 +168,11 @@ export default function ConnectedAssistant({ context, onClose, onSettings }) {
       </div>
       <form className="live-assistant-compose" onSubmit={send}>
         <textarea
+          ref={inputRef}
           aria-label="Ask Claude"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="선택한 코드나 업무에 대해 물어보세요…"
+          placeholder="Ask about this code or your work…"
         />
         <button className="btn primary" disabled={!input.trim() || busy}>
           Send to Claude

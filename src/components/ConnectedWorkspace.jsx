@@ -29,7 +29,7 @@ import {
 function Pending() {
   return (
     <div className="connected-loading">
-      <Loader2 size={23} className="spin" /> 실제 서비스에서 불러오는 중…
+      <Loader2 size={23} className="spin" /> Loading connected work…
     </div>
   );
 }
@@ -37,8 +37,8 @@ function Missing({ service, onSettings }) {
   return (
     <div className="connected-empty">
       <Plug size={32} />
-      <h2>{service} 연결이 필요합니다</h2>
-      <p>서비스 주소와 토큰을 저장한 뒤 연결을 확인하세요.</p>
+      <h2>Connect {({ jira: "Jira", gitlab: "GitLab", confluence: "Confluence" })[service] || service}</h2>
+      <p>Add your service URL and token, then test the connection.</p>
       <button className="btn primary" onClick={onSettings}>
         Open integration settings
       </button>
@@ -458,7 +458,7 @@ export default function ConnectedWorkspace({
                 <div className="connected-empty">
                   <BookOpen size={28} />
                   <h2>Select a page</h2>
-                  <p>실제 위키 본문을 이 화면에서 읽을 수 있습니다.</p>
+                  <p>Choose a page to read it here.</p>
                 </div>
               )}
             </article>
@@ -536,7 +536,7 @@ export default function ConnectedWorkspace({
                     ? "Choose a repository to see pipelines"
                     : "No results"}
                 </h3>
-                <p>접근 가능한 저장소와 열린 MR만 표시됩니다.</p>
+                <p>Browse your accessible repositories and open merge requests.</p>
               </div>
             )}
           </div>
@@ -652,7 +652,7 @@ export default function ConnectedWorkspace({
             {!items.length && !loading && (
               <div className="connected-empty">
                 <h3>No matching Jira issues</h3>
-                <p>JQL 조건과 프로젝트 접근 권한을 확인하세요.</p>
+                <p>Check your JQL query and project access.</p>
               </div>
             )}
           </div>
@@ -671,9 +671,9 @@ export default function ConnectedWorkspace({
           view !== "Issues" &&
           view !== "Today" && (
             <p className="live-mode-note">
-              현재 JQL로 불러온 {items.length}개 이슈를 표시합니다. Sprint는
-              JQL에 sprint in openSprints()를 지정해 범위를 선택하세요. 상태
-              변경은 이슈 Inspector에서 실행합니다.
+              Showing {items.length} issues from your query. Use{" "}
+              <code>sprint in openSprints()</code> to focus on active sprints.
+              Open an issue to update its status.
             </p>
           )}
       </div>

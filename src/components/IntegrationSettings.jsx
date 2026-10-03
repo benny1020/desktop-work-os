@@ -12,27 +12,27 @@ const providers = [
   {
     id: "jira",
     name: "Jira Cloud",
-    description: "프로젝트 · 이슈 · 상태 변경 · 댓글",
-    placeholder: "https://hmg.atlassian.net",
+    description: "Projects · issues · status updates · comments",
+    placeholder: "https://your-company.atlassian.net",
     atlassian: true,
   },
   {
     id: "confluence",
     name: "Confluence Cloud",
-    description: "위키 · Spaces · 문서 본문",
-    placeholder: "https://hmg.atlassian.net/wiki",
+    description: "Wiki · spaces · documents",
+    placeholder: "https://your-company.atlassian.net/wiki",
     atlassian: true,
   },
   {
     id: "gitlab",
     name: "GitLab Self-Managed",
-    description: "MR · 실제 코드 · 다이어그램 리뷰 · 댓글 · 승인",
+    description: "Merge requests · code · diagrams · comments · approvals",
     placeholder: "https://gitlab.company.com",
   },
   {
     id: "claude",
     name: "Claude · Anthropic API",
-    description: "변경 구조 분석 · 리뷰 순서 · 근거 코드 기반 가이드",
+    description: "Change summaries · review guidance · code references",
     placeholder: "https://api.anthropic.com",
   },
 ];
@@ -68,7 +68,7 @@ export default function IntegrationSettings({ onChange }) {
           return n;
         });
         onChange?.();
-        setMessage("저장된 연결 정보를 삭제했습니다.");
+        setMessage("Saved connection removed.");
       } else {
         const saved = await invoke("config.save", {
           service: selected,
@@ -81,15 +81,15 @@ export default function IntegrationSettings({ onChange }) {
           if (result.data?.[0])
             setForm((f) => ({ ...f, model: result.data[0].id }));
           setMessage(
-            "모델을 선택한 뒤 Save & test connection을 눌러 확인하세요.",
+            "Choose a model, then select Save & test connection.",
           );
         } else if (kind === "test") {
           const tested = await invoke("config.test", { service: selected });
           setConfigs((c) => ({ ...c, [selected]: tested }));
-          setMessage(`연결 확인 완료 · ${tested.identity || provider.name}`);
+          setMessage(`Connection verified · ${tested.identity || provider.name}`);
         } else
           setMessage(
-            "암호화하여 저장했습니다. 연결 테스트로 계정과 접근 권한을 확인하세요.",
+            "Saved securely. Test the connection to verify your account and access.",
           );
         onChange?.();
       }
@@ -105,8 +105,7 @@ export default function IntegrationSettings({ onChange }) {
         <div>
           <h2>Connect your workspace</h2>
           <p>
-            주소와 계정을 직접 설정합니다. 연결 후 상단에서 Connected
-            workspace로 전환하세요.
+            Connect your services, then choose Connected workspace in the top bar.
           </p>
         </div>
         <span className="pill">
@@ -115,8 +114,7 @@ export default function IntegrationSettings({ onChange }) {
       </div>
       {!isDesktop() && (
         <div className="info-banner">
-          브라우저 데모에서는 토큰을 저장하거나 전송하지 않습니다. 실제 연결은{" "}
-          <code>npm run desktop</code>으로 실행한 Electron 앱에서 설정하세요.
+          The browser preview does not save or send tokens. Set up connections in the desktop app, launched with <code>npm run desktop</code>.
         </div>
       )}
       <div className="integration-layout">
@@ -132,10 +130,10 @@ export default function IntegrationSettings({ onChange }) {
                 <b>{p.name}</b>
                 <small>
                   {configs[p.id]?.verifiedAt
-                    ? "연결 확인됨"
+                    ? "Verified"
                     : configs[p.id]?.tokenConfigured
-                      ? "저장됨 · 테스트 필요"
-                      : "설정 필요"}
+                      ? "Saved · test needed"
+                      : "Not configured"}
                 </small>
               </span>
               {configs[p.id]?.verifiedAt && <CheckCircle2 size={15} />}
@@ -143,13 +141,13 @@ export default function IntegrationSettings({ onChange }) {
           ))}
           <div className="deferred-provider">
             <b>Dooray</b>
-            <span className="pill">메뉴만 제공</span>
-            <small>연동 기능은 개발하지 않습니다.</small>
+            <span className="pill">Menu only</span>
+            <small>Connection is not implemented.</small>
           </div>
           <div className="deferred-provider">
             <b>Observe / OpenSearch</b>
             <span className="pill">Mock</span>
-            <small>메뉴와 샘플 화면만 유지합니다.</small>
+            <small>Sample screens only.</small>
           </div>
         </aside>
         <form
@@ -201,8 +199,8 @@ export default function IntegrationSettings({ onChange }) {
               onChange={(e) => update("token", e.target.value)}
               placeholder={
                 configs[selected]?.tokenConfigured
-                  ? "저장된 토큰 유지 · 변경하려면 새 토큰 입력"
-                  : "토큰 입력"
+                  ? "Keep saved token, or enter a replacement"
+                  : "Enter your API token"
               }
               required={!configs[selected]?.tokenConfigured}
               autoComplete="new-password"
@@ -218,7 +216,7 @@ export default function IntegrationSettings({ onChange }) {
                   aria-label="Claude model ID"
                   value={form.model || ""}
                   onChange={(e) => update("model", e.target.value)}
-                  placeholder="엔드포인트에서 제공하는 Claude 모델 ID"
+                  placeholder="A Claude model ID supported by your endpoint"
                   required
                 />
                 <datalist id="claude-model-options">
@@ -242,45 +240,41 @@ export default function IntegrationSettings({ onChange }) {
                   Fetch available models
                 </button>
               </label>
-              <label>
-                Workspace ID <small>선택</small>
+              <details><summary>Advanced endpoint options</summary><label>
+                Workspace ID <small>optional</small>
                 <input
                   aria-label="Claude workspace ID"
                   value={form.workspaceId || ""}
                   onChange={(e) => update("workspaceId", e.target.value)}
-                  placeholder="워크스페이스 헤더가 필요한 경우에만 입력"
+                  placeholder="Only if your endpoint requires a workspace header"
                 />
-              </label>
+              </label></details>
               <p className="form-note">
-                Anthropic Messages API로 호출합니다. 연결 테스트는 짧은 응답을
-                생성하며 소량의 사용량이 발생할 수 있습니다.
+                Testing sends a short request to your Anthropic-compatible endpoint and may incur a small usage charge.
               </p>
             </>
           )}
           {provider.atlassian && (
             <details>
-              <summary>Scoped API token을 사용하나요?</summary>
+              <summary>Using a scoped API token?</summary>
               <label>
-                Cloud ID <small>선택</small>
+                Cloud ID <small>optional</small>
                 <input
                   aria-label="Atlassian cloud ID"
                   value={form.cloudId || ""}
                   onChange={(e) => update("cloudId", e.target.value)}
-                  placeholder="Atlassian 사이트의 Cloud ID"
+                  placeholder="Your Atlassian site Cloud ID"
                 />
               </label>
               <p className="form-note">
-                범위가 지정된 토큰은 Cloud ID를 입력하면 api.atlassian.com
-                게이트웨이로 호출합니다. 일반 토큰은 비워두세요.
+                For a scoped token, enter your Cloud ID to use the api.atlassian.com gateway. Leave this blank for a classic token.
               </p>
             </details>
           )}
           {selected === "gitlab" && (
-            <p className="form-note">
-              Personal Access Token을 사용합니다. 조회에는 read_api /
-              read_repository 권한, 리뷰 댓글·승인에는 api 권한이 필요합니다.
-              VPN과 사내 인증서는 OS에서 설정하세요.
-            </p>
+            <details><summary>Required token permissions</summary><p className="form-note">
+              Use a Personal Access Token. Read access requires read_api / read_repository; comments and approvals require api. Configure your company VPN and certificates in your operating system.
+            </p></details>
           )}
           {error && (
             <div className="connection-error" role="alert">
