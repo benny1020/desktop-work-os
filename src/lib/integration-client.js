@@ -2,7 +2,7 @@ export const isDesktop = () => !!window.orbit?.invoke;
 const inFlight = new Map();
 let configurationEpoch = 0;
 const writes = new Set(["jira.edit", "jira.comment", "jira.transition", "jira.moveSprint", "jira.create", "gitlab.comment", "gitlab.approve", "confluence.create"]);
-const reads = /^(config\.list|jira\.(issues|issue|transitions|assignees|editMetadata|boards|sprints|projects|createMetadata)|gitlab\.(mrs|mr|mrUpdates|code|projects|pipelines|pipeline|mrPipelines)|confluence\.(pages|page|spaces|search))$/;
+const reads = /^(config\.list|jira\.(issues|issue|transitions|assignees|editMetadata|boards|sprints|projects|createMetadata)|gitlab\.(mrs|mr|mrUpdates|diff|code|projects|pipelines|pipeline|mrPipelines)|confluence\.(pages|page|spaces|search))$/;
 export async function invoke(action, args = {}) {
   if (!isDesktop())
     throw new Error("실제 서비스 연결은 Electron 앱에서 사용할 수 있습니다. 브라우저에서는 데모를 확인하세요.");

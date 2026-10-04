@@ -152,3 +152,55 @@ test('a timed-out real Git transport kills descendants and permits a clean retry
   const retry = await store.snapshot(f.request);
   assert.equal(retry.local.headSha, f.head);
 });
+
+test('the complete large MR manifest remains discoverable and deferred flow patches load offline', async t => {
+  const f = await fixture(t);
+  for (let i = 0; i < 130; i++) await fs.writeFile(path.join(f.source, `a-${String(i).padStart(3, '0')}.js`), `export const flow${i} = ${i};\n`);
+  await fs.rename(path.join(f.source, 'new-name.js'), path.join(f.source, 'z-late-renamed.js'));
+  await fs.appendFile(path.join(f.source, 'z-late-renamed.js'), '// kept\n');
+  git(f.source, 'add', '.');
+  git(f.source, 'update-index', '--add', '--cacheinfo', `160000,${f.head},z-submodule`);
+  git(f.source, 'commit', '-m', 'large MR with another review flow');
+  const head = git(f.source, 'rev-parse', 'HEAD'); git(f.source, 'update-ref', 'refs/merge-requests/7/head', head);
+  const result = await f.store.snapshot({ ...f.request, refs: { base_sha: f.base, head_sha: head } });
+  const count = git(f.source, 'diff', '--name-only', '-z', f.base, head).split('\0').filter(Boolean).length;
+  assert.equal(result.files.length, count); assert.equal(result.local.fileCount, count);
+  assert.equal(result.files.filter(v => !v.deferred).length, 120);
+  assert.equal(result.files.find(v => v.path === 'a-129.js').deferred, true);
+  assert.equal(result.files.find(v => v.path === 'z-late-renamed.js').renamed_file, true);
+  assert.equal(result.files.find(v => v.path === 'z-late-renamed.js').deferred, true);
+  f.state.offline = true; const transports = f.state.transportCalls;
+  const args = { projectId: 42, baseSha: f.base, headSha: head };
+  const later = await f.store.readDiff({ ...args, path: 'a-129.js' });
+  assert.equal(later.deferred, false); assert.equal(later.unavailable, false); assert.match(later.diff, /flow129/);
+  const rename = await f.store.readDiff({ ...args, path: 'z-late-renamed.js' });
+  assert.equal(rename.old_path, 'old-name.js'); assert.equal(rename.renamed_file, true); assert.match(rename.diff, /\+\/\/ kept/);
+  const removed = await f.store.readDiff({ ...args, path: 'deleted.js' });
+  assert.equal(removed.deleted_file, true); assert.match(removed.diff, /-remove me/);
+  const submodule = await f.store.readDiff({ ...args, path: 'z-submodule' });
+  assert.equal(submodule.unavailable, true); assert.match(submodule.unavailableReason, /Submodule/);
+  await assert.rejects(f.store.readDiff({ ...args, path: ':(glob)*.js' }), /not in this revision diff/);
+  await assert.rejects(f.store.readDiff({ ...args, path: '../secret' }), /path/);
+  await assert.rejects(f.store.readDiff({ ...args, headSha: 'main', path: 'a-129.js' }), /immutable/);
+  assert.equal(f.state.transportCalls, transports);
+  // Existing installations may have a disk snapshot created before full-manifest support.
+  const projectCache = path.dirname(path.dirname(result.local.worktreePath));
+  const cacheFile = (await fs.readdir(projectCache)).find(name => name.endsWith('.json'));
+  const legacy = { ...result, files: result.files.slice(0, 120) }; delete legacy.manifestVersion;
+  await fs.writeFile(path.join(projectCache, cacheFile), JSON.stringify(legacy));
+  const rebuilt = await f.create().snapshot({ ...f.request, refs: { base_sha: f.base, head_sha: head } });
+  assert.equal(rebuilt.files.length, count); assert.equal(rebuilt.manifestVersion, 2);
+});
+
+test('aggregate preview exhaustion defers readable patches rather than labelling them unavailable', async t => {
+  const f = await fixture(t);
+  for (let i = 0; i < 9; i++) await fs.writeFile(path.join(f.source, `budget-${i}.txt`), (`line ${i} with bounded local review context\n`).repeat(8000));
+  git(f.source, 'add', '.'); git(f.source, 'commit', '-m', 'aggregate patch budget');
+  const head = git(f.source, 'rev-parse', 'HEAD'); git(f.source, 'update-ref', 'refs/merge-requests/7/head', head);
+  const result = await f.store.snapshot({ ...f.request, refs: { base_sha: f.base, head_sha: head } });
+  assert.ok(result.files.reduce((sum, file) => sum + Buffer.byteLength(file.diff), 0) <= 2 * 1024 * 1024);
+  const deferred = result.files.find(file => file.deferred && file.path.startsWith('budget-'));
+  assert.ok(deferred); assert.equal(deferred.unavailable, false);
+  const patch = await f.store.readDiff({ projectId: 42, baseSha: f.base, headSha: head, path: deferred.path });
+  assert.equal(patch.deferred, false); assert.equal(patch.unavailable, false); assert.match(patch.diff, /bounded local review context/);
+});

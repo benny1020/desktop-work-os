@@ -1,0 +1,21 @@
+.review-flow-picker { position:relative; flex-shrink:0; font-size:10px; }
+.review-flow-picker > summary { display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none; padding:5px 7px; border:1px solid var(--line); border-radius:4px; max-width:250px; }
+.review-flow-picker > summary::-webkit-details-marker { display:none; }
+.review-flow-picker > summary > span { color:var(--muted); }
+.review-flow-picker[open] > summary { background:var(--accent-soft); }
+.review-flow-menu { position:absolute; top:calc(100% + 6px); left:0; z-index:30; width:340px; max-width:calc(100vw - 60px); border:1px solid var(--line-strong); border-radius:6px; box-shadow:0 8px 26px #0002; padding:10px; background:var(--surface); }
+.review-flow-menu input { width:100%; margin-bottom:8px; }
+.review-flow-menu > small { display:block; color:var(--muted); font-size:10px; margin-bottom:8px; }
+.review-flow-options { max-height:300px; overflow:auto; }
+.review-flow-options button { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; text-align:left; padding:9px; border-radius:4px; }
+.review-flow-options button[aria-pressed=true], .review-flow-options button:hover { background:var(--accent-soft); }
+.review-flow-options button span { min-width:0; }
+.review-flow-options button b { display:block; font-size:12px; overflow-wrap:anywhere; }
+.review-flow-options button small { display:block; font-size:10px; color:var(--muted); margin-top:3px; }
+.review-single-flow { font-size:10px; color:var(--muted); white-space:nowrap; }
+.review-flow-scope { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:7px 12px; font-size:10px; border-bottom:1px solid var(--line); }
+.review-flow-scope > span { min-width:0; overflow-wrap:anywhere; }
+.review-flow-boundaries { display:flex; gap:5px; flex-wrap:wrap; padding:8px 12px; border-top:1px solid var(--line); }
+.review-flow-boundaries > small { width:100%; color:var(--muted); font-size:9px; }
+.review-flow-boundaries .linked-chip { font-size:9px; }
+.review-component-list button > small { color:var(--accent); font-size:9px; margin-left:auto; }

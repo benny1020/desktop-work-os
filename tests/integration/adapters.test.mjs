@@ -582,3 +582,69 @@ test("Incomplete MR references cannot be silently treated as a synchronized revi
   await assert.rejects(engine.invoke('gitlab.mrUpdates',{projectId:42,iid:7}),/preparing/);
   assert.equal(localCalls.length,0);
 });
+
+test('deferred local patches are parsed without calling GitLab source endpoints', async t => {
+  const { engine, calls, localGit } = await fixture(t); const requests = [];
+  localGit.readDiff = async args => { requests.push(args); return { ...file, path: file.new_path, deferred: false, local: true }; };
+  const args = { projectId: 42, baseSha: base, headSha: head, path: file.new_path };
+  const result = await engine.invoke('gitlab.diff', args);
+  assert.deepEqual(requests, [args]); assert.ok(result.rows.some(row => row.text === 'validate();'));
+  assert.equal(result.deferred, false); assert.equal(result.unavailable, false); assert.equal(calls.length, 0);
+  localGit.readDiff = async () => { throw Error('Revision is not cached'); };
+  await assert.rejects(engine.invoke('gitlab.diff', args), /not cached/); assert.equal(calls.length, 0);
+});
+
+test('inline review comments hydrate a deferred file before validating its exact line', async t => {
+  const { engine, calls, localGit } = await fixture(t);
+  localGit.snapshot = async () => ({ files: [{ ...file, diff: '', deferred: true }], truncated: true });
+  const loaded = [];
+  localGit.readDiff = async args => { loaded.push(args); return { ...file, deferred: false, local: true }; };
+  await engine.invoke('gitlab.comment', { projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start, path: file.new_path, line: 12, side: 'new', mode: 'inline', body: 'Check validation in this later flow.' });
+  assert.equal(loaded.length, 1); assert.equal(loaded[0].headSha, head);
+  const posted = calls.find(c => c.method === 'POST'); assert.equal(posted.body.position.new_line, 12);
+  assert.equal(calls.some(c => c.path.includes('/repository/files/') || c.path.endsWith('/diffs')), false);
+});
+
+test('flow-scoped AI hydrates later manifest files and reports its actual coverage', async t => {
+  const laterPath = 'flow-129/LaterService.ts';
+  const { engine, calls, localGit } = await fixture(t, { reply: c => c.path.endsWith('/messages') ? { model: 'fixture', content: [{ type: 'text', text: JSON.stringify({ summary: 'Review the selected later flow.', findings: [{ path: laterPath, line: 12, title: 'Validation', reason: 'Inspect local diff' }], readingOrder: [], dependencies: [], sequence: [] }) }] } : undefined });
+  localGit.snapshot = async () => ({ files: Array.from({ length: 130 }, (_, index) => ({ ...file, old_path: `flow-${index}/LaterService.ts`, new_path: `flow-${index}/LaterService.ts`, diff: index < 120 ? diff : '', deferred: index >= 120 })), truncated: true });
+  const hydrated = [];
+  localGit.readDiff = async args => { hydrated.push(args); return { ...file, old_path: args.path, new_path: args.path, diff: diff.replace('validate();', 'validateLaterFlow();'), deferred: false }; };
+  const guide = await engine.invoke('claude.review', { projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start, paths: [laterPath] });
+  assert.equal(hydrated.length, 1); assert.equal(hydrated[0].path, laterPath);
+  const prompt = JSON.parse(calls.find(c => c.path.endsWith('/messages')).body.messages[0].content);
+  assert.equal(prompt.files.length, 1); assert.equal(prompt.files[0].path, laterPath); assert.match(prompt.files[0].code, /validateLaterFlow/);
+  assert.equal(guide.coverage.scope, 'flow'); assert.equal(guide.coverage.includedFiles, 1); assert.equal(guide.coverage.totalFiles, 1); assert.equal(guide.coverage.mrTotalFiles, 130); assert.equal(guide.coverage.truncated, false);
+  assert.equal(guide.findings[0].path, laterPath);
+  const aiCount = calls.filter(c => c.path.endsWith('/messages')).length;
+  for (const paths of [[], [laterPath, laterPath], ['not-in-this-MR.ts'], Array.from({length:25}, (_, i) => `flow-${i}/LaterService.ts`)]) {
+    await assert.rejects(engine.invoke('claude.review', { projectId: 42, iid: 7, paths }), /distinct changed files|not in the current MR/);
+  }
+  assert.equal(calls.filter(c => c.path.endsWith('/messages')).length, aiCount);
+});
+
+test('default AI coverage never counts deferred or unsupported empty patches as analysed code', () => {
+  const ready = { ...file, path: file.new_path, rows: parseDiff(diff) };
+  const payload = reviewPrompt({ mr: gitMR, files: [ready, {path:'later.ts',deferred:true,rows:[]}, {path:'image.png',binary:true,unavailable:true,rows:[]}, {path:'rename.ts',renamed_file:true,rows:[]}] }, 'Review carefully');
+  assert.equal(payload.coverage.includedFiles, 1); assert.equal(payload.coverage.totalFiles, 4); assert.equal(payload.coverage.truncated, true);
+  assert.deepEqual(JSON.parse(payload.user).files.map(file => file.path), [ready.path]);
+});
+
+
+test('AI references to clipped or unsent lines are rejected even when those lines exist locally', async t => {
+  const requestedFindings = [1, 2, 3].map(line => ({ path: file.new_path, line, title: `Line ${line}`, reason: 'Model suggestion' }));
+  const { engine, calls, localGit } = await fixture(t, { reply: c => c.path.endsWith('/messages') ? { model: 'fixture', content: [{ type: 'text', text: JSON.stringify({ summary: 'Review available evidence.', findings: requestedFindings, readingOrder: [], dependencies: [], sequence: [] }) }] } : undefined });
+  const clippedDiff = '@@ -0,0 +1,3 @@\n+visibleEvidence();\n+' + 'x'.repeat(26000) + '\n+omittedBeyondCutoff();';
+  localGit.snapshot = async () => ({ files: [{ ...file, diff: clippedDiff }], truncated: false });
+  const guide = await engine.invoke('claude.review', { projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start });
+  const request = calls.find(c => c.path.endsWith('/messages')).body;
+  const prompt = JSON.parse(request.messages[0].content);
+  assert.match(prompt.files[0].code, /visibleEvidence/);
+  assert.doesNotMatch(prompt.files[0].code, /omittedBeyondCutoff/);
+  assert.equal(prompt.files[0].code.length, 24000);
+  assert.deepEqual(guide.findings.map(finding => finding.line), [1]);
+  assert.equal(guide.rejectedReferences, 2);
+  assert.equal(guide.coverage.includedFiles, 1); assert.equal(guide.coverage.truncated, true);
+  assert.equal(JSON.stringify(request).includes('evidenceFiles'), false);
+});

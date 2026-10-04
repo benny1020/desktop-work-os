@@ -302,6 +302,11 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
   async function getCode(a) {
     return requireLocalGit().readFile({ projectId: a.projectId, path: a.path, ref: a.ref });
   }
+  async function getDiff(a) {
+    const file = await requireLocalGit().readDiff({ projectId: a.projectId, baseSha: a.baseSha, headSha: a.headSha, path: a.path });
+    const { parseDiff } = await model;
+    return { ...file, path: file.new_path || file.old_path, rows: parseDiff(file.diff || ""), deferred: false, unavailable: !!(file.unavailable || file.binary) };
+  }
   async function getMRUpdates(a) {
     const c = configFor("gitlab");
     const p = gitPath(a);
@@ -323,8 +328,13 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       throw new Error(
         "MR changed since you opened it. Refresh and review the new diff before posting. Your draft is retained.",
       );
-    const file = snapshot.files.find((f) => f.path === a.path);
+    let file = snapshot.files.find((f) => f.path === a.path);
     if (!file) throw new Error("The selected file is not in the current diff.");
+    if (file.deferred) {
+      file = await getDiff({ projectId: snapshot.mr.project_id || a.projectId, path: file.path,
+        baseSha: snapshot.mr.diff_refs.base_sha, headSha: snapshot.mr.diff_refs.head_sha });
+      assertGitAccount(c);
+    }
     const { reviewPosition } = await model;
     const position = reviewPosition(
       file,
@@ -360,10 +370,25 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       (a.startSha && snapshot.mr.diff_refs.start_sha !== a.startSha)
     )
       throw new Error("MR changed. Refresh before generating a guide.");
+    let reviewSnapshot = snapshot;
+    if (a.paths !== undefined) {
+      if (!Array.isArray(a.paths) || !a.paths.length || a.paths.length > 24 || a.paths.some(p => typeof p !== "string" || !p || p.length > 4096) || new Set(a.paths).size !== a.paths.length)
+        throw Error("Choose between 1 and 24 distinct changed files for the review flow.");
+      const selected = a.paths.map(path => snapshot.files.find(file => file.path === path));
+      if (selected.some(file => !file)) throw Error("A selected flow file is not in the current MR diff.");
+      const hydrated = [];
+      for (const file of selected) {
+        hydrated.push(file.deferred ? await getDiff({ projectId: snapshot.mr.project_id || a.projectId,
+          baseSha: snapshot.mr.diff_refs.base_sha, headSha: snapshot.mr.diff_refs.head_sha, path: file.path }) : file);
+      }
+      assertGitAccount(gitConfig);
+      reviewSnapshot = { ...snapshot, files: hydrated, reviewScope: "flow", mrTotalFiles: snapshot.files.length,
+        truncated: hydrated.some(file => file.deferred || file.unavailable || file.binary) };
+    }
     const c = configFor("claude");
     required(c.model, "Claude model ID", 160);
     const { reviewPrompt, validateGuide } = await model;
-    const payload = reviewPrompt(snapshot, a.guidelines || "");
+    const payload = reviewPrompt(reviewSnapshot, a.guidelines || "");
     assertGitAccount(gitConfig);
     const result = (
       await request("claude", "/messages", {
@@ -398,7 +423,7 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       );
     }
     return {
-      ...validateGuide(parsed, snapshot.files),
+      ...validateGuide(parsed, payload.evidenceFiles),
       headSha: snapshot.mr.diff_refs.head_sha,
       diffRefs: snapshot.mr.diff_refs,
       model: result.model || c.model,
@@ -588,6 +613,7 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
     },
     "gitlab.mr": getMR,
     "gitlab.code": getCode,
+    "gitlab.diff": getDiff,
     "gitlab.mrUpdates": getMRUpdates,
     "gitlab.comment": postReviewComment,
     "gitlab.approve": async (a) => {

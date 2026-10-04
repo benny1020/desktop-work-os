@@ -18,6 +18,16 @@ Dependency flow and sequence are separate views. AI review stays beside the diag
 
 ![The same review workspace in dark mode](media/ai-collaborative-review-dark.png)
 
+## Review one flow at a time
+
+![Searchable review scopes with diagram, code and AI kept together](media/review-flow-picker.png)
+
+Every MR uses the same review model. Cohesive changes open directly; independent areas and large changes expose searchable scopes. Shared files keep one draft and viewed state. These captures use synthetic browser fixtures.
+
+![Selected flow component in a narrow dark workspace](media/review-flow-dark.png)
+
+See [flow grouping and validation](REVIEW_FLOWS.md).
+
 ## Keep the original context
 
 ![Connected context stack](media/connected-context.gif)

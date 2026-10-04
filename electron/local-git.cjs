@@ -116,6 +116,41 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
     if (actual !== head) throw new Error('The managed checkout was changed outside Worklane. Restore its original revision before reopening.');
     return worktree;
   }
+  async function changedFiles(c, base, head) {
+    const tokens = (await run(c, ['--git-dir', c.repo, 'diff', '--raw', '--no-abbrev', '-z', '-M', base, head, '--'], { max: 2 * 1024 * 1024 })).toString('utf8').split('\0');
+    const changes = [];
+    for (let i = 0; i < tokens.length && tokens[i];) {
+      const [oldMode, newMode, oldObject, newObject, status] = tokens[i++].slice(1).split(' ');
+      const oldPath = tokens[i++]; const newPath = /^[RC]/.test(status) ? tokens[i++] : oldPath;
+      if (!status || !oldPath || !newPath || !SHA.test(oldObject) || !SHA.test(newObject)) throw new Error('Git returned an incomplete changed-file manifest.');
+      changes.push({ status, oldPath, newPath, oldMode, newMode, oldObject, newObject });
+    }
+    return changes;
+  }
+  function fileMetadata(change) {
+    return { old_path: change.oldPath, new_path: change.newPath, path: change.newPath,
+      new_file: change.status[0] === 'A', deleted_file: change.status[0] === 'D', renamed_file: change.status[0] === 'R', diff: '' };
+  }
+  async function emptyBlob(c) {
+    return (await run(c, ['--git-dir', c.repo, 'hash-object', '-w', '--stdin'], { max: 100 })).toString('utf8').trim();
+  }
+  async function filePatch(c, change, empty) {
+    const file = { ...fileMetadata(change), deferred: false, unavailable: false, binary: false };
+    try {
+      validPath(change.oldPath); validPath(change.newPath);
+      if ([change.oldMode, change.newMode].includes('160000')) return { ...file, unavailable: true, unavailableReason: 'Submodule revisions cannot be displayed as a file patch.' };
+      const oldObject = /^0+$/.test(change.oldObject) ? empty : change.oldObject;
+      const newObject = /^0+$/.test(change.newObject) ? empty : change.newObject;
+      // Compare exact blob IDs from the Git manifest, never a pathspec spanning multiple files.
+      file.diff = (await run(c, ['--git-dir', c.repo, 'diff', '--no-ext-diff', '--no-textconv', '--no-color', '--src-prefix=a/', '--dst-prefix=b/', oldObject, newObject, '--'], { max: MAX_FILE })).toString('utf8');
+      file.binary = /^Binary files /m.test(file.diff);
+      if (file.binary) file.unavailableReason = 'Binary files cannot be displayed as text patches.';
+    } catch (error) {
+      file.unavailable = true; file.diff = '';
+      file.unavailableReason = error.code === 'GIT_LIMIT' ? 'This patch exceeds the 512 KiB preview limit or Git timed out.' : 'This file patch could not be read from the local revision.';
+    }
+    return file;
+  }
   async function snapshot({ projectId, iid, repoUrl, refs = {}, sourceBranch = '', refresh = false }) {
     const c = await context(projectId);
     const head = validSha(refs.head_sha); const base = validSha(refs.base_sha || refs.start_sha);
@@ -128,7 +163,7 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
       if (!refresh && await exists(c, head) && await exists(c, base)) {
         let cached;
         try { cached = JSON.parse(await fs.readFile(cachePath, 'utf8')); } catch { /* Rebuild missing/corrupt derived metadata. */ }
-        if (cached) {
+        if (cached?.manifestVersion === 2) {
           const worktreePath = await ensureCheckout(c, head);
           await assertCurrent(c);
           return { ...cached, local: { ...cached.local, sourceBranch: branch, worktreePath, cacheHit: true } };
@@ -147,32 +182,45 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
       if (!await exists(c, base)) await run(c, ['--git-dir', c.repo, 'fetch', '--no-tags', '--no-recurse-submodules', transportUrl, base], { transport: true });
       await assertCurrent(c);
       const worktree = await ensureCheckout(c, head);
-      const names = (await run(c, ['--git-dir', c.repo, 'diff', '--name-status', '-z', '-M', base, head, '--'], { max: 2 * 1024 * 1024 })).toString('utf8').split('\0');
-      const changes = [];
-      for (let i = 0; i < names.length && names[i];) {
-        const status = names[i++]; const oldPath = names[i++]; const newPath = /^[RC]/.test(status) ? names[i++] : oldPath;
-        changes.push({ status, oldPath, newPath });
-      }
-      const emptyBlob = (await run(c, ['--git-dir', c.repo, 'hash-object', '-w', '--stdin'], { max: 100 })).toString('utf8').trim();
-      let remaining = MAX_DIFF; let truncated = changes.length > MAX_FILES; const files = [];
-      for (const change of changes.slice(0, MAX_FILES)) {
-        const { status, oldPath, newPath } = change;
-        const file = { old_path: oldPath, new_path: newPath, path: newPath, new_file: status[0] === 'A', deleted_file: status[0] === 'D', renamed_file: status[0] === 'R', diff: '' };
-        try {
-          validPath(oldPath); validPath(newPath);
-          if (remaining < 1024) throw new Error('Preview budget exhausted');
-          const oldObject = file.new_file ? emptyBlob : base + ':' + oldPath;
-          const newObject = file.deleted_file ? emptyBlob : head + ':' + newPath;
-          const diff = (await run(c, ['--git-dir', c.repo, 'diff', '--no-ext-diff', '--no-textconv', '--no-color', '--src-prefix=a/', '--dst-prefix=b/', oldObject, newObject, '--'], { max: Math.min(remaining, MAX_FILE) })).toString('utf8');
-          remaining -= Buffer.byteLength(diff); file.binary = /^Binary files /m.test(diff); file.diff = diff;
-        } catch { file.unavailable = true; file.diff = ''; truncated = true; }
+      const changes = await changedFiles(c, base, head);
+      const empty = await emptyBlob(c);
+      let remaining = MAX_DIFF; let truncated = false; const files = [];
+      for (let index = 0; index < changes.length; index++) {
+        const change = changes[index];
+        if (index >= MAX_FILES || remaining < 1024) {
+          files.push({ ...fileMetadata(change), deferred: true, unavailable: false });
+          truncated = true;
+          continue;
+        }
+        const file = await filePatch(c, change, empty);
+        const bytes = Buffer.byteLength(file.diff);
+        if (bytes > remaining) {
+          files.push({ ...fileMetadata(change), deferred: true, unavailable: false });
+          truncated = true;
+          continue;
+        }
+        remaining -= bytes;
+        if (file.unavailable) truncated = true;
         files.push(file);
       }
       await assertCurrent(c);
-      const result = { files, truncated, local: { status: 'ready', source: 'local-git', mode: 'local-git', headSha: head, baseSha: base, sourceBranch: branch, syncedAt: new Date().toISOString(), worktreePath: worktree, cacheHit: false, fileCount: changes.length } };
+      const result = { manifestVersion: 2, files, truncated, local: { status: 'ready', source: 'local-git', mode: 'local-git', headSha: head, baseSha: base, sourceBranch: branch, syncedAt: new Date().toISOString(), worktreePath: worktree, cacheHit: false, fileCount: changes.length } };
       const temporary = cachePath + '.' + crypto.randomUUID() + '.tmp';
       await fs.writeFile(temporary, JSON.stringify(result), { mode: 0o600 }); await fs.rename(temporary, cachePath);
       return result;
+    });
+  }
+  async function readDiff({ projectId, baseSha, headSha, path: filename }) {
+    const c = await context(projectId); const base = validSha(baseSha); const head = validSha(headSha); const safePath = validPath(filename);
+    return locked(c, async () => {
+      await assertCurrent(c);
+      if (!await exists(c, base) || !await exists(c, head)) throw new Error('This revision is not cached. Open or refresh the merge request first.');
+      const changes = await changedFiles(c, base, head);
+      const change = changes.find(value => value.newPath === safePath);
+      if (!change) throw new Error('The selected file is not in this revision diff.');
+      const result = await filePatch(c, change, await emptyBlob(c));
+      await assertCurrent(c);
+      return { ...result, local: true, baseSha: base, headSha: head };
     });
   }
   async function readFile({ projectId, ref, path: filename }) {
@@ -189,6 +237,6 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
       return { content: content.toString('utf8'), ref: sha, path: safePath, local: true };
     });
   }
-  return { snapshot, readFile };
+  return { snapshot, readFile, readDiff };
 }
 module.exports = { createLocalGitStore };

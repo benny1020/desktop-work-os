@@ -27,6 +27,8 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 ![Dependency graph → sequence → source → review comment → sample AI guide](docs/media/visual-review.gif)
 
 - Dependency-layer layout and a clickable reading path, with separate sequence views and exact source references.
+- Flow-based review for every MR: cohesive changes open directly; larger or unrelated changes get searchable scopes with their own diagram, code and AI guide. Shared files retain one draft and viewed state across scopes.
+- Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
 - Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.
 - Code and diffs come from an app-managed local Git repository and isolated MR checkout. File browsing makes no GitLab code API requests. New revisions are fetched automatically and staged without replacing the code you are reviewing.
 - Old/new diff positions and commit SHA checks before posting comments or approving.
@@ -195,7 +197,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **211 browser tests**, **74 adapter tests**, **9 native connected workflow checks** and **5 native memory lifecycle checks** passed. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **219 browser tests**, **94 adapter/model tests** and **9 native connected workflow checks** passed for flow-based review. The **5 native memory lifecycle checks** passed in the earlier memory validation. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [flow review validation](docs/REVIEW_FLOWS.md), [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI
