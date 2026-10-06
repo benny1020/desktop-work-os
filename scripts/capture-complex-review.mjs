@@ -32,10 +32,7 @@ try {
   await page.getByLabel('Diagram review comment').fill('gatewaySequence < event.sequence 조건으로 갱신하고, refunded → 지연된 captured 순서의 테스트가 필요해 보입니다.');
   await page.getByRole('tab', { name: 'Sequence', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Sequence diagram' })).toBeVisible();
-  // Pan back to the entry point so the capture includes Controller → Service → Repository.
-  await page.locator('.diagram-scroll').hover();
-  await page.mouse.wheel(-1800, 0);
-  await expect(page.locator('.diagram-scroll')).toHaveJSProperty('scrollLeft', 0);
+  await expect(page.getByRole('button', { name: 'Step by step', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await shot('webhook-sequence');
   await chooseComplexFlow(page, 'reconciliation');
   await page.getByRole('button', { name: 'Preview AI guide', exact: true }).click();
@@ -46,6 +43,11 @@ try {
   await page.getByRole('tab', { name: 'Dependency flow', exact: true }).click();
   await page.getByLabel('Toggle theme').click();
   await shot('reconciliation-dark');
-  console.log(JSON.stringify({ screenshots: 4, viewport: '1440×900', pageErrors: errors }));
+  await page.getByLabel('Review drafts', { exact: true }).click();
+  await shot('drafts-dark');
+  await page.getByLabel('Review drafts', { exact: true }).click();
+  await page.getByLabel('Collapse review composer', { exact: true }).click();
+  await shot('reading-dark');
+  console.log(JSON.stringify({ screenshots: 6, viewport: '1440×900', pageErrors: errors }));
   if (errors.length) throw Error(errors.join('\n'));
 } finally { await browser.close(); }

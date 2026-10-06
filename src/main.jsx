@@ -300,6 +300,7 @@ import ConnectedAttention from "./components/ConnectedAttention";
 import {usePlan, parseQuick, dayKey} from "./lib/planning";
 import "./workspace.css";
 import "./product-polish.css";
+import "./review-large-pr.css";
 import ProductGuide, { WorklaneMark } from "./components/ProductGuide";
 function App() {
   const [showGuide,setShowGuide] = useState(false);
@@ -340,6 +341,9 @@ function App() {
   const [configVersion, setConfigVersion] = useState(0);
   const [liveContext, setLiveContext] = useState("");
   const [visualReview, setVisualReview] = useState(true);
+  // Keep each exact-diff review's reading context when switching tools or MRs.
+  // ReviewWorkbench validates the saved version before restoring it.
+  const demoReviewSessions = useRef(new Map());
   const [issues, setIssues] = useState(() =>
     persisted("issues", initialIssues),
   );
@@ -644,13 +648,14 @@ function App() {
     setSelectedFile(1);
     navigate("Code", "Review", { mrId: id });
   }
-  function addComment(key, text) {
+  function addComment(key, text, review) {
     if (!text.trim()) return;
     setComments((c) => ({
       ...c,
       [key]: [
         ...(c[key] || []),
-        { text, author: "Alex Kim", time: "Just now" },
+        { text, author: "Alex Kim", time: "Just now",
+          ...(review ? { id: crypto.randomUUID(), createdAt: new Date().toISOString(), review } : {}) },
       ],
     }));
     notify("Comment added");
@@ -2241,14 +2246,26 @@ function App() {
     [" ", "}"],
   ];
   function MRReview() {
+    const reviewSnapshot = demoSnapshot(currentMR);
+    const savedDiscussions = (comments["mr-" + currentMR.id] || [])
+      .filter(comment => typeof comment.review?.body === "string" &&
+        reviewSnapshot.files.some(file => file.path === comment.review.path))
+      .map(comment => ({
+        id: "demo-" + comment.id,
+        notes: [{ id: comment.id, body: comment.review.body,
+          author: { name: comment.author }, created_at: comment.createdAt,
+          position: comment.review.position || { new_path: comment.review.path } }],
+      }));
     if (visualReview)
       return (
         <ReviewWorkbench
           key={"demo-" + currentMR.id}
-          snapshot={demoSnapshot(currentMR)}
+          snapshot={{ ...reviewSnapshot, discussions: [...reviewSnapshot.discussions, ...savedDiscussions] }}
+          initialReviewState={demoReviewSessions.current.get(`${currentMR.repo}:${currentMR.id}`)}
+          onReviewState={(state) => demoReviewSessions.current.set(`${currentMR.repo}:${currentMR.id}`, state)}
           onBack={() => setVisualReview(false)}
           onRefresh={() => notify("Sample review refreshed")}
-          onDemoComment={(text) => addComment("mr-" + currentMR.id, text)}
+          onDemoComment={(text, details) => addComment("mr-" + currentMR.id, text, details)}
           onDemoApprove={() =>
             setMRs((xs) =>
               xs.map((m) =>

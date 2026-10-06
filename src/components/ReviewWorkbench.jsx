@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
 import ReviewGuidePanel from "./ReviewGuidePanel";
+import ReviewDraftNavigator from './ReviewDraftNavigator';
+import { listReviewDrafts } from '../lib/review-drafts.mjs';
 import { ReviewFlowPicker, ReviewFlowContext } from "./ReviewFlowNavigator";
 import "../review-collaboration.css";
 import "../review-local-git.css";
@@ -237,13 +239,14 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
     </div>
   );
 }
-function SequenceDiagram({ graph, selected, onSelect, zoom }) {
+const sequenceKey = step => JSON.stringify([step.from, step.to, step.path, step.line]);
+function SequenceDiagram({ graph, selected, onSelect, zoom, compact = false, stepNumber = 1 }) {
   const participants = new Set(graph.sequence.flatMap((e) => [e.from, e.to]));
   const active = graph.sequence.length
     ? graph.nodes.filter((n) => participants.has(n.id))
     : graph.nodes;
   const column = 190,
-    w = Math.max(620, active.length * column + 60),
+    w = Math.max(compact ? 420 : 620, active.length * column + (compact ? 40 : 60)),
     h = Math.max(300, graph.sequence.length * 78 + 160);
   const x = (id) => 50 + active.findIndex((n) => n.id === id) * column + 70;
   return (
@@ -309,13 +312,14 @@ function SequenceDiagram({ graph, selected, onSelect, zoom }) {
         ))}
         {graph.sequence.map((e, i) => {
           const y = 125 + i * 78;
+          const number = compact ? stepNumber : i + 1;
           return (
             <g
               key={i}
               className="sequence-step"
               role="button"
               tabIndex={0}
-              aria-label={`Inspect sequence step ${i + 1}: ${e.label}`}
+              aria-label={`Inspect sequence step ${number}: ${e.label}`}
               onClick={() => onSelect(e.path, e.line)}
               onKeyDown={(event) => diagramKeys(event, () => onSelect(e.path, e.line))}
             >
@@ -334,14 +338,16 @@ function SequenceDiagram({ graph, selected, onSelect, zoom }) {
                 markerEnd="url(#seq-arrow)"
               />
               <text
-                x={Math.min(x(e.from), x(e.to)) + 8}
+                x={compact ? w / 2 : Math.min(x(e.from), x(e.to)) + 8}
+                textAnchor={compact ? 'middle' : 'start'}
                 y={y - 10}
                 className="sequence-label"
               >
-                {i + 1}. {e.label.slice(0, 48)}
+                {number}. {e.label.slice(0, 48)}{e.label.length > 48 ? '…' : ''}
               </text>
               <text
-                x={Math.min(x(e.from), x(e.to)) + 8}
+                x={compact ? w / 2 : Math.min(x(e.from), x(e.to)) + 8}
+                textAnchor={compact ? 'middle' : 'start'}
                 y={y + 17}
                 className="node-meta"
               >
@@ -408,6 +414,10 @@ export default function ReviewWorkbench({
     files.some((item) => item.path === initialReviewState.selected) ? initialReviewState : null;
   const [tab, setTab] = useState(restored?.tab || (initialTab === "Sequence" ? "Sequence" : "Dependency flow"));
   const [architectureMode, setArchitectureMode] = useState(restored?.architectureMode ?? true);
+  const [sequenceMode, setSequenceMode] = useState(restored?.sequenceMode || 'auto');
+  const [sequenceStep, setSequenceStep] = useState(restored?.sequenceStep || null);
+  const [composerOpen, setComposerOpen] = useState(restored?.composerOpen ?? true);
+  const [discussionsOpen, setDiscussionsOpen] = useState(false);
   const [guideBusy, setGuideBusy] = useState(false);
   const [guideError, setGuideError] = useState("");
   const [activeFinding, setActiveFinding] = useState(restored?.activeFinding || null);
@@ -492,8 +502,8 @@ export default function ReviewWorkbench({
   const sourceKey = JSON.stringify([sourceRef, file?.deleted_file ? file?.old_path : file?.path]);
   useEffect(() => {
     onReviewState?.({ version: viewVersion, selected, line, side, tab, codeMode,
-      guide, guidelines, activeFinding, zoom, autoFit, architectureMode, flowId: activeFlow?.id, flowViews: flowViews.current });
-  }, [viewVersion, selected, line, side, tab, codeMode, guide, guidelines, activeFinding, zoom, autoFit, architectureMode, activeFlow?.id]);
+      guide, guidelines, activeFinding, zoom, autoFit, architectureMode, sequenceMode, sequenceStep, composerOpen, flowId: activeFlow?.id, flowViews: flowViews.current });
+  }, [viewVersion, selected, line, side, tab, codeMode, guide, guidelines, activeFinding, zoom, autoFit, architectureMode, sequenceMode, sequenceStep, composerOpen, activeFlow?.id]);
   useEffect(() => {
     if (codeMode === "Diff" || source[sourceKey] !== undefined || sourceError) onReady?.();
   }, [codeMode, source, sourceKey, sourceError]);
@@ -522,6 +532,7 @@ ${finding.reason}`;
     setDrafts(items => ({...items, [key]: items[key]?.includes(suggestion) ? items[key] : [items[key], suggestion].filter(Boolean).join("\n\n")}));
     selectFinding(finding);
     setNotice("AI suggestion added to your draft. Edit it before posting.");
+    setComposerOpen(true);
     requestAnimationFrame(() => {
       commentInput.current?.focus({preventScroll:true});
       commentInput.current?.scrollIntoView({block:"nearest"});
@@ -529,6 +540,7 @@ ${finding.reason}`;
   }
   const draftKey = side === "old" ? `${legacyDraftKey}:refs:${diffVersion}` : legacyDraftKey;
   const draft = drafts[draftKey] || "";
+  const pendingDrafts = useMemo(() => listReviewDrafts(drafts, files, diffVersion), [drafts, files, diffVersion]);
   const unverifiedDraft = side === "old" && !Object.hasOwn(drafts, draftKey) ? drafts[legacyDraftKey] : "";
   const previousDiffVersion = useRef(diffVersion);
   useEffect(() => {
@@ -538,6 +550,7 @@ ${finding.reason}`;
     setSide(file?.deleted_file ? "old" : "new");
     setConfirmApproval(false);
     setGuide(null);
+    setSequenceStep(null);
     flowViews.current = {};
     setActiveFinding(null);
     setGuideError("");
@@ -545,6 +558,20 @@ ${finding.reason}`;
   }, [diffVersion]);
   const fullGraph = useMemo(() => annotateReviewGraph(buildGraph(files, guide), files), [files, guide]);
   const graph = useMemo(() => scopeReviewGraph(fullGraph, activeFlow), [fullGraph, activeFlow]);
+  const sequenceParticipants = new Set(graph.sequence.flatMap(step => [step.from, step.to]));
+  const sequenceByStep = sequenceMode === 'step' || (sequenceMode === 'auto' && sequenceParticipants.size > 4);
+  let sequenceIndex = graph.sequence.findIndex(step => sequenceKey(step) === sequenceStep);
+  if (sequenceIndex < 0) {
+    const relevant = graph.sequence.map((step, index) => ({ step, index }))
+      .filter(({ step }) => step.path === selected);
+    sequenceIndex = relevant.length
+      ? relevant.reduce((nearest, next) => Math.abs(next.step.line - (line || 1)) < Math.abs(nearest.step.line - (line || 1)) ? next : nearest).index
+      : Math.max(0, graph.sequence.findIndex(step => step.to === selected));
+  }
+  const currentInteraction = graph.sequence[sequenceIndex];
+  const sequenceGraph = sequenceByStep && currentInteraction ? { ...graph,
+    nodes: graph.nodes.filter(node => node.id === currentInteraction.from || node.id === currentInteraction.to),
+    sequence: [currentInteraction] } : graph;
   const boundaryPaths = useMemo(() => [...new Set([...graph.boundaryDependencies, ...graph.boundarySequence]
     .map(edge => flowPaths.has(edge.from) ? edge.to : edge.from))], [graph, flowPaths]);
   const scopeKey = JSON.stringify([...flowPaths]);
@@ -590,28 +617,37 @@ ${finding.reason}`;
       const node = panel?.querySelector(".diagram-node.selected");
       if (!node) return;
       const bounds = panel.getBoundingClientRect();
+      const controls = panel.querySelector('.review-diagram-controls');
+      const controlsHeight = controls?.getBoundingClientRect().height || 36;
+      const controlsSize = `${controlsHeight}px`;
+      if (panel.style.getPropertyValue('--review-controls-height') !== controlsSize)
+        panel.style.setProperty('--review-controls-height', controlsSize);
+      const progressHeight = panel.querySelector('.review-file-progress')?.getBoundingClientRect().height || 0;
+      const safeTop = bounds.top + controlsHeight + progressHeight + 8;
       const canvas = node.closest('.diagram-scroll');
       if (!canvas) return;
       let target = node.getBoundingClientRect(), canvasBounds = canvas.getBoundingClientRect();
-      if (target.bottom > bounds.bottom || target.top < bounds.top + 36) {
-        panel.scrollTop += canvasBounds.top - bounds.top - 36;
+      if (target.bottom > bounds.bottom || target.top < safeTop) {
+        panel.scrollTop += canvasBounds.top - safeTop;
         canvasBounds = canvas.getBoundingClientRect(); target = node.getBoundingClientRect();
       }
       if (target.left < canvasBounds.left || target.right > canvasBounds.right)
         canvas.scrollLeft += target.left - canvasBounds.left - Math.max(8, (canvasBounds.width - target.width) / 2);
-      const visibleTop = Math.max(bounds.top + 36, canvasBounds.top), visibleBottom = Math.min(bounds.bottom, canvasBounds.bottom);
+      const visibleTop = Math.max(safeTop, canvasBounds.top), visibleBottom = Math.min(bounds.bottom, canvasBounds.bottom);
       if (target.top < visibleTop || target.bottom > visibleBottom)
         canvas.scrollTop += target.top - visibleTop - Math.max(8, (visibleBottom - visibleTop - target.height) / 2);
       const revealed = node.getBoundingClientRect();
-      if (revealed.top < bounds.top + 48 || revealed.bottom > bounds.bottom)
-        panel.scrollTop += revealed.top - bounds.top - Math.max(48, (bounds.height - revealed.height) / 2);
+      if (revealed.top < safeTop || revealed.bottom > bounds.bottom)
+        canvas.scrollTop += revealed.top - safeTop;
       });
     };
     reveal();
     const observer = new ResizeObserver(reveal);
     if (mapPanel.current) observer.observe(mapPanel.current);
+    const controls = mapPanel.current?.querySelector('.review-diagram-controls');
+    if (controls) observer.observe(controls);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); };
-  }, [activeFinding, selected, tab, zoom, layout]);
+  }, [activeFinding, selected, tab, zoom, layout, sequenceByStep, sequenceStep]);
   useEffect(() => {
     if (!autoFit || tab === "AI guide") return;
     const canvas = mapPanel.current?.querySelector(".diagram-scroll");
@@ -624,7 +660,7 @@ ${finding.reason}`;
     const observer = new ResizeObserver(fit);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [autoFit, tab, layout]);
+  }, [autoFit, tab, layout, sequenceByStep, sequenceStep]);
   useEffect(() => {
     const content = source[sourceKey];
     const sourceLines = typeof content === "string" ? content.split("\n") : null;
@@ -696,7 +732,7 @@ ${finding.reason}`;
     const scroll = Object.fromEntries([".visual-map-panel", ".visual-code-scroll", ".ai-review-guide"].map(selector => {
       const el = reviewRoot.current?.querySelector(selector); return [selector, el ? [el.scrollLeft, el.scrollTop] : [0, 0]];
     }));
-    if (activeFlow) flowViews.current[activeFlow.id] = { selected, line, side, codeMode, tab, zoom, autoFit, architectureMode, guide, activeFinding, scroll };
+    if (activeFlow) flowViews.current[activeFlow.id] = { selected, line, side, codeMode, tab, zoom, autoFit, architectureMode, sequenceMode, sequenceStep, composerOpen, guide, activeFinding, scroll };
     const saved = flowViews.current[flow.id];
     const path = targetPath || (saved && [...flow.paths, ...flow.sharedPaths].includes(saved.selected) ? saved.selected : flow.paths.find(path => !viewed.includes(path)) || flow.paths[0]);
     setFlowId(flow.id); setSelected(path); setLine(saved?.line || null);
@@ -704,6 +740,8 @@ ${finding.reason}`;
     setCodeMode(saved?.codeMode || "Diff"); setTab(saved?.tab || "Dependency flow");
     setZoom(saved?.zoom || .85); setAutoFit(saved?.autoFit ?? "readable");
     setArchitectureMode(saved?.architectureMode ?? true);
+    setSequenceMode(saved?.sequenceMode || 'auto'); setSequenceStep(saved?.sequenceStep || null);
+    setComposerOpen(saved?.composerOpen ?? true); setDiscussionsOpen(false);
     setGuide(saved?.guide || snapshot.guide || null); setActiveFinding(saved?.activeFinding || null);
     setGuideError(""); setError(""); setNotice("");
     if (flowPicker.current?.open) { flowPicker.current.open = false; flowPicker.current.querySelector("summary")?.focus(); }
@@ -713,11 +751,31 @@ ${finding.reason}`;
   }
   function select(path, targetLine) {
     if (!flowPaths.has(path)) chooseFlow(flows.find(flow => flow.paths.includes(path)), path);
+    else setFlowId(activeFlow.id);
+    if (!currentInteraction || ![currentInteraction.from, currentInteraction.to].includes(path) ||
+      (targetLine && (currentInteraction.path !== path || currentInteraction.line !== targetLine))) setSequenceStep(null);
+    if (path !== selected) setDiscussionsOpen(false);
     setSelected(path);
     setLine(targetLine || null);
     setSide(files.find((item) => item.path === path)?.deleted_file ? "old" : "new");
     setError("");
     setNotice("");
+  }
+  function showInteraction(index) {
+    const step = graph.sequence[index];
+    if (!step) return;
+    select(step.path, step.line);
+    setSequenceStep(sequenceKey(step));
+  }
+  function openDraft(item) {
+    if (!item.current) return;
+    select(item.path, item.line);
+    setSide(item.side);
+    const target = files.find(file => file.path === item.path);
+    setCodeMode(item.line && !reviewPosition(target, item.line, item.side, mr.diff_refs) &&
+      (item.side === 'new' || target.deleted_file) ? 'Source' : 'Diff');
+    setComposerOpen(true);
+    requestAnimationFrame(() => commentInput.current?.focus({ preventScroll: true }));
   }
   function changeCodeMode(mode) {
     if (mode === "Source") {
@@ -837,10 +895,11 @@ ${finding.reason}`;
             },
           ],
         };
-        onDemoComment?.(`${file.path}${line ? ":" + line : ""} — ${text}`);
+        onDemoComment?.(`${file.path}${line ? ":" + line : ""} — ${text}`, { path: file.path, line, side, body: text, position });
       }
       if (alive.current) {
         setDiscussions((d) => [...d, thread]);
+        setDiscussionsOpen(true);
         setDrafts((d) => d[submittedKey] === submittedDraft
           ? { ...d, [submittedKey]: "" }
           : d);
@@ -987,6 +1046,7 @@ ${finding.reason}`;
           </div>
           <ReviewFlowPicker flows={flows} activeFlow={activeFlow} viewed={viewed} query={flowQuery}
             onQuery={setFlowQuery} onChoose={chooseFlow} pickerRef={flowPicker}/>
+          <ReviewDraftNavigator drafts={drafts} files={files} diffVersion={diffVersion} onOpen={openDraft}/>
           <span className="reading-path-label">{layout.semantic ? 'Read by layer' : 'Read by dependency'}</span>
           <div className="reading-path-files">
             {layout.layers.flat().map((node) => (
@@ -1026,6 +1086,7 @@ ${finding.reason}`;
             </button>
           </div>
           <ReviewFlowContext flows={flows} activeFlow={activeFlow} viewed={viewed} onChoose={chooseFlow} onSelect={select} graph={flowIndexGraph}/>
+          <div className="review-diagram-controls">
           <div
             className="visual-tabs"
             role="tablist"
@@ -1082,6 +1143,7 @@ ${finding.reason}`;
                 <button className={`quiet-button ${autoFit ? "is-fitted" : ""}`} aria-label="Fit diagram to panel" title="Fit to panel" onClick={() => setAutoFit(true)}>
                   Fit <span>{Math.round(zoom * 100)}%</span>
                 </button>
+                <button className="quiet-button" aria-label="Read diagram at 100%" title="Read at 100%" onClick={() => { setAutoFit(false); setZoom(1); }}>100%</button>
                 <button
                   className="icon-button"
                   aria-label="Zoom in diagram"
@@ -1095,6 +1157,23 @@ ${finding.reason}`;
                 <button aria-pressed={!architectureMode} onClick={() => { setArchitectureMode(false); setAutoFit('readable'); }}>By dependency</button>
                 <small>{layout.semantic ? 'Role groups' : 'Import depth'}</small>
               </div>}
+              {tab === 'Sequence' && graph.sequence.length > 0 && <>
+                <div className="sequence-scope-controls" role="group" aria-label="Sequence detail">
+                  <button aria-pressed={sequenceByStep} onClick={() => { setSequenceMode('step'); setAutoFit('readable'); }}>Step by step</button>
+                  <button aria-pressed={!sequenceByStep} onClick={() => { setSequenceMode('whole'); setAutoFit('readable'); }}>Whole flow</button>
+                  <small>{graph.sequence.length} static interactions</small>
+                </div>
+                {sequenceByStep && <div className="sequence-step-navigation">
+                  <button className="icon-button" aria-label="Previous interaction" disabled={sequenceIndex === 0} onClick={() => showInteraction(sequenceIndex - 1)}><ArrowLeft size={12}/></button>
+                  <select aria-label="Sequence interaction" value={sequenceIndex} onChange={event => showInteraction(Number(event.target.value))}>
+                    {graph.sequence.map((step, index) => <option key={sequenceKey(step)} value={index}>{index + 1}/{graph.sequence.length}. {basename(step.from)} → {basename(step.to)} · {basename(step.path)}:{step.line}</option>)}
+                  </select>
+                  <button className="icon-button" aria-label="Next interaction" disabled={sequenceIndex === graph.sequence.length - 1} onClick={() => showInteraction(sequenceIndex + 1)}><ArrowRight size={12}/></button>
+                </div>}
+              </>}
+          </>
+          </div>
+          <>
               {tab === "Dependency flow" ? (
                 <DependencyDiagram
                   graph={graph}
@@ -1107,10 +1186,12 @@ ${finding.reason}`;
                 />
               ) : (
                 <SequenceDiagram
-                  graph={graph}
+                  graph={sequenceGraph}
                   selected={selected}
-                  onSelect={select}
+                  onSelect={(path, targetLine) => { select(path, targetLine); if (sequenceByStep && currentInteraction) setSequenceStep(sequenceKey(currentInteraction)); }}
                   zoom={zoom}
+                  compact={sequenceByStep}
+                  stepNumber={sequenceIndex + 1}
                 />
               )}
               <div className="diagram-legend">
@@ -1267,7 +1348,7 @@ ${finding.reason}`;
               </div>
             )}
           </div>
-          <div className="visual-comment-panel">
+          <div className={`visual-comment-panel${composerOpen ? '' : ' is-collapsed'}`}>
             <div className="comment-target">
               <MessageSquare size={14} />
               <b>
@@ -1278,7 +1359,9 @@ ${finding.reason}`;
                   ? "Inline review comment"
                   : "File-level review comment"}
               </span>
+              <button className="review-composer-toggle" aria-label={composerOpen ? 'Collapse review composer' : 'Expand review composer'} aria-expanded={composerOpen} onClick={() => setComposerOpen(open => !open)}>{composerOpen ? 'Hide editor' : draft ? 'Edit draft' : 'Write review'}</button>
             </div>
+            {composerOpen && <>
             {unverifiedDraft && (
               <details className="legacy-review-draft">
                 <summary>Earlier draft needs a base revision check</summary>
@@ -1325,6 +1408,7 @@ ${finding.reason}`;
                     : "Add demo comment"}
               </button>
             </div>
+            </>}
             {draftStorageError && <div className="connection-error" role="alert">{draftStorageError}</div>}
             {error && (
               <div className="connection-error" role="alert">
@@ -1336,6 +1420,8 @@ ${finding.reason}`;
                 {notice}
               </div>
             )}
+            {composerOpen && notes.length > 0 && <details className="review-existing-discussions" open={discussionsOpen} onToggle={event => setDiscussionsOpen(event.currentTarget.open)}>
+            <summary>Discussion · {notes.length} {notes.length === 1 ? 'comment' : 'comments'}</summary>
             <div className="component-discussions">
               {notes.map((n, i) => (
                 <div className="component-comment" key={n.id || i}>
@@ -1351,11 +1437,12 @@ ${finding.reason}`;
                 </div>
               ))}
             </div>
+            </details>}
           </div>
           <div className="visual-review-approval">
             {confirmApproval ? (
               <>
-                <span>Approve the changes in this commit?</span>
+                <span>Approve this commit? {viewedCount}/{files.length} files viewed · {pendingDrafts.length} unposted {pendingDrafts.length === 1 ? 'draft' : 'drafts'}.{pendingDrafts.length > 0 && ' Drafts remain private and are not posted by approval.'}</span>
                 <button
                   className="btn"
                   disabled={busy === "approve"}

@@ -43,7 +43,7 @@ Solid dependency edges represent resolved imports; dashed relationships and sequ
 
 ![Controller, service and repository beside actual code and human review](docs/media/review-architecture-desktop.png)
 
-Try **Demo workspace → Code → !428 → Review** for a larger example: 30 changed files spanning capture retries, webhook ordering and settlement reconciliation, with shared infrastructure and code-linked sample review questions. [Complex PR walkthrough and screenshots](docs/COMPLEX_PR_DEMO.md).
+Try **Demo workspace → Code → !428 → Review** for a larger example: 30 changed files spanning capture retries, webhook ordering and settlement reconciliation, with shared infrastructure and code-linked sample review questions. Large sequences offer readable step-by-step navigation; a PR-wide draft menu resumes exact code positions, and the composer folds for more reading space. [Complex PR walkthrough and screenshots](docs/COMPLEX_PR_DEMO.md).
 
 ## Follow the work across tools
 
@@ -209,7 +209,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **280 browser tests**, **110 adapter/model tests**, **11 native connected workflow checks** and **5 native memory lifecycle checks** passed in the latest planning review. Native profile compatibility and encrypted-vault checks also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. See [the three-round practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md), [sidebar validation](docs/SIDEBAR_LAYOUT.md), [architecture review](docs/REVIEW_ARCHITECTURE.md), [planning review](docs/TODO_USABILITY.md), [Jira review](docs/JIRA_USABILITY.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+Latest validation: **301 browser tests**, **119 adapter/model tests** and **11 native connected workflow checks** passed in the [repeated large-PR usability audit](docs/LARGE_PR_REVIEW_AUDIT.md). Native profile compatibility, encrypted-vault checks and production build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

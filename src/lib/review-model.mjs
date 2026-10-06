@@ -89,6 +89,66 @@ function evidenceRows(f) {
         (r) => r.kind !== "removed" && r.kind !== "hunk",
       );
 }
+// This is conservative navigation evidence, not a language parser or execution
+// trace. Mask literals/comments without changing offsets, then recognize actual
+// member calls and typed instance receivers. Unresolved dynamic calls stay out.
+function codeOnly(text) {
+  let result = '', quote = '', block = false, lineComment = false, regex = false, regexClass = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i], next = text[i + 1];
+    if (char === '\n') { result += char; lineComment = false; continue; }
+    if (lineComment) { result += ' '; continue; }
+    if (regex) {
+      result += ' ';
+      if (char === '\\' && next && next !== '\n') { result += ' '; i++; }
+      else if (char === '[') regexClass = true;
+      else if (char === ']') regexClass = false;
+      else if (char === '/' && !regexClass) regex = false;
+      continue;
+    }
+    if (block) {
+      if (char === '*' && next === '/') { result += '  '; i++; block = false; }
+      else result += ' ';
+      continue;
+    }
+    if (quote) {
+      if (char === '\\') { result += ' '; if (next && next !== '\n') { result += ' '; i++; } }
+      else { result += ' '; if (char === quote) quote = ''; }
+      continue;
+    }
+    if (char === '/' && next === '*') { block = true; result += '  '; i++; }
+    else if (char === '/' && next === '/') { lineComment = true; result += '  '; i++; }
+    else if (char === '/' && /(?:^|[=(:,[;!?{}]|=>|\breturn|\bthrow)\s*$/.test(result)) { regex = true; result += ' '; }
+    else if (["'", '"', '`'].includes(char)) { quote = char; result += ' '; }
+    else result += char;
+  }
+  return result;
+}
+const regexEscape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function callEvidence(rows, symbol, importRow, { code, maskedRows }) {
+  const imported = new Set();
+  if (importRow) {
+    const members = importRow.text.match(/\{([^}]+)\}/)?.[1];
+    for (const member of (members || '').split(',')) {
+      const name = member.trim().match(/^(?:type\s+)?([\w$]+)(?:\s+as\s+([\w$]+))?$/);
+      if (name) imported.add(name[2] || name[1]);
+    }
+    const defaultAlias = importRow.text.match(/^\s*import\s+([\w$]+)\s+from\b/)?.[1];
+    if (defaultAlias) imported.add(defaultAlias);
+    const namespace = importRow.text.match(/\*\s+as\s+([\w$]+)/)?.[1];
+    if (namespace) imported.add(namespace);
+  }
+  const escaped = regexEscape(symbol), typeNames = [...new Set([symbol, ...imported])].map(regexEscape).join('|'), aliases = new Set();
+  // Constructor parameter properties / declared TS fields and Java fields.
+  for (const pattern of [
+    new RegExp(`\\b(?:private|protected|public|readonly)\\s+(?:(?:private|protected|public|readonly)\\s+)*(\\w+)\\s*:\\s*(?:${typeNames})\\b`, 'g'),
+    new RegExp(`\\b(?:private|protected|public)\\s+(?:final\\s+)?(?:${typeNames})\\s+(\\w+)\\b`, 'g'),
+  ]) for (const match of code.matchAll(pattern)) aliases.add(match[1]);
+  // Imported names are accepted only when this import resolves to the target file.
+  const receivers = [escaped, ...[...imported].map(regexEscape), ...[...aliases].map(alias => `this\\s*\\.\\s*${regexEscape(alias)}`)];
+  const call = new RegExp(`(?:\\b(?:${receivers.join('|')})\\s*(?:\\?\\.|\\.)\\s*[\\w$]+\\s*(?:\\?\\.)?\\s*\\(|\\bnew\\s+(?:${typeNames})\\s*\\()`);
+  return rows.filter((row, index) => !/^\s*(?:import\b|package\b)/.test(maskedRows[index]) && call.test(maskedRows[index]));
+}
 export function buildGraph(files, guide) {
   const nodes = files.map((f) => ({
     id: f.path,
@@ -102,23 +162,19 @@ export function buildGraph(files, guide) {
   const dependencies = [];
   const sequence = [];
   const seen = new Set();
+  const symbolCounts = new Map();
+  for (const file of files) symbolCounts.set(stem(file.path), (symbolCounts.get(stem(file.path)) || 0) + 1);
   for (const from of files) {
     const rows = evidenceRows(from);
     if (!rows.length) continue;
+    const sourceFile = /\.(?:[cm]?[jt]sx?|java|kt|py|go|rb|rs|vue|svelte|c|cpp|cs)$/i.test(from.path);
+    const code = codeOnly(rows.map(row => row.text).join('\n'));
+    const lexical = { code, maskedRows: code.split('\n') };
     for (const to of files) {
       if (to.path === from.path) continue;
       const symbol = stem(to.path);
-      const lowered = symbol.toLowerCase();
-      const importRow = rows.find((r)=>importMatches(r.text,from.path,to.path));
-      const callRows = rows.filter(
-        (r) =>
-          !/^\s*(?:\/\/|\/\*|\*)/.test(r.text) &&
-          r.text.toLowerCase().includes(lowered) &&
-          /\(/.test(r.text) &&
-          !/(?:\bimport\b|\brequire\b|\bclass\b|\binterface\b|\bconstructor\s*\()/.test(
-            r.text,
-          ),
-      );
+      const importRow = sourceFile && rows.find((row, index) => /\b(?:import|require)\b/.test(lexical.maskedRows[index]) && importMatches(row.text, from.path, to.path));
+      const callRows = sourceFile && (importRow || symbolCounts.get(symbol) === 1) ? callEvidence(rows, symbol, importRow, lexical) : [];
       if (importRow || callRows.length) {
         const r = importRow || callRows[0];
         dependencies.push({
@@ -132,7 +188,7 @@ export function buildGraph(files, guide) {
       }
       for (const r of /\.(?:test|spec)\.|(?:^|\/)tests?\//i.test(from.path)
         ? []
-        : callRows.slice(0, 3)) {
+        : callRows) {
         const key = from.path + to.path + r.newLine;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -156,13 +212,13 @@ export function buildGraph(files, guide) {
       if (!dependencies.some((x) => x.from === d.from && x.to === d.to))
         dependencies.push({ ...d, evidence: "inferred" });
     }
-    if (guide.sequence?.length)
-      return {
-        nodes,
-        dependencies,
-        sequence: guide.sequence.map((s) => ({ ...s, evidence: "inferred" })),
-      };
+    for (const step of guide.sequence || []) {
+      if (!sequence.some(item => item.from === step.from && item.to === step.to && item.path === step.path && item.line === step.line))
+        sequence.push({ ...step, evidence: "inferred" });
+    }
   }
+  const fileOrder = new Map(files.map((file, index) => [file.path, index]));
+  sequence.sort((a, b) => fileOrder.get(a.path) - fileOrder.get(b.path) || a.line - b.line);
   return { nodes, dependencies, sequence };
 }
 export function validateGuide(input, files) {

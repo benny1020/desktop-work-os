@@ -14,7 +14,11 @@ The remaining eight primary files cover four shared components, configuration, a
 
 Source and diffs are authored sample strings, not a runnable payment backend or company code. The two existing discussion threads and five AI checkpoints are also authored fixtures. **Preview AI guide** makes no Claude request. Dependencies resolve real imports within the fixture; sequence arrows remain inferred static relationships, not a proven execution trace.
 
-Select a component or checkpoint to inspect its code, select a line, and write a private review draft. Flow changes preserve drafts and scoped AI guides. Adding this sample to an existing demo profile preserves the other MRs and their statuses.
+Select a component or checkpoint to inspect its code, select a line, and write a private review draft. Shared components keep the selected business flow. Flow changes and navigation to another tool preserve the selected file, line, diagram mode and scoped AI guide for the current app session; private drafts, viewed files and posted demo comments survive reload. Adding this sample to an existing demo profile preserves the other MRs and their statuses.
+
+Large sequences default to **Step by step**: two participants, one source-linked call, previous/next buttons and a selector for every recognized interaction. **Whole flow** provides the broader overview; **100%** restores readable scale after Fit. These are source-order navigation aids, not a timeline of one execution. Type signatures, comments and quoted examples do not become calls, and generating an AI guide does not replace recognized static evidence.
+
+Use **Review drafts** to resume a private note at its file, line and old/new side. Earlier old-side revisions remain available for reference. Approval shows viewed-file and unposted-draft counts and never posts drafts. **Hide editor** gives more space to code while keeping its draft intact; existing discussions expand on demand.
 
 ![Three principal review areas](media/complex-review-scopes.png)
 
@@ -24,6 +28,10 @@ Select a component or checkpoint to inspect its code, select a line, and write a
 
 ![Settlement recovery review in dark mode](media/complex-review-reconciliation-dark.png)
 
+![Resume drafts across the PR without losing the active flow](media/complex-review-drafts-dark.png)
+
+![More code space with the private composer collapsed](media/complex-review-reading-dark.png)
+
 Reproduce the 1440 × 900 captures with `node scripts/capture-complex-review.mjs` while the development server runs on port 5178. The capture uses the actual app, selects source lines and fills private demo drafts; it does not modify styles for screenshots.
 
-Validation: 282 browser tests (including 18 focused review tests), 111 adapter/model tests, production build, and four captures with zero page errors. Live GitLab and Claude connections are not exercised by this fixture.
+Latest validation: 301 browser tests, 119 adapter/model tests, native profile/vault and 11 native connected checks, production build, and six captures with zero page errors. See [the repeated large-PR usability audit](LARGE_PR_REVIEW_AUDIT.md). Live GitLab and Claude connections are not exercised by this fixture.
