@@ -7,6 +7,22 @@ const required = (value, name, max = 500) => {
     throw new Error(`${name} is required.`);
   return value.trim();
 };
+const planningId = (value, name) => {
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error(`Choose a ${name}.`);
+  return id;
+};
+const planningOffset = (value = 0) => {
+  const offset = Number(value);
+  if (!Number.isSafeInteger(offset) || offset < 0) throw new Error("Invalid planning page.");
+  return offset;
+};
+const planningQuery = (a) => {
+  const q = new URLSearchParams({ maxResults: "50", fields: "summary,status,priority,assignee,project,duedate,description,sprint,closedSprints" });
+  if (a.jql) q.set("jql", String(a.jql).slice(0, 3000));
+  if (a.nextPageToken) q.set("nextPageToken", required(a.nextPageToken, "Page token", 4096));
+  return q;
+};
 function normalizeConfig(service, input, previous = {}) {
   if (!SERVICES.has(service))
     throw new Error("This integration is not implemented.");
@@ -111,7 +127,7 @@ function createVault(directory, safeStorage) {
     },
   };
 }
-function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl = globalThis.fetch }) {
+function createIntegrationService({ vault, assistantMemory, localGit, openExternal, fetchImpl = globalThis.fetch }) {
   const model = import("../src/lib/review-model.mjs");
   let queue = Promise.resolve();
   const serialize = (fn) => {
@@ -135,6 +151,7 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       timeout = 30000,
       config,
       jiraAgile = false,
+      jiraSoftware = false,
     } = {},
   ) {
     const c = config || configFor(service);
@@ -142,7 +159,9 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       service === "gitlab"
         ? "/api/v4"
         : service === "jira"
-          ? jiraAgile
+          ? jiraSoftware
+            ? "/rest/software/1.0"
+            : jiraAgile
             ? "/rest/agile/1.0"
             : "/rest/api/3"
           : service === "confluence"
@@ -659,8 +678,17 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
           `/issue/${enc(required(a.key, "Issue key"))}?fields=summary,description,status,assignee,priority,duedate,comment,project,issuelinks,subtasks`,
         )
       ).data,
+    "jira.openIssue": async (a) => {
+      const key = required(a.key, "Issue key");
+      if (!/^[A-Z][A-Z0-9_]*-\d+$/i.test(key)) throw new Error("Invalid Jira issue key.");
+      if (!openExternal) throw new Error("Open this issue from the desktop app.");
+      const c = configFor("jira"), site = new URL(c.url);
+      if (site.protocol !== "https:" || site.username || site.password || site.search || site.hash) throw new Error("Configure a valid Jira site URL.");
+      await openExternal(c.url.replace(/\/$/, "") + "/browse/" + enc(key));
+      return true;
+    },
     "jira.transitions": async (a) =>
-      (await request("jira", `/issue/${enc(a.key)}/transitions`)).data
+      (await request("jira", `/issue/${enc(required(a.key, "Issue key"))}/transitions?expand=transitions.fields`)).data
         .transitions,
     "jira.transition": async (a) => {
       required(String(a.transitionId || ""), "Transition");
@@ -790,7 +818,7 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       (
         await request(
           "jira",
-          `/board?type=scrum&maxResults=50&projectKeyOrId=${enc(required(a.project, "Project"))}`,
+          `/board?type=scrum&maxResults=50&startAt=${planningOffset(a.startAt)}&projectKeyOrId=${enc(required(a.project, "Project"))}`,
           { jiraAgile: true },
         )
       ).data,
@@ -798,10 +826,16 @@ function createIntegrationService({ vault, assistantMemory, localGit, fetchImpl 
       (
         await request(
           "jira",
-          `/board/${enc(required(String(a.boardId || ""), "Board"))}/sprint?state=active,future&maxResults=50`,
+          `/board/${planningId(a.boardId, "board")}/sprint?state=active,future&maxResults=50&startAt=${planningOffset(a.startAt)}`,
           { jiraAgile: true },
         )
       ).data,
+    "jira.agileIssue": async (a) =>
+      (await request("jira", `/issue/${enc(required(a.key, "Issue key"))}?fields=sprint,closedSprints`, { jiraAgile: true })).data,
+    "jira.sprintIssues": async (a) =>
+      (await request("jira", `/board/${planningId(a.boardId, "board")}/sprint/${planningId(a.sprintId, "sprint")}/issue?${planningQuery(a)}`, { jiraSoftware: true })).data,
+    "jira.backlog": async (a) =>
+      (await request("jira", `/board/${planningId(a.boardId, "board")}/backlog?${planningQuery(a)}`, { jiraSoftware: true })).data,
     "jira.moveSprint": async (a) => {
       const sprint = Number(a.sprintId);
       if (!Number.isSafeInteger(sprint) || sprint <= 0)

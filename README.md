@@ -90,7 +90,11 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 
 Personal planning changes stay local. Checking a task or moving its date does **not** change a Jira status or deadline.
 
-Jira issue search supports project, personal work, due-soon and active-sprint filters without writing JQL. Status changes are available inline; the inspector retains comment and field drafts when changing views. [Jira usability](docs/JIRA_USABILITY.md) · [Planning usability](docs/TODO_USABILITY.md).
+Jira issue search supports project, personal work, due-soon and active-sprint filters without writing JQL. Sprint planning selects a Scrum board and a specific active/future sprint or the board's backlog. Status changes are available inline; the inspector retains comment and field drafts when changing views. Required transition screens offer an explicit Open in Jira recovery action. [Jira usability](docs/JIRA_USABILITY.md) · [Planning usability](docs/TODO_USABILITY.md).
+
+Daily and weekly planning surface every loaded review request, show Jira deadline conflicts, and share canonical linked tasks with guarded undo. Exact loaded Jira keys in quick entry schedule the existing work. [Practical review: three rounds](docs/PLANNING_PRACTICAL_REVIEW.md).
+
+![Weekly planning with issue deadlines and review work](docs/media/planning-week-practical.png)
 
 <details>
 <summary><strong>More screens: dark mode, calendar, wiki and contextual assistant</strong></summary>
@@ -185,7 +189,7 @@ The Home workflow guide opens real sample workflows in one click. Every global a
 - Personal plans, recent items, favorites and review drafts are **local, unencrypted application data**. App-managed Git objects, worktrees and diff caches are also ordinary local repository data. There is no cross-device sync.
 - Git credentials are provided only to the fetch process, never stored in clone URLs/config. Worklane checks out the MR branch’s exact commit in its own worktree; it never resets your existing development checkout. See [local Git review](docs/LOCAL_GIT_REVIEW.md).
 - Service calls pass through a fixed Electron IPC action list. The renderer cannot request arbitrary URLs or run shell commands.
-- Remote wiki HTML is sanitized. External navigation and active embedded content are blocked.
+- Remote wiki HTML is sanitized. Embedded external navigation and active content are blocked. The explicit Jira recovery button opens only a validated issue browse URL at the configured HTTPS site in the system browser.
 - AI review runs only on request. Its submitted context includes bounded MR diffs and your guidelines. Assistant requests include the selected work, personal plan, up to three completed exchanges and bounded recalled memory. Memory and completed chats are OS-encrypted; the browser demo uses session-only conversations. Selecting source sends a bounded excerpt around that line with its commit SHA.
 - External writes use explicit submission buttons. Assistant task and reminder suggestions require confirmation before changing the personal plan or creating a reminder.
 
@@ -203,7 +207,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **256 browser tests**, **107 adapter/model tests**, **10 native connected workflow checks** and **5 native memory lifecycle checks** passed across the usability and sidebar-layout passes. Native profile compatibility and encrypted-vault checks also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. See [sidebar validation](docs/SIDEBAR_LAYOUT.md), the [latest team review and validation](docs/LAYERED_REVIEW_USABILITY.md), [architecture review](docs/REVIEW_ARCHITECTURE.md), [planning review](docs/TODO_USABILITY.md), [Jira review](docs/JIRA_USABILITY.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **280 browser tests**, **110 adapter/model tests**, **11 native connected workflow checks** and **5 native memory lifecycle checks** passed in the latest planning review. Native profile compatibility and encrypted-vault checks also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. See [the three-round practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md), [sidebar validation](docs/SIDEBAR_LAYOUT.md), [architecture review](docs/REVIEW_ARCHITECTURE.md), [planning review](docs/TODO_USABILITY.md), [Jira review](docs/JIRA_USABILITY.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

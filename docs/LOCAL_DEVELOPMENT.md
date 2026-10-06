@@ -115,3 +115,7 @@ The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts:
 ## Sidebar layouts — 2026-10-06
 
 [Sidebar layout validation](SIDEBAR_LAYOUT.md): **256/256 browser tests** and **10/10 native connected checks** passed, with production build and whitespace validation. Controls support expanded/icons/hidden modes, persisted last-visible state, keyboard hide/restore, preview draft/focus preservation and native window-control clearance. No adapter/model source changed in this pass.
+
+## Repeated practical planning review — 2026-10-07
+
+[Three-round daily/weekly/sprint review](PLANNING_PRACTICAL_REVIEW.md): **280/280 browser**, **110/110 adapter/model**, **11/11 native connected**, and **5/5 native memory lifecycle** checks passed. Native profile compatibility, encrypted credential vault, build and whitespace checks passed. Three agents performed initial practical audits and independent cross-review. A third round verified failed-sprint scope labeling and retained pagination; reviewers found no remaining reproducible Critical/P1/P2 within these scenarios. Native connected validation recorded 71 synthetic HTTPS requests and zero renderer errors, while using actual temporary Git repositories and Electron IPC. Company permissions, production records and live Claude quality remain unverified.

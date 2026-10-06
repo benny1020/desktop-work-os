@@ -20,3 +20,11 @@ test("Personal and due scopes exclude completed issues and order deadlines first
   assert.match(due, /duedate <= endOfDay\("\+3d"\) AND statusCategory != Done/);
   assert.match(due, /ORDER BY duedate ASC, updated DESC$/);
 });
+
+test("Board scoped sprint leaves membership to the endpoint and intersects personal filters", () => {
+  assert.equal(jiraWorkspaceQuery({ scope: "sprint", scopedSprint: true }), "ORDER BY updated DESC");
+  const mine = jiraWorkspaceQuery({ scope: "mine", scopedSprint: true, search: "PAY-382" });
+  assert.match(mine, /assignee = currentUser\(\)/);
+  assert.match(mine, /key = "PAY-382"/);
+  assert.doesNotMatch(mine, /openSprints\(\)/);
+});

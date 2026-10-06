@@ -36,7 +36,7 @@ import {
 // This is renderer memory only, matching the lifetime of the undo controls.
 const planningSessions = new Map();
 let planningUndo = { removed: null, scheduleUndo: null };
-function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete }) {
+function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete, due }) {
   const siblings = tasks.filter((item) => item.date === task.date && (item.time || "") === (task.time || ""));
   const index = siblings.findIndex((item) => item.id === task.id);
   return (
@@ -83,6 +83,7 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete 
                 : "Personal task"}{" "}
           · {task.done ? "Completed locally" : "Local plan"}
         </small>
+        {due && <div className="plan-deadline"><span className={`plan-due-badge ${due < today ? "overdue" : ""}`}>Jira due {due}</span>{!task.done && task.date && task.date > due && <span className="plan-deadline-warning">Planned after deadline</span>}</div>}
       </div>
       <div className="plan-task-actions">
         <button
@@ -130,7 +131,7 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete 
           title="Tomorrow"
           aria-label={`Tomorrow ${task.title}`}
           onClick={() =>
-            act(() => updateTask(task.id, { date: shiftDay(today, 1) }))
+            onMove(task.id, shiftDay(today, 1))
           }
         >
           <ChevronRight size={14} />
@@ -161,6 +162,9 @@ function PlanningWorkspace({
   const plan = usePlan(),
     today = dayKey();
   const planningSession = planningSessions.get(planningKey);
+  const rememberedRange = planningSession?.ranges?.[view];
+  const ranges = useRef({ ...planningSession?.ranges });
+  const explicitRange = useRef(null);
   const [editing, setEditing] = useState(null);
   const [removed, setRemoved] = useState(() => planningUndo.removed);
   const [scheduleUndo, setScheduleUndo] = useState(() => planningUndo.scheduleUndo);
@@ -170,18 +174,33 @@ function PlanningWorkspace({
   const [quickDate, setQuickDate] = useState(() => planningSession?.quickDate || null);
   const [backlogQuery, setBacklogQuery] = useState(() => planningSession?.backlogQuery || "");
   const [showCompleted, setShowCompleted] = useState(() => planningSession?.showCompleted || false);
-  const [date, setDate] = useState(() => planningSession?.date || today),
-    [mode, setMode] = useState(() => planningSession?.mode || "Week"),
+  const [date, setDate] = useState(() => focusDate || (view === "Today" ? today : rememberedRange?.date || planningSession?.date || today)),
+    [mode, setMode] = useState(() => rememberedRange?.mode || planningSession?.mode || "Week"),
     [quick, setQuick] = useState(() => planningSession?.quick || ""),
     [kind, setKind] = useState(() => planningSession?.kind || "task"),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [feed, setFeed] = useState({ issues: [], mrs: [], errors: [] }),
     [loading, setLoading] = useState(false);
+  const [expandedAttention, setExpandedAttention] = useState(false);
+  const lastRange = useRef({ view, date, mode });
+  if (lastRange.current.view === view) lastRange.current = { view, date, mode };
   useEffect(() => {
-    planningSessions.set(planningKey, { date, mode, quick, kind, quickDate, returnRange, backlogQuery, showCompleted });
+    const previous = lastRange.current;
+    if (previous.view === view) return;
+    ranges.current[previous.view] = { date: previous.date, mode: previous.mode };
+    const next = explicitRange.current?.view === view ? explicitRange.current : view === "Today" ? { date: today, mode } : ranges.current[view] || { date, mode };
+    const targetDate = focusDate || next.date;
+    lastRange.current = { view, date: targetDate, mode: next.mode };
+    setDate(targetDate); setMode(next.mode);
+    explicitRange.current = null;
+  }, [view]);
+  useEffect(() => {
+    const currentRange = lastRange.current;
+    ranges.current[view] = { date: currentRange.date, mode: currentRange.mode };
+    planningSessions.set(planningKey, { ...currentRange, ranges: { ...ranges.current }, quick, kind, quickDate, returnRange, backlogQuery, showCompleted });
     planningUndo = { removed, scheduleUndo };
-  }, [planningKey, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo, backlogQuery, showCompleted]);
+  }, [planningKey, view, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo, backlogQuery, showCompleted]);
   useEffect(() => {
     if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) setDate(focusDate);
     if (!focusTaskId) return;
@@ -236,15 +255,20 @@ function PlanningWorkspace({
       setError("");
     } catch (e) {
       setError(e.message);
+      setNotice("");
     }
   };
   function add(e) {
     e.preventDefault();
     act(() => {
       const t = parseQuick(quick, view === "Backlog" ? "" : quickDate || date);
-      addPlanTask({ ...t, kind });
+      const issue = kind === "task" && feed.issues.find((item) => item.key.toUpperCase() === t.title.toUpperCase());
+      const object = issue ? issueObject(issue) : null;
+      const existing = object && linkedPlan(object);
+      if (existing) scheduleTasks([existing], t.date, `Scheduled ${object.title} · ${t.date || "Backlog"}${t.time ? ` at ${t.time}` : ""}`, t.time ? { time: t.time } : {});
+      else addPlanTask({ ...t, kind, ...(object ? { title: object.title, object } : {}) });
       setQuick("");
-      setNotice(`Saved locally · ${t.date || "Backlog"} ${t.time}`);
+      if (!existing) setNotice(`Saved locally · ${t.date || "Backlog"} ${t.time}`);
     });
   }
   const linkedPlan = (object) => plan.tasks.find((task) => !task.done && objectKey(task.object) === objectKey(object));
@@ -263,19 +287,27 @@ function PlanningWorkspace({
     act(() => {
       const task = plan.tasks.find((item) => item.id === id);
       if (!task) return;
+      const target = before && plan.tasks.find((item) => item.id === before);
+      if (target && task.date === targetDate && (task.time || "") !== (target.time || "")) {
+        setNotice("Timed items stay in chronological order. Edit the time to move this item; drag items with the same time to reorder.");
+        return;
+      }
       moveTask(id, targetDate, before);
       if (task.date !== targetDate) {
-        setScheduleUndo({ moves: [{ id, from: task.date, to: targetDate, before: task, after: { ...task, date: targetDate } }], fromView: date, toView: targetDate });
+        const orderBefore = plan.tasks.map((item) => item.id), orderAfter = orderBefore.filter((item) => item !== id);
+        const insertion = before ? orderAfter.indexOf(before) : -1;
+        orderAfter.splice(insertion < 0 ? orderAfter.length : insertion, 0, id);
+        setScheduleUndo({ moves: [{ id, from: task.date, to: targetDate, before: task, after: { ...task, date: targetDate } }], orderBefore, orderAfter, fromView: date, toView: targetDate });
         setNotice(`Moved ${task.title} to ${targetDate || "Backlog"}.`);
-      }
+      } else setNotice(`Reordered ${task.title} · ${task.time || "untimed items"}.`);
     });
   }
-  function scheduleTasks(items, targetDate, message) {
-    const moves = items.map((task) => ({ id: task.id, from: task.date, to: targetDate, before: task, after: { ...task, date: targetDate } }));
+  function scheduleTasks(items, targetDate, message, changes = {}) {
+    const moves = items.map((task) => ({ id: task.id, from: task.date, to: targetDate, before: task, after: { ...task, ...changes, date: targetDate } }));
     const ids = new Set(moves.map((move) => move.id));
     planChange((p) => ({
       ...p,
-      tasks: p.tasks.map((task) => ids.has(task.id) ? { ...task, date: targetDate } : task),
+      tasks: p.tasks.map((task) => ids.has(task.id) ? { ...task, ...changes, date: targetDate } : task),
       activity: [...p.tasks.filter((task) => ids.has(task.id)).map((task) => ({ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${task.title}: Scheduled ${targetDate}` })), ...p.activity].slice(0, 100),
     }));
     setScheduleUndo({ moves, fromView: date, toView: targetDate });
@@ -286,13 +318,17 @@ function PlanningWorkspace({
       let restored = 0;
       planChange((p) => {
         const activity = [];
-        const tasks = p.tasks.map((task) => {
+        let tasks = p.tasks.map((task) => {
           const move = scheduleUndo.moves.find((item) => item.id === task.id);
           if (!move || JSON.stringify(task) !== JSON.stringify(move.after)) return task;
           restored++;
           activity.push({ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${task.title}: Restored schedule ${move.from || "Backlog"}` });
           return { ...move.before };
         });
+        if (restored === scheduleUndo.moves.length && scheduleUndo.orderAfter && JSON.stringify(p.tasks.map((task) => task.id)) === JSON.stringify(scheduleUndo.orderAfter)) {
+          const records = new Map(tasks.map((task) => [task.id, task]));
+          tasks = scheduleUndo.orderBefore.map((id) => records.get(id));
+        }
         return { ...p, tasks, activity: [...activity, ...p.activity].slice(0, 100) };
       });
       if (date === scheduleUndo.toView) setDate(scheduleUndo.fromView);
@@ -304,6 +340,7 @@ function PlanningWorkspace({
     if (!(view === "Calendar" && mode === "Day")) setReturnRange({ date, view, mode, selectedDay: day });
     setDate(day);
     setMode("Day");
+    explicitRange.current = { view: "Calendar", date: day, mode: "Day" };
     if (view !== "Calendar") onNavigate("My Work", "Calendar");
   }
   const issueObject = (i) => ({
@@ -319,15 +356,18 @@ function PlanningWorkspace({
     title: `!${m.iid} ${m.title}`,
     origin: configs.gitlab?.url,
   });
-  function planningAction(object, compact = false) {
+  function planningAction(object, compact = false, targetDate = today) {
     const existing = linkedPlan(object);
-    const inToday = existing?.date === today;
+    const inTarget = existing?.date === targetDate;
+    const targetLabel = targetDate === today ? "Today" : targetDate;
+    const addLabel = object.type === "mr" && !compact ? `Add review to ${targetLabel}` : compact ? targetLabel : `Add to ${targetLabel}`;
     return <div className="linked-plan-action">
-      {existing && <small>{inToday ? "Planned today" : existing.date ? `Planned ${existing.date}${existing.time ? ` at ${existing.time}` : ""}` : "In your backlog"}</small>}
-      <button className="btn" disabled={inToday} onClick={() => planObject(object)}>{inToday ? "In Today" : existing ? "Move to Today" : compact ? "Today" : "Add to Today"}</button>
+      {existing && <small>{existing.date === today ? "Planned today" : existing.date ? `Planned ${existing.date}${existing.time ? ` at ${existing.time}` : ""}` : "In your backlog"}</small>}
+      <button className="btn" disabled={inTarget} onClick={() => planObject(object, targetDate)}>{inTarget ? `In ${targetLabel}` : existing ? `Move to ${targetLabel}` : addLabel}</button>
     </div>;
   }
-  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={setEditing} onMove={movePlanTask} onComplete={completePlanTask} />;
+  const taskDue = (task) => task.object?.type === "issue" && task.object.origin === configs.jira?.url ? feed.issues.find((issue) => issue.key === task.object.key)?.fields.duedate : null;
+  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={setEditing} onMove={movePlanTask} onComplete={completePlanTask} due={taskDue(task)} />;
   function completePlanTask(task) {
     act(() => {
       updateTask(task.id, { done: !task.done });
@@ -361,7 +401,14 @@ function PlanningWorkspace({
   const backlogCompleted = plan.tasks.filter((task) => !task.date && task.done).length;
   let quickPreview = null, quickError = "";
   if (quick.trim()) {
-    try { quickPreview = parseQuick(quick, view === "Backlog" ? "" : quickDate || date); }
+    try {
+      quickPreview = parseQuick(quick, view === "Backlog" ? "" : quickDate || date);
+      const issue = kind === "task" && feed.issues.find((item) => item.key.toUpperCase() === quickPreview.title.toUpperCase());
+      if (issue) {
+        const object = issueObject(issue), existing = linkedPlan(object);
+        quickPreview = { ...quickPreview, title: object.title, linked: true, existingDate: existing ? existing.date || "Backlog" : null };
+      }
+    }
     catch (error) { quickError = error.message; }
   }
   const carryover = plan.tasks.filter((task) => !task.done && task.kind !== "event" && task.date && task.date < today)
@@ -371,10 +418,13 @@ function PlanningWorkspace({
     (i) => i.fields.duedate && i.fields.duedate <= shiftDay(today, 1),
   );
   const remaining = tasks.filter((t) => !t.done);
+  const remainingNoun = remaining.some((task) => task.kind === "event") ? "item" : "task";
   const completed = tasks.filter((t) => t.done);
   const connected = Boolean(configs.jira?.tokenConfigured || configs.gitlab?.tokenConfigured);
   const nextReview = feed.mrs[0];
   const nextIssue = !nextReview && due[0];
+  const feedPlanDate = weekly ? quickDate || date : today;
+  const availableBacklogAction = (object) => <button className="quiet-button" disabled={linkedPlan(object)?.date === ""} onClick={() => planObject(object, "")}>{linkedPlan(object)?.date === "" ? "In Backlog" : linkedPlan(object) ? "Move to Backlog" : "Backlog"}</button>;
   const carryoverRow = (task) => <div className="carryover-row" key={task.id}>
     <button className="carryover-title" onClick={() => task.object ? onOpen(task.object) : setEditing({ ...task })}>{task.title}</button>
     <time dateTime={task.date}>{task.date}</time>
@@ -496,7 +546,7 @@ function PlanningWorkspace({
         </button>
       </form>
       <div id="plan-quick-target" className={`plan-quick-target ${quickError ? "has-error" : ""}`} aria-live="polite">
-        {quickError || (quickPreview ? <><b>{quickPreview.title}</b> · {quickPreview.date || "Backlog"}{quickPreview.time && ` at ${quickPreview.time}`} · {kind === "event" ? "Event" : "Task"}</> : <>Adding to {view === "Backlog" ? "Backlog" : quickDate || date} · try “tomorrow 2pm” or a YYYY-MM-DD date</>)}
+        {quickError || (quickPreview ? <>{quickPreview.linked ? "Linked Jira task" : kind === "event" ? "Personal event" : "Personal task"} · <b>{quickPreview.title}</b> · {quickPreview.existingDate ? `Move existing plan from ${quickPreview.existingDate} to ` : ""}{quickPreview.date || "Backlog"}{quickPreview.time && ` at ${quickPreview.time}`}</> : <>Adding to {view === "Backlog" ? "Backlog" : quickDate || date} · try “tomorrow 2pm” or a YYYY-MM-DD date</>)}
       </div>
       <details className="plan-boundary">
         <summary><Link2 size={11} /> Personal plan · saved on this device</summary>
@@ -520,13 +570,18 @@ function PlanningWorkspace({
       {removed && <div role="status" className="plan-undo">
         <span>Removed <b>{removed.task.title}</b> from your plan.</span>
         <button className="quiet-button" onClick={() => act(() => {
+          let replacement = false;
           planChange((p) => {
             if (p.tasks.some((task) => task.id === removed.task.id)) return p;
+            if (!removed.task.done && removed.task.object && p.tasks.some((task) => !task.done && objectKey(task.object) === objectKey(removed.task.object))) {
+              replacement = true;
+              return p;
+            }
             const tasks = [...p.tasks];
             tasks.splice(Math.min(removed.index, tasks.length), 0, removed.task);
             return { ...p, tasks };
           });
-          setNotice(`Restored ${removed.task.title}`);
+          setNotice(replacement ? "This linked work was added again. Kept its current plan; the removed copy was not restored." : `Restored ${removed.task.title}`);
           setRemoved(null);
         })}><Undo2 size={13} /> Undo removal</button>
         <button className="quiet-button" aria-label="Dismiss undo removal" onClick={() => setRemoved(null)}>Dismiss</button>
@@ -616,7 +671,7 @@ function PlanningWorkspace({
             {view === "Backlog" && <div className="backlog-toolbar">
               <input type="search" aria-label="Search backlog" placeholder="Find a task or issue…" value={backlogQuery} onChange={(event) => setBacklogQuery(event.target.value)} />
               <label className="backlog-completed"><input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} />Show completed{backlogCompleted > 0 && ` (${backlogCompleted})`}</label>
-              {remaining.length > 0 && <button className="btn" onClick={() => act(() => scheduleTasks(remaining, date, `Scheduled ${remaining.length} shown ${remaining.length === 1 ? "task" : "tasks"} for ${date}.`))}>Schedule {remaining.length} shown {remaining.length === 1 ? "task" : "tasks"} for {date}</button>}
+              {remaining.length > 0 && <button className="btn" onClick={() => act(() => scheduleTasks(remaining, date, `Scheduled ${remaining.length} shown ${remainingNoun}${remaining.length === 1 ? "" : "s"} for ${date}.`))}>Schedule {remaining.length} shown {remainingNoun}{remaining.length === 1 ? "" : "s"} for {date}</button>}
             </div>}
             {tasks.length ? (
               tasks.map(taskRow)
@@ -649,7 +704,7 @@ function PlanningWorkspace({
               <span className="pill">{feed.mrs.length + due.length}</span>
             </h2>
             <p className="form-note">Reviews waiting on you and deadlines coming up.</p>
-            {feed.mrs.slice(0, 5).map((m) => (
+            {feed.mrs.slice(0, expandedAttention ? undefined : 5).map((m) => (
               <div key={m.id} className={`attention-row ${home && m === nextReview ? "attention-recommended" : ""}`}>
                 {home && m === nextReview && <span className="attention-kicker">A good place to start <ArrowUpRight size={12} /></span>}
                 <GitPullRequest size={16} />
@@ -663,18 +718,20 @@ function PlanningWorkspace({
                 {planningAction(mrObject(m), true)}
               </div>
             ))}
-            {due.slice(0, 5).map((i) => (
+            {due.slice(0, expandedAttention ? undefined : 5).map((i) => (
               <div key={i.key} className={`attention-row ${home && i === nextIssue ? "attention-recommended" : ""}`}>
                 {home && i === nextIssue && <span className="attention-kicker">Coming up next <ArrowUpRight size={12} /></span>}
                 <button onClick={() => onOpen(issueObject(i))}>
                   <b>
                     {i.key} {i.fields.summary}
                   </b>
-                  <small>Due {i.fields.duedate}</small>
+                  <small>{i.fields.duedate < today ? "Overdue" : "Jira due"} {i.fields.duedate}</small>
                 </button>
                 {planningAction(issueObject(i), true)}
               </div>
             ))}
+            {(feed.mrs.length > 5 || due.length > 5) && <button className="quiet-button attention-expand" onClick={() => setExpandedAttention(!expandedAttention)}>{expandedAttention ? "Show fewer attention items" : `Show ${Math.max(0, feed.mrs.length - 5) + Math.max(0, due.length - 5)} more attention items`}</button>}
+            {(feed.mrs.length || due.length) > 0 && <p className="form-note attention-coverage">Loaded attention items · open My Reviews or Projects for all service results.</p>}
             {!feed.mrs.length && !due.length && !loading && !feed.errors.length && (
               <div className="attention-clear"><CheckCircle2 size={20} />
                 <b>{connected ? "Nothing urgent in loaded work" : "Your work, in one place"}</b>
@@ -693,22 +750,25 @@ function PlanningWorkspace({
               : `${feed.issues.length} issues · ${feed.mrs.length} reviews`}
           </span>
         </h2>
+        {weekly && <p className="form-note available-plan-date">Plan work for <b>{feedPlanDate}</b> · choose a date above or “Plan here” in a day.</p>}
         {feed.issues.map((i) => (
-          <div className="inbox-work" key={i.key}>
+          <div className="inbox-work" key={i.key} data-linked-work={i.key}>
             <button onClick={() => onOpen(issueObject(i))}>
               <code>{i.key}</code> {i.fields.summary}
             </button>
             <span className="pill">{i.fields.status?.name}</span>
-            {planningAction(issueObject(i))}
-            <button
-              className="quiet-button"
-              disabled={linkedPlan(issueObject(i))?.date === ""}
-              onClick={() => planObject(issueObject(i), "")}
-            >
-              {linkedPlan(issueObject(i))?.date === "" ? "In Backlog" : linkedPlan(issueObject(i)) ? "Move to Backlog" : "Backlog"}
-            </button>
+            {i.fields.duedate && <span className="plan-due-badge">Jira due {i.fields.duedate}</span>}
+            {linkedPlan(issueObject(i))?.date > i.fields.duedate && i.fields.duedate && <span className="plan-deadline-warning">Planned after deadline</span>}
+            {planningAction(issueObject(i), false, feedPlanDate)}
+            {availableBacklogAction(issueObject(i))}
           </div>
         ))}
+        {feed.mrs.map((mr) => <div className="inbox-work available-review" key={`${mr.project_id}:${mr.iid}`} data-linked-work={`mr:${mr.project_id}:${mr.iid}`}>
+          <button onClick={() => onOpen(mrObject(mr))}><GitPullRequest size={13} /><code>!{mr.iid}</code> {mr.title}</button>
+          <span className="pill">Review requested</span>
+          {planningAction(mrObject(mr), false, feedPlanDate)}
+          {availableBacklogAction(mrObject(mr))}
+        </div>)}
         {!configs.jira?.tokenConfigured && (
           <button className="btn" onClick={onSettings}>
             Connect Jira to see assigned issues

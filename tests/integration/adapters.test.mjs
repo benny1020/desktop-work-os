@@ -33,7 +33,7 @@ const gitMR = {
   diff_refs: { head_sha: head, base_sha: base, start_sha: start },
 };
 const file = { old_path: "src/Service.ts", new_path: "src/Service.ts", diff };
-async function fixture(t, { status = 200, reply, changeHead = false } = {}) {
+async function fixture(t, { status = 200, reply, changeHead = false, openExternal } = {}) {
   const calls = [];
   let details = 0;
   const server = http.createServer(async (req, res) => {
@@ -121,7 +121,7 @@ async function fixture(t, { status = 200, reply, changeHead = false } = {}) {
     async readFile(args) { localCalls.push({action:'readFile',args}); return {content:'export const actualCode = true;',...args,local:true}; },
   };
   const engine = createIntegrationService({
-    vault, localGit,
+    vault, localGit, openExternal,
     fetchImpl: (url, opts) =>
       fetch(
         `http://127.0.0.1:${server.address().port}${new URL(url).pathname}${new URL(url).search}`,
@@ -340,6 +340,10 @@ test("scoped Atlassian tokens route via cloud ID without reflecting token", asyn
     calls[0].path,
     /^\/ex\/jira\/12345678-abcd-1234-abcd-123456789012\/rest\/api\/3/,
   );
+  await engine.invoke("jira.sprintIssues", { boardId: 10, sprintId: 25 });
+  assert.match(calls.at(-1).path, /^\/ex\/jira\/12345678-abcd-1234-abcd-123456789012\/rest\/software\/1\.0\/board\/10\/sprint\/25\/issue$/);
+  await engine.invoke("jira.agileIssue", { key: "PAY-382" });
+  assert.match(calls.at(-1).path, /^\/ex\/jira\/12345678-abcd-1234-abcd-123456789012\/rest\/agile\/1\.0\/issue\/PAY-382$/);
   const configs = await engine.invoke("config.list");
   assert.equal(JSON.stringify(configs).includes("secret"), false);
   assert.equal(configs.jira.tokenConfigured, true);
@@ -516,6 +520,31 @@ test('Jira sprint changes use Agile API prefix and only one explicit issue',asyn
  await engine.invoke('jira.sprints',{boardId:10});assert.equal(calls.at(-1).path,'/rest/agile/1.0/board/10/sprint');
  await engine.invoke('jira.moveSprint',{key:'PAY-382',sprintId:25});assert.deepEqual(calls.at(-1).body,{issues:['PAY-382']});assert.equal(calls.at(-1).path,'/rest/agile/1.0/sprint/25/issue');
  await assert.rejects(engine.invoke('jira.moveSprint',{key:'PAY-382',sprintId:'garbage'}),/Choose a sprint/);
+});
+test('Jira planning uses enhanced board-scoped reads and independent Agile membership', async t => {
+ const {engine,calls}=await fixture(t,{reply:c=>c.path.includes('/rest/software/')?{issues:[],isLast:false,nextPageToken:'next/&'}:undefined});
+ const result=await engine.invoke('jira.sprintIssues',{boardId:10,sprintId:25,jql:'assignee = currentUser()',nextPageToken:'next/&'});
+ assert.equal(calls.at(-1).path,'/rest/software/1.0/board/10/sprint/25/issue');
+ assert.equal(calls.at(-1).query.get('jql'),'assignee = currentUser()');
+ assert.equal(calls.at(-1).query.get('nextPageToken'),'next/&');
+ assert.equal(result.nextPageToken,'next/&');
+ await engine.invoke('jira.backlog',{boardId:10});assert.equal(calls.at(-1).path,'/rest/software/1.0/board/10/backlog');
+ assert.match(calls.at(-1).query.get('fields'),/sprint/);
+ await engine.invoke('jira.agileIssue',{key:'PAY-382'});assert.equal(calls.at(-1).path,'/rest/agile/1.0/issue/PAY-382');assert.equal(calls.at(-1).query.get('fields'),'sprint,closedSprints');
+ await engine.invoke('jira.transitions',{key:'PAY-382'});assert.equal(calls.at(-1).query.get('expand'),'transitions.fields');
+ await engine.invoke('jira.boards',{project:'PAY',startAt:50});assert.equal(calls.at(-1).query.get('startAt'),'50');
+ await engine.invoke('jira.sprints',{boardId:10,startAt:100});assert.equal(calls.at(-1).query.get('startAt'),'100');
+ const before=calls.length;
+ for(const args of [{boardId:'../1',sprintId:25},{boardId:10,sprintId:0}]) await assert.rejects(engine.invoke('jira.sprintIssues',args),/Choose a/);
+ await assert.rejects(engine.invoke('jira.boards',{project:'PAY',startAt:-1}),/Invalid planning page/);
+ assert.equal(calls.length,before);assert.equal(calls.every(c=>c.method==='GET'),true);
+});
+test('Jira recovery opens only an explicit issue at the configured HTTPS site', async t => {
+ const opened=[];const {engine,calls}=await fixture(t,{openExternal:async url=>opened.push(url)});
+ await engine.invoke('jira.openIssue',{key:'PAY-382'});
+ assert.deepEqual(opened,['https://jira.example.test/browse/PAY-382']);assert.equal(calls.length,0);
+ for(const key of ['https://evil.test','PAY-1/../../x','PAY-1?next=x','../PAY-1']) await assert.rejects(engine.invoke('jira.openIssue',{key}),/Invalid Jira/);
+ assert.equal(opened.length,1);
 });
 
 test("Claude follow-ups send bounded completed turns and reject privileged history", async (t) => {

@@ -44,3 +44,17 @@
   .jira-advanced .jql-search { flex-wrap: wrap; }
   .jira-advanced .jql-search label { min-width: 200px; }
 }
+
+.jira-sprint-scope { border-top: 1px solid var(--line); padding-top: 3px; margin-bottom: 12px; }
+.jira-sprint-scope p { font-size: 11px; line-height: 1.6; color: var(--text); margin: 8px 0; }
+.jira-sprint-scope p span { color: var(--secondary); }
+.jira-sprint-scope select { max-width: 300px; }
+.plan-object-popover { flex-basis: 100%; border: 1px solid var(--line-strong); border-radius: 5px; padding: 12px; display: grid; gap: 10px; background: var(--surface); }
+.plan-object-popover b { font-size: 12px; }
+.plan-object-popover label { font-size: 11px; display: flex; align-items: center; gap: 8px; }
+.plan-object-popover input { min-width: 0; max-width: 180px; }
+.plan-object-popover small { line-height: 1.6; }
+
+.jira-scope-mismatch { color: var(--amber); background: var(--surface); border-left: 2px solid var(--amber); padding: 8px 10px; font-size: 11px; line-height: 1.6; }
+.plan-object-action .plan-object-popover label { flex-direction: row; margin: 0; justify-content: space-between; }
+.plan-object-action .plan-object-popover .inline { margin: 0; }

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, net, Notification, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, net, Notification, powerMonitor, shell } = require("electron");
 const path = require("node:path");
 // Keep the original profile directory so renaming preserves encrypted tokens,
 // drafts and Chromium localStorage. ORBIT_USER_DATA_DIR remains a test alias.
@@ -37,6 +37,7 @@ app.whenReady().then(() => {
   const vault = createVault(app.getPath("userData"), safeStorage);
   const assistantMemory = createAssistantMemoryStore({ directory: app.getPath("userData"), safeStorage, getConfigs: () => vault.read() });
   integrationService = createIntegrationService({
+    openExternal: (url) => shell.openExternal(url),
     fetchImpl: (url, options) => net.fetch(url, options),
     vault,
     assistantMemory,

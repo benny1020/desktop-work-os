@@ -26,10 +26,12 @@ test("Project, assigned-to-me, and issue-key search produce server queries witho
 test("Sprint opens active sprint issues immediately and describes the actual scope", async ({ page }) => {
   await projects(page);
   await page.getByRole("button", { name: "Sprint", exact: true }).click();
-  await expect.poll(async () => (await queryCalls(page)).at(-1)?.args.jql).toContain("sprint in openSprints()");
-  expect((await queryCalls(page)).at(-1).args.jql).not.toContain("updated >= -30d");
+  await expect(page.getByLabel("Jira planning sprint")).toHaveValue("24");
+  const calls = await page.evaluate(() => window.__fixture.calls.filter(call => call.action === "jira.sprintIssues"));
+  expect(calls.at(-1).args).toMatchObject({ boardId: "10", sprintId: "24" });
+  expect(calls.at(-1).args.jql).not.toContain("updated >= -30d");
   await expect(page.getByLabel("Jira work filter")).toHaveValue("sprint");
-  await expect(page.locator(".live-mode-note")).toContainText("Issues in active sprints");
+  await expect(page.locator(".live-mode-note")).toContainText("Issues in the selected sprint");
 });
 
 test("Changing project views and filters keeps the open inspector and field/comment drafts", async ({ page }) => {
@@ -276,7 +278,7 @@ for (const type of ["issue", "mr"]) test(`Already planned ${type} shows its date
   await action.getByRole("button", { name: "Undo schedule move", exact: true }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("orbit.connected.plan.v1")).tasks[0].date)).toBe(dates.tomorrow);
   await action.getByRole("button", { name: "Move to Today", exact: true }).click();
-  await page.evaluate(async () => { const planning = await import("/src/lib/planning.js"); planning.updateTask("planned-source", { time: "15:00" }); });
+  await page.evaluate(async () => { const activeModule = performance.getEntriesByType("resource").find(entry => new URL(entry.name).pathname === "/src/lib/planning.js")?.name || "/src/lib/planning.js"; const planning = await import(activeModule); planning.updateTask("planned-source", { time: "15:00" }); });
   await action.getByRole("button", { name: "Undo schedule move", exact: true }).click();
   const plan = await page.evaluate(() => JSON.parse(localStorage.getItem("orbit.connected.plan.v1")));
   expect(plan.tasks).toHaveLength(1);

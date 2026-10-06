@@ -21,7 +21,7 @@ test("Quick entry previews the actual parsed title, date and time before saving"
   const preview = page.locator("#plan-quick-target");
   const today = await page.getByLabel("Planning date").inputValue();
   const tomorrow = await page.evaluate((day) => { const d = new Date(day + "T12:00:00"); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }, today);
-  await expect(preview).toHaveText(`Check payment retries · ${tomorrow} at 14:00 · Task`);
+  await expect(preview).toHaveText(`Personal task · Check payment retries · ${tomorrow} at 14:00`);
   await page.getByRole("button", { name: "Add to plan", exact: true }).click();
   expect((await tasks(page))[0]).toMatchObject({ title: "Check payment retries", date: tomorrow, time: "14:00" });
   await page.getByLabel("Quick add personal work").fill("Validate retry policy 2026-02-30");

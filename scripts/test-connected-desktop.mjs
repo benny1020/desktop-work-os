@@ -67,10 +67,16 @@ try {
             assignee: { accountId: "alex", displayName: "Alex Kim" },
             duedate: "2026-10-04",
             comment: { comments: [] },
+            sprint: { id: 24, name: "Sprint 24", state: "active" },
           },
         };
         let data;
         if (u.pathname.endsWith("/search/jql")) data = { issues: [issue] };
+        else if (u.pathname.endsWith("/rest/api/3/project/search")) data = { values: [{ id: "100", key: "PAY", name: "Payments" }], isLast: true };
+        else if (u.pathname.endsWith("/rest/agile/1.0/board")) data = { values: [{ id: 10, name: "Payments Scrum" }], isLast: true };
+        else if (u.pathname.endsWith("/board/10/sprint")) data = { values: [{ id: 24, name: "Sprint 24", state: "active", startDate: "2026-10-05T09:00:00Z", endDate: "2026-10-16T17:00:00Z" }, { id: 25, name: "Sprint 25", state: "future" }], isLast: true };
+        else if (u.pathname.endsWith("/board/10/sprint/24/issue")) data = { issues: [issue], isLast: true };
+        else if (u.pathname.endsWith("/board/10/sprint/25/issue") || u.pathname.endsWith("/board/10/backlog")) data = { issues: [], isLast: true };
         else if (u.pathname.endsWith("/transitions"))
           data = { transitions: [{ id: "31", name: "Done" }] };
         else if (u.pathname.includes("/issue/PAY-")) data = issue;
@@ -168,7 +174,7 @@ try {
       });
   });
   await p.getByLabel("Workspace data mode").selectOption("connected");
-  await expect(p.locator(".inbox-work")).toContainText(
+  await expect(p.locator('.inbox-work[data-linked-work="PAY-382"]')).toContainText(
     "Payment retry implementation",
   );
   evidence.checks.push("Connected home through native adapters");
@@ -327,6 +333,19 @@ try {
   ).toBeVisible();
   await p.screenshot({ path: path.join(out, "electron-search-dark.png") });
   evidence.checks.push("Native keyboard search and dark theme");
+  await p.keyboard.press("Escape");
+  await p.locator('nav .nav-item[aria-label="Projects"]').click();
+  await p.locator('nav .subnav button[aria-label="Sprint"]').click();
+  await expect(p.getByLabel("Jira planning board")).toHaveValue("10");
+  await expect(p.getByLabel("Jira planning sprint")).toHaveValue("24");
+  await expect(p.locator(".live-board-card")).toContainText("Payment retry implementation");
+  await p.getByLabel("Jira planning sprint").selectOption("25");
+  await expect(p.getByRole("heading", { name: "Sprint 25", exact: true })).toBeVisible();
+  await expect(p.locator(".live-board-card")).toHaveCount(0);
+  await p.getByLabel("Jira planning sprint").selectOption("backlog");
+  await expect(p.getByRole("heading", { name: "Board backlog", exact: true })).toBeVisible();
+  await p.screenshot({ path: path.join(out, "electron-sprint-planning.png") });
+  evidence.checks.push("Specific active/future sprint and true board backlog through native Jira Software adapters");
   const calls = await app.evaluate(() => global.__fixtureCalls);
   const localCalls = await app.evaluate(() => global.__localGitCalls);
   expect(calls.filter(call => call.path.endsWith('/diffs') || call.path.includes('/repository/files/'))).toEqual([]);

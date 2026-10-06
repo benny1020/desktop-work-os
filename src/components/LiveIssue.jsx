@@ -5,6 +5,7 @@ import PlanObjectButton from "./PlanObjectButton";
 import CrossToolContext from "./CrossToolContext";
 import { useAutoSync } from "../lib/use-auto-sync";
 import SyncStatus from "./SyncStatus";
+import { nextAgilePage, requiredTransitionFields } from "../lib/jira-workspace.mjs";
 function Pending() {
   return <p className="form-note">Loading issue…</p>;
 }
@@ -36,6 +37,8 @@ export default function JiraIssue({
   const draftOwner = useRef(draftKey);
   const sprintRequest = useRef(0);
   const transitionRequest = useRef(0);
+  const membershipRequest = useRef(0);
+  const accountRef = useRef("");
   const fieldSnapshot = useRef(null);
   activeKey.current = scopeKey;
   const isActive = (scope = scopeKey) => mounted.current && activeKey.current === scope;
@@ -63,6 +66,7 @@ export default function JiraIssue({
     [notice, setNotice] = useState("");
   const [peopleBusy, setPeopleBusy] = useState(false), [planningBusy, setPlanningBusy] = useState(false),
     [transitionError, setTransitionError] = useState(""), [transitionLoading, setTransitionLoading] = useState(false);
+  accountRef.current = account;
   useEffect(() => {
     if (draftOwner.current !== draftKey) return;
     try {
@@ -89,7 +93,10 @@ export default function JiraIssue({
     setPeopleBusy(true); setError("");
     try {
       const result = await invoke("jira.assignees", { key: item.key, query: personQuery });
-      if (isActive() && ticket === peopleRequest.current) setPeople(result);
+      if (isActive() && ticket === peopleRequest.current) setPeople(previous => {
+        const selected = previous.find(person => person.accountId === accountRef.current);
+        return selected && !result.some(person => person.accountId === selected.accountId) ? [selected, ...result] : result;
+      });
     } catch (e) {
       if (isActive() && ticket === peopleRequest.current) setError(e.message);
     } finally {
@@ -130,6 +137,13 @@ export default function JiraIssue({
     [boards, setBoards] = useState([]),
     [sprints, setSprints] = useState([]),
     [sprint, setSprint] = useState(""),
+    [board, setBoard] = useState(""),
+    [boardMore, setBoardMore] = useState(null),
+    [sprintMore, setSprintMore] = useState(null),
+    [sprintBusy, setSprintBusy] = useState(false),
+    [membership, setMembership] = useState(null),
+    [membershipError, setMembershipError] = useState(""),
+    [membershipLoading, setMembershipLoading] = useState(false),
     [priority, setPriority] = useState("");
   async function loadPlanning() {
     if (planningBusy) return;
@@ -145,7 +159,9 @@ export default function JiraIssue({
       ]);
       if (!isActive() || ticket !== planningRequest.current) return;
       if (m.status === "fulfilled") setMeta(m.value);
-      if (b.status === "fulfilled") setBoards(b.value.values || []);
+      if (b.status === "fulfilled") {
+        setBoards(previous => [...(b.value.values || []), ...previous.filter(option => String(option.id) === board && !(b.value.values || []).some(value => value.id === option.id))]); setBoardMore(nextAgilePage(b.value));
+      }
       const failures = [m, b].filter(result => result.status === "rejected");
       if (failures.length) setError(failures.map(result => result.reason.message).join(" · "));
     } catch (e) {
@@ -154,45 +170,78 @@ export default function JiraIssue({
       if (isActive() && ticket === planningRequest.current) setPlanningBusy(false);
     }
   }
-  async function chooseBoard(id) {
+  async function moreBoards() {
+    if (planningBusy || boardMore === null) return;
+    const ticket = ++planningRequest.current;
+    setPlanningBusy(true); setError("");
+    try {
+      const result = await invoke("jira.boards", { project: issue.fields.project?.key || item.key.split("-")[0], startAt: boardMore });
+      if (isActive() && ticket === planningRequest.current) {
+        setBoards(previous => [...new Map([...previous, ...(result.values || [])].map(board => [board.id, board])).values()]);
+        setBoardMore(nextAgilePage(result));
+      }
+    } catch (e) { if (isActive() && ticket === planningRequest.current) setError(e.message); }
+    finally { if (isActive() && ticket === planningRequest.current) setPlanningBusy(false); }
+  }
+  async function chooseBoard(id, startAt = 0) {
     const ticket = ++sprintRequest.current;
     const key = scopeKey;
-    setSprints([]);
-    setSprint("");
+    if (!startAt) { setBoard(id); setSprints([]); setSprint(""); setSprintMore(null); }
     setError("");
-    if (!id) return;
+    if (!id) { setSprintBusy(false); return; }
+    setSprintBusy(true);
     try {
-      const result = await invoke("jira.sprints", { boardId: id });
-      if (mounted.current && activeKey.current === key && sprintRequest.current === ticket)
-        setSprints(result.values || []);
+      const result = await invoke("jira.sprints", { boardId: id, startAt });
+      if (mounted.current && activeKey.current === key && sprintRequest.current === ticket) {
+        setSprints(previous => startAt ? [...new Map([...previous, ...(result.values || [])].map(sprint => [sprint.id, sprint])).values()] : result.values || []);
+        setSprintMore(nextAgilePage(result));
+      }
     } catch (e) {
-      if (mounted.current && activeKey.current === key && sprintRequest.current === ticket)
-        setError(e.message);
-    }
+      if (mounted.current && activeKey.current === key && sprintRequest.current === ticket) setError(e.message);
+    } finally { if (mounted.current && activeKey.current === key && sprintRequest.current === ticket) setSprintBusy(false); }
   }
   async function savePlanning(kind) {
+    const submittedSprint = sprint;
+    if (kind === "sprint" && (!submittedSprint || String(membership?.sprint?.id) === submittedSprint)) return;
     if (!beginMutation()) return;
+    let accepted = false;
     try {
       if (kind === "sprint")
-        await invoke("jira.moveSprint", { key: item.key, sprintId: sprint });
+        await invoke("jira.moveSprint", { key: item.key, sprintId: submittedSprint });
       else await invoke("jira.edit", { key: item.key, priorityId: priority });
       if (!isActive()) return;
+      accepted = true;
+      if (kind === "sprint") {
+        setSprint(current => current === submittedSprint ? "" : current);
+        setMembership(current => ({ ...current, sprint: sprints.find(option => String(option.id) === submittedSprint) || { id: Number(submittedSprint), name: `Sprint ${submittedSprint}` } }));
+      }
       setNotice(
         kind === "sprint"
-          ? "Sprint updated in Jira"
+          ? `Sprint updated in Jira · ${sprints.find(option => String(option.id) === submittedSprint)?.name || `Sprint ${submittedSprint}`}`
           : "Priority updated in Jira",
       );
       if (await load(() => true, true)) onChanged?.();
     } catch (e) {
-      if (isActive()) setError(e.message);
+      if (isActive()) { if (accepted) setReadError(`Update saved in Jira. Issue refresh failed: ${e.message}`); else setError(e.message); }
     } finally {
       endMutation();
     }
+  }
+  async function readMembership(issueTicket, isCurrent, afterMutation) {
+    const ticket = ++membershipRequest.current;
+    setMembershipLoading(true);
+    const ownsRequest = () => isActive() && isCurrent() && issueTicket === requestVersion.current && ticket === membershipRequest.current && (!mutationBusy.current || afterMutation);
+    try {
+      const result = await invoke("jira.agileIssue", { key: item.key });
+      if (ownsRequest()) { setMembership(result.fields); setMembershipError(""); }
+    } catch (e) { if (ownsRequest()) setMembershipError(e.message); }
+    finally { if (isActive() && ticket === membershipRequest.current) setMembershipLoading(false); }
   }
   async function load(isCurrent = () => true, afterMutation = false) {
     if (!isActive() || (mutationBusy.current && !afterMutation)) return false;
     const ticket = ++requestVersion.current;
     const optionTicket = ++transitionRequest.current;
+    void readMembership(ticket, isCurrent, afterMutation);
     try {
       const [issueResult, transitionResult] = await Promise.allSettled([
         invoke("jira.issue", { key: item.key }),
@@ -255,7 +304,8 @@ export default function JiraIssue({
     setMeta(null);
     setBoards([]);
     setSprints([]);
-    setSprint("");
+    setSprint(""); setBoard(""); setBoardMore(null); setSprintMore(null); setSprintBusy(false);
+    setMembership(null); setMembershipError(""); setMembershipLoading(false); membershipRequest.current++;
     setError("");
     setReadError("");
     setNotice("");
@@ -277,16 +327,17 @@ export default function JiraIssue({
       if (kind === "comment") {
         const submittedText = text;
         await invoke("jira.comment", { key: item.key, body: submittedText });
-        if (!isActive()) return;
-        accepted = true;
-        setNotice("Comment posted to Jira.");
         try {
           if (localStorage.getItem(draftKey) === submittedText) localStorage.removeItem(draftKey);
         } catch {
           if (isActive()) setError("Your comment was posted, but its saved draft could not be cleared.");
         }
+        if (!isActive()) return;
+        accepted = true;
+        setNotice("Comment posted to Jira.");
         setText((current) => (current === submittedText ? "" : current));
       } else {
+        if (requiredTransitionFields(transitions.find(option => String(option.id) === transition)).length) return;
         await invoke("jira.transition", {
           key: item.key,
           transitionId: transition,
@@ -355,12 +406,16 @@ export default function JiraIssue({
               ))}
             </select>
           </label>
+          {requiredTransitionFields(transitions.find(option => String(option.id) === transition)).length > 0 && <div className="form-note">
+            This transition requires {requiredTransitionFields(transitions.find(option => String(option.id) === transition)).join(", ")}. Complete it in Jira.
+            <button className="btn" onClick={() => invoke("jira.openIssue", { key: item.key }).catch(e => setError(e.message))}>Open in Jira</button>
+          </div>}
           {transitionError && <div className="connection-error" role="alert">Status options unavailable. {transitionError}
             <button className="btn" disabled={busy || transitionLoading} onClick={retryTransitions}>Retry status options</button>
           </div>}
           <button
             className="btn"
-            disabled={!transition || busy || transitionLoading || Boolean(transitionError)}
+            disabled={!transition || busy || transitionLoading || Boolean(transitionError) || requiredTransitionFields(transitions.find(option => String(option.id) === transition)).length > 0}
             onClick={() => update("status")}
           >
             Apply in Jira
@@ -424,6 +479,8 @@ export default function JiraIssue({
           </div>
           <details className="issue-planning-details" onToggle={event => { if (event.currentTarget.open && !meta && !planningBusy) loadPlanning(); }}>
             <summary>Sprint & priority</summary>
+            <p className="form-note" aria-label="Jira sprint membership">{membership?.sprint ? `Current Jira sprint: ${membership.sprint.name}` : membership ? "Not in an active/future Jira sprint" : membershipLoading ? "Reading sprint membership…" : "Sprint membership unavailable"}</p>
+            {membershipError && <p className="jira-filter-warning" role="status">Sprint membership refresh unavailable. {membership ? "Showing the last known membership. " : ""}{membershipError}<button className="btn" disabled={busy || sync.syncing} onClick={() => sync.run()}>Retry sprint membership</button></p>}
             <button className="btn" disabled={planningBusy || busy} onClick={loadPlanning}>
               Refresh project options
             </button>
@@ -457,7 +514,7 @@ export default function JiraIssue({
                   <select
                     aria-label="Jira scrum board"
                     onChange={(e) => chooseBoard(e.target.value)}
-                    defaultValue=""
+                    value={board}
                   >
                     <option value="">Choose board</option>
                     {boards.map((b) => (
@@ -467,10 +524,12 @@ export default function JiraIssue({
                     ))}
                   </select>
                 </label>
+                {boardMore !== null && <button className="btn" disabled={planningBusy || busy} onClick={moreBoards}>Load more issue boards</button>}
                 <label>
                   Sprint
                   <select
                     aria-label="Jira sprint"
+                    disabled={sprintBusy || !board}
                     value={sprint}
                     onChange={(e) => setSprint(e.target.value)}
                   >
@@ -484,15 +543,13 @@ export default function JiraIssue({
                 </label>
                 <button
                   className="btn"
-                  disabled={!sprint || busy}
+                  disabled={!sprint || busy || sprintBusy || String(membership?.sprint?.id) === sprint}
                   onClick={() => savePlanning("sprint")}
                 >
                   Move to sprint in Jira
                 </button>
-                <p className="form-note">
-                  Showing up to 50 boards and sprints. Available options depend
-                  on your project access and Jira settings.
-                </p>
+                {sprintMore !== null && <button className="btn" disabled={sprintBusy || busy} onClick={() => chooseBoard(board, sprintMore)}>Load more issue sprints</button>}
+                <p className="form-note">{boards.length} boards · {sprints.length} sprint options loaded{boardMore !== null || sprintMore !== null ? " · More available" : ""}. Jira sprint membership and personal planning are independent.</p>
               </>
             )}
           </details>

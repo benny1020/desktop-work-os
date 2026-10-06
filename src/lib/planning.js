@@ -22,7 +22,22 @@ export function usePlan() {
   }, read);
 }
 export function planChange(fn) {
-  const next = fn(read());
+  const previous = read();
+  const next = fn(previous);
+  const counts = (plan) => {
+    const linked = new Map();
+    for (const task of plan.tasks) if (!task.done && task.object) {
+      const key = objectKey(task.object);
+      linked.set(key, (linked.get(key) || 0) + 1);
+    }
+    return linked;
+  };
+  const before = counts(previous);
+  for (const [key, count] of counts(next)) {
+    // Existing duplicate records can still be edited or removed. No action may
+    // introduce an additional unfinished copy of the same linked work.
+    if (count > 1 && count > (before.get(key) || 0)) throw Error("This linked work already has an unfinished item in your plan. Its current schedule was kept.");
+  }
   // Persist first: failure must not look like a successful save.
   localStorage.setItem(KEY, JSON.stringify(next));
   current = next;

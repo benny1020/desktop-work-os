@@ -297,7 +297,7 @@ import AssistantAvatar from "./components/AssistantAvatar";
 import { advanceAssistantCredentialScope } from "./lib/assistant-session";
 import ConnectedObjects from "./components/ConnectedObjects";
 import ConnectedAttention from "./components/ConnectedAttention";
-import {usePlan, parseQuick} from "./lib/planning";
+import {usePlan, parseQuick, dayKey} from "./lib/planning";
 import "./workspace.css";
 import "./product-polish.css";
 import ProductGuide, { WorklaneMark } from "./components/ProductGuide";
@@ -512,10 +512,19 @@ function App() {
       next.planDate = scope.planDate;
       next.focusRequestId = ++planningNavigationRequest.current;
     }
+    const enterToday = workspaceMode === "connected" && section === "My Work" && next.view === "Today" && !scope?.taskId;
+    if (enterToday) {
+      next.planDate = dayKey();
+      next.focusRequestId = ++planningNavigationRequest.current;
+    }
     if (JSON.stringify(next) !== JSON.stringify(route)) {
       setRoute(next);
-      setHistory((h) => [...h.slice(0, historyIndex + 1), next]);
-      setHistoryIndex(historyIndex + 1);
+      if (enterToday && route.section === section && route.view === next.view) {
+        setHistory(h => h.map((entry, index) => index === historyIndex ? next : entry));
+      } else {
+        setHistory((h) => [...h.slice(0, historyIndex + 1), next]);
+        setHistoryIndex(historyIndex + 1);
+      }
     }
     setNotifications(false);
     setInspector(null);

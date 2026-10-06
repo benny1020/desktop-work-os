@@ -1,5 +1,7 @@
 # Personal planning usability review
 
+The [three-round practical planning review](PLANNING_PRACTICAL_REVIEW.md) records the latest corrections and validation: Today navigation intent, per-view range memory, canonical duplicate guards across removal/reopen, all loaded MR planning, linked-key quick entry, deadline conflict visibility and guarded date/order undo. The current integrated browser suite passes 280 tests.
+
 The Today, This Week, Backlog and Calendar views share one local task dataset. Scheduling and completion in this space do not change Jira status or due dates. Linked items open the connected issue or merge request for further work.
 
 ## Corrections

@@ -58,8 +58,8 @@ test("Weekly planning: backlog drag into date and month/week/day use same work",
   page,
 }) => {
   await page
+    .locator('.live-inbox [data-linked-work="PAY-382"]')
     .getByRole("button", { name: "Backlog", exact: true })
-    .last()
     .click();
   await page
     .getByRole("button", { name: "This Week", exact: true })

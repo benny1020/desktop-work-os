@@ -6,8 +6,8 @@ export const jiraScopes = [
   { id: "sprint", label: "Active sprint", clause: "sprint in openSprints()" },
 ];
 const literal = value => JSON.stringify(String(value));
-export function jiraWorkspaceQuery({ scope = "recent", project = "", search = "" } = {}) {
-  const clauses = [jiraScopes.find(item => item.id === scope)?.clause || jiraScopes[0].clause];
+export function jiraWorkspaceQuery({ scope = "recent", project = "", search = "", scopedSprint = false } = {}) {
+  const clauses = scopedSprint && scope === "sprint" ? [] : [jiraScopes.find(item => item.id === scope)?.clause || jiraScopes[0].clause];
   if (project) clauses.push(`project = ${literal(project)}`);
   const query = search.trim();
   if (query) {
@@ -19,5 +19,8 @@ export function jiraWorkspaceQuery({ scope = "recent", project = "", search = ""
       if (words) clauses.push(`text ~ ${literal(words)}`);
     }
   }
-  return `${clauses.map(clause => `(${clause})`).join(" AND ")} ORDER BY ${scope === "due" ? "duedate ASC, " : ""}updated DESC`;
+  return `${clauses.length ? clauses.map(clause => `(${clause})`).join(" AND ") + " " : ""}ORDER BY ${scope === "due" ? "duedate ASC, " : ""}updated DESC`;
 }
+export const nextAgilePage = data => data?.isLast === false && data.values?.length
+  ? Number(data.startAt || 0) + Number(data.maxResults || data.values.length) : null;
+export const requiredTransitionFields = transition => Object.values(transition?.fields || {}).filter(field => field.required).map(field => field.name || "Required field");

@@ -52,6 +52,7 @@ export function fixtureEngine(snapshot) {
       assignee: { accountId: "alex", displayName: "Alex Kim" },
       duedate: "2026-10-04",
       comment: { comments: [] },
+      sprint: { id: 24, name: "Sprint 24", state: "active", startDate: "2026-10-05T09:00:00Z", endDate: "2026-10-16T17:00:00Z" },
     },
   };
   const page = {
@@ -82,6 +83,10 @@ export function fixtureEngine(snapshot) {
       if (action === "config.list") return configs;
       if (action === "jira.issues") return { issues: [structuredClone(issue)] };
       if (action === "jira.issue") return structuredClone(issue);
+      if (action === "jira.openIssue") return true;
+      if (action === "jira.agileIssue") return { key: issue.key, fields: { sprint: structuredClone(issue.fields.sprint), closedSprints: [] } };
+      if (action === "jira.sprintIssues") return { issues: Number(args.sprintId) === issue.fields.sprint?.id ? [structuredClone(issue)] : [], isLast: true };
+      if (action === "jira.backlog") return { issues: issue.fields.sprint ? [] : [structuredClone(issue)], isLast: true };
       if (action === "jira.transitions") return [{ id: "31", name: "Done" }];
       if (action === "jira.transition") {
         issue.fields.status.name = "Done";
@@ -107,15 +112,19 @@ export function fixtureEngine(snapshot) {
           },
         };
       if (action === "jira.boards")
-        return { values: [{ id: 10, name: "Payments Scrum" }] };
+        return { values: [{ id: 10, name: "Payments Scrum" }], isLast: true, startAt: 0, maxResults: 50 };
       if (action === "jira.sprints")
         return {
           values: [
-            { id: 24, name: "Sprint 24", state: "active" },
-            { id: 25, name: "Sprint 25", state: "future" },
+            { id: 24, name: "Sprint 24", state: "active", startDate: "2026-10-05T09:00:00Z", endDate: "2026-10-16T17:00:00Z", goal: "Ship resilient payment retries" },
+            { id: 25, name: "Sprint 25", state: "future", startDate: "2026-10-19T09:00:00Z", endDate: "2026-10-30T17:00:00Z", goal: "Improve order reconciliation" },
           ],
+          isLast: true, startAt: 0, maxResults: 50,
         };
-      if (action === "jira.moveSprint") return true;
+      if (action === "jira.moveSprint") {
+        issue.fields.sprint = { id: Number(args.sprintId), name: `Sprint ${args.sprintId}`, state: Number(args.sprintId) === 24 ? "active" : "future" };
+        return true;
+      }
       if (action === "jira.assignees")
         return [{ accountId: "daniel", displayName: "Daniel Park" }];
       if (action === "jira.edit") {
