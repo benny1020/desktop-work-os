@@ -3,6 +3,9 @@
 These files are curated recordings and screenshots of the actual Worklane UI. All task names, documents, code, identities, service addresses and responses are synthetic demo/fixture data. No real credentials or company responses are captured.
 
 - `daily-command-center.png`: built-in demo home and connected work trail.
+- `review-architecture-{desktop,picker,collaboration,narrow-dark}.png`: role bands, understandable scopes and AI/human co-review. Reproduce with `npx playwright test tests/review-architecture.spec.js`; copy the corresponding captures from `artifacts/`. Synthetic connected fixtures.
+- `todo-backlog.png`, `todo-backlog-dark.png`, `todo-week.png`: parsed quick add, searchable backlog and one shared weekly plan. Captured by `tests/todo-usability-improvements.spec.js` against local planning data and synthetic service fixtures.
+- `jira-issues-workflow.png`, `jira-inspector-dark.png`: ordinary issue search, inline status popover and retained inspector. Synthetic Jira fixtures; the dark capture waits for theme transitions to settle.
 - `product-guide.png`: actionable sample workflows.
 - `review-flow-picker.png`, `review-flow-dark.png`: searchable changed-file scopes and selected-component review at 1440 × 900 / 980 × 650. Reproduce with `npx playwright test tests/review-flows.spec.js`; copy `artifacts/review-flows-picker.png` and `artifacts/review-flows-narrow-dark.png`. Synthetic connected browser fixtures, not live services.
 - `local-git-review.png`: actual Electron with a real temporary Git repository/worktree, automatic revision synchronization, local blob source, dependency diagram, and synthetic GitLab/Claude HTTPS fixtures. Reproduce with `npm run test:connected-desktop`; copy `research/completion/electron-local-git-review.png`.

@@ -21,7 +21,7 @@ test("Morning: schedule, tasks, brief, and one-click review", async ({
     page.getByRole("heading", { name: "Fix order status mapping" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Dependency map", { exact: true }),
+    page.getByText("Architecture layers", { exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: "artifacts/review-light.png" });
 });

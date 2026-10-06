@@ -56,7 +56,6 @@ test("Sprint options follow the latest board even when an older request finishes
   await nav(page, "Projects");
   await page.getByRole("button", { name: "PAY-382", exact: true }).click();
   await page.getByText("Sprint & priority", { exact: true }).click();
-  await page.getByRole("button", { name: "Load project options" }).click();
   await page.getByLabel("Jira scrum board").selectOption("10");
   await page.getByLabel("Jira scrum board").selectOption("20");
   await expect(page.getByLabel("Jira sprint", { exact: true })).toContainText("Current board sprint");

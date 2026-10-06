@@ -20,6 +20,14 @@ Dependency flow and sequence are separate views. AI review stays beside the diag
 
 ## Review one flow at a time
 
+![Controller–Service–Repository role bands with actual source and editable human review](media/review-architecture-desktop.png)
+
+![Meaningful change scopes, component examples and viewed progress](media/review-architecture-picker.png)
+
+![Layered diagram, selected code, AI checkpoints and a human draft together](media/review-architecture-collaboration.png)
+
+Role bands describe the changed components. Verified import paths help choose where to begin; grouping evidence explains conventional file groups. [Architecture review](REVIEW_ARCHITECTURE.md).
+
 ![Searchable review scopes with diagram, code and AI kept together](media/review-flow-picker.png)
 
 Every MR uses the same review model. Cohesive changes open directly; independent areas and large changes expose searchable scopes. Shared files keep one draft and viewed state. These captures use synthetic browser fixtures.
@@ -41,6 +49,20 @@ Open a related document, return to the issue's candidates, inspect an MR, then s
 ![Month calendar](media/calendar.png)
 
 Local tasks and events share Today, Week, Backlog and Calendar. They do not silently change external issue state.
+
+![Searchable backlog with parsed quick-add preview and explicit scheduling](media/todo-backlog.png)
+
+![Weekly plan and unscheduled tasks](media/todo-week.png)
+
+![Backlog in a narrow dark workspace](media/todo-backlog-dark.png)
+
+## Find and update Jira work
+
+![Ordinary issue search, compact filters and inline status changes](media/jira-issues-workflow.png)
+
+![Retained Jira inspector in a narrow dark workspace](media/jira-inspector-dark.png)
+
+Changing project views retains the issue inspector and unsent edits. Counts describe loaded results, and failed filters retain the previous query context.
 
 ## Read the wiki inline
 

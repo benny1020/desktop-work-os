@@ -42,6 +42,7 @@ test("Periodic Jira sync refreshes all loaded pages and never applies unfinished
   await page.getByRole("button", { name: "Load more", exact: true }).click();
   await expect(page.locator(".connected-content")).toContainText("Initial page 2");
   const applied = await page.getByLabel("Jira query").inputValue();
+  await page.locator(".jira-advanced summary").click();
   await page.getByLabel("Jira query").fill("unfinished JQL that must not run");
   await page.evaluate(() => { window.listRevision = "Updated"; window.startOfSyncCalls = window.__fixture.calls.length; });
   await page.clock.runFor(61_000);

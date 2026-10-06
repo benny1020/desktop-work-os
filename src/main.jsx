@@ -297,7 +297,7 @@ import AssistantAvatar from "./components/AssistantAvatar";
 import { advanceAssistantCredentialScope } from "./lib/assistant-session";
 import ConnectedObjects from "./components/ConnectedObjects";
 import ConnectedAttention from "./components/ConnectedAttention";
-import {usePlan} from "./lib/planning";
+import {usePlan, parseQuick} from "./lib/planning";
 import "./workspace.css";
 import "./product-polish.css";
 import ProductGuide, { WorklaneMark } from "./components/ProductGuide";
@@ -410,6 +410,7 @@ function App() {
   const setReviewText = (text) =>
     setReviewEditors((e) => ({ ...e, [reviewEditorKey]: text }));
   const [quickText, setQuickText] = useState("");
+  const [workBacklogQuery, setWorkBacklogQuery] = useState("");
   const [activePop, setActivePop] = useState(null);
   const toastTimer = useRef();
   const shellPopover = notifications ? "notifications" : ["recent", "workspace"].includes(activePop) ? activePop : null;
@@ -623,20 +624,28 @@ function App() {
     }));
     notify("Comment added");
   }
-  function addQuick(text, type = "Task") {
-    if (!text.trim()) return;
-    const existing = issues.find((x) => text.toUpperCase().includes(x.id));
-    if (existing) {
-      schedule(existing.id, /tomorrow|내일/i.test(text) ? "Sat" : "Fri");
-      const time = text.match(/\d{1,2}\s?(?:am|pm)/i)?.[0];
-      if (time) updateIssue(existing.id, { time });
-      return;
+  function parseDemoQuick(text, targetDay = "Fri") {
+    const dates = { Mon: "2025-09-29", Tue: "2025-09-30", Wed: "2025-10-01", Thu: "2025-10-02", Fri: "2025-10-03", Sat: "2025-10-04", Backlog: "" };
+    const parsed = parseQuick(text, dates[targetDay] ?? dates.Fri, dates.Fri);
+    return { ...parsed, day: Object.keys(dates).find((day) => dates[day] === parsed.date) || parsed.date };
+  }
+  function addQuick(text, type = "Task", targetDay = "Fri") {
+    if (!text.trim()) return false;
+    let parsed;
+    try { parsed = parseDemoQuick(text, targetDay); }
+    catch (error) { notify(error.message); return false; }
+    const keys = text.toUpperCase().match(/\b[A-Z]+-\d+\b/g) || [];
+    const existing = issues.find((x) => keys.includes(x.id));
+    if (existing && type === "Task") {
+      updateIssue(existing.id, { day: parsed.day, due: parsed.date, ...(parsed.time ? { time: parsed.time } : {}) });
+      notify(`${existing.id} scheduled for ${parsed.date || "Backlog"}${parsed.time ? ` at ${parsed.time}` : ""}`);
+      return true;
     }
     const id =
       (type === "Incident" ? "INC" : type === "Issue" ? "PAY" : "TASK") +
       "-" +
       (400 + issues.length + incidents.length + customDocs.length);
-    const title = text.replace(/tomorrow|today|\d{1,2}\s?(am|pm)/gi, "").trim();
+    const title = parsed.title;
     if (type === "Incident") {
       setIncidents((xs) => [
         ...xs,
@@ -673,15 +682,16 @@ function App() {
           priority: "Medium",
           assignee: "Alex Kim",
           sprint: "Sprint 24",
-          due: /tomorrow/i.test(text) ? "2025-10-04" : "2025-10-03",
-          day: /tomorrow/i.test(text) ? "Sat" : "Fri",
-          time: text.match(/\d{1,2}\s?(?:am|pm)/i)?.[0] || "",
+          due: parsed.date,
+          day: parsed.day,
+          time: parsed.time,
           project: "PAY",
           description: "Created in Worklane.",
         },
       ]);
       notify(`${id} created`);
     }
+    return true;
   }
   useEffect(() => {
     let g = false;
@@ -1122,6 +1132,32 @@ function App() {
   }
   function MyWork() {
     const view = route.view;
+    const quickTarget = view === "Backlog" ? "Backlog" : workDay;
+    let quickPreview, quickError = "";
+    if (quickText.trim()) {
+      try { quickPreview = parseDemoQuick(quickText, quickTarget); }
+      catch (error) { quickError = error.message; }
+    }
+    const quickEntry = () => <>
+      <form className="quick-add" onSubmit={(event) => {
+        event.preventDefault();
+        if (addQuick(quickText, "Task", quickTarget)) setQuickText("");
+      }}>
+        <I name="Plus" />
+        <input aria-label="Quick add task" aria-describedby="demo-quick-target" value={quickText} onChange={(event) => setQuickText(event.target.value)} placeholder="Add a task… try “PAY-382 tomorrow 2pm”" />
+        <button className="quiet-button" aria-label="Add task to plan" disabled={!quickText.trim()}><kbd>↵</kbd></button>
+      </form>
+      <div id="demo-quick-target" className={`plan-quick-target ${quickError ? "has-error" : ""}`} aria-live="polite">{quickError || (quickPreview ? <><b>{quickPreview.title}</b> · {quickPreview.date || "Backlog"}{quickPreview.time && ` at ${quickPreview.time}`}</> : `Adding to ${quickTarget === "Backlog" ? "Backlog" : quickTarget === "Sat" ? "tomorrow, Oct 4" : "today, Oct 3"} · Demo dates`)}</div>
+    </>;
+    const backlogTasks = issues.filter((task) => task.day === "Backlog" && (showCompleted || task.status !== "Done") && `${task.id} ${task.title}`.toLowerCase().includes(workBacklogQuery.trim().toLowerCase()));
+    const timeOrder = (time) => {
+      if (!time) return Infinity;
+      const match = time.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+      if (!match) return Infinity;
+      let hour = Number(match[1]);
+      if (match[3]) hour = hour % 12 + (/pm/i.test(match[3]) ? 12 : 0);
+      return hour * 60 + Number(match[2] || 0);
+    };
     return (
       <div className="page">
         {sectionHeader(
@@ -1176,23 +1212,7 @@ function App() {
                 {showCompleted ? "Hide" : "Show"} completed
               </button>
             </div>
-            <form
-              className="quick-add"
-              onSubmit={(e) => {
-                e.preventDefault();
-                addQuick(quickText);
-                setQuickText("");
-              }}
-            >
-              <I name="Plus" />
-              <input
-                aria-label="Quick add task"
-                value={quickText}
-                onChange={(e) => setQuickText(e.target.value)}
-                placeholder="Add a task… try “PAY-382 tomorrow 2pm”"
-              />
-              <kbd>↵</kbd>
-            </form>
+            {quickEntry()}
             <div className="today-layout">
               <section>
                 <div className="section-title">
@@ -1210,18 +1230,14 @@ function App() {
                 {[
                   ...(workDay === "Fri"
                     ? events.slice(0, 3).map((e) => ({
-                        sort: Number(e.time.replace(":", "")),
+                        sort: timeOrder(e.time),
                         event: e,
                       }))
                     : []),
                   ...todayTasks
                     .filter((x) => showCompleted || x.status !== "Done")
-                    .map((t, i) => ({
-                      sort: t.time
-                        ? ((Number(t.time.match(/\d+/)?.[0]) % 12) +
-                            (/pm/i.test(t.time) ? 12 : 0)) *
-                          100
-                        : 930 + i * 60,
+                    .map((t) => ({
+                      sort: timeOrder(t.time),
                       task: t,
                     })),
                 ]
@@ -1262,14 +1278,17 @@ function App() {
           Calendar()
         ) : view === "Backlog" ? (
           <>
+            {quickEntry()}
             <div className="view-toolbar">
               <span>
-                {issues.filter((x) => x.day === "Backlog").length} unscheduled
+                {backlogTasks.filter((task) => task.status !== "Done").length} unscheduled
                 tasks
               </span>
-              <span className="muted">Schedule with the calendar icon</span>
+              <button className="quiet-button" onClick={() => setShowCompleted(!showCompleted)}><I name={showCompleted ? "EyeOff" : "Eye"} size={14} />{showCompleted ? "Hide" : "Show"} completed</button>
             </div>
-            {issues.filter((x) => x.day === "Backlog").map((t) => taskRow(t))}
+            <div className="backlog-toolbar demo-backlog-toolbar"><input type="search" aria-label="Search backlog" value={workBacklogQuery} onChange={(event) => setWorkBacklogQuery(event.target.value)} placeholder="Find a task or issue key…" /><span className="muted">Use the calendar action to schedule for Oct 4</span></div>
+            {backlogTasks.map((task) => taskRow(task))}
+            {!backlogTasks.length && <div className="plan-empty"><h3>{workBacklogQuery.trim() ? "No matching unscheduled work" : "Your backlog is clear"}</h3><p>{workBacklogQuery.trim() ? "Try another title or issue key." : "Add an idea above, then schedule it when you have room."}</p>{workBacklogQuery.trim() && <button className="btn" onClick={() => setWorkBacklogQuery("")}>Clear backlog search</button>}</div>}
           </>
         ) : view === "Inbox" ? (
           <div className="inbox-layout">

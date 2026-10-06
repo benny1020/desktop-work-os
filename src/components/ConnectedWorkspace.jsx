@@ -19,6 +19,8 @@ import SyncedReview from "./SyncedReview";
 import JiraIssue from "./LiveIssue";
 import DailyWorkspace from "./DailyWorkspace";
 import { MRLinks } from "./ConnectedObjects";
+import { jiraScopes, jiraWorkspaceQuery } from "../lib/jira-workspace.mjs";
+import "../jira-workflow.css";
 import {
   usePlan,
   objectKey,
@@ -46,6 +48,55 @@ function Missing({ service, onSettings }) {
       </button>
     </div>
   );
+}
+function IssueStatus({ issue, onChanged }) {
+  const popup = useRef(null);
+  const [options, setOptions] = useState(null), [busy, setBusy] = useState(false),
+    [error, setError] = useState(""), [position, setPosition] = useState({}), [opened, setOpened] = useState(false);
+  useEffect(() => {
+    if (!opened) return;
+    const close = event => {
+      if (event.type === "pointerdown" && popup.current?.contains(event.target)) return;
+      if (event.type === "scroll" && event.target?.closest?.(".jira-status-options")) return;
+      if (popup.current) popup.current.open = false;
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+  }, [opened]);
+  async function read() {
+    setOpened(Boolean(popup.current?.open));
+    if (!popup.current?.open) return;
+    const bounds = popup.current.querySelector("summary").getBoundingClientRect();
+    setPosition({ left: Math.min(bounds.left, window.innerWidth - 230), top: Math.min(bounds.bottom + 7, window.innerHeight - 180) });
+    if (busy) return;
+    setBusy(true); setError("");
+    try { setOptions(await invoke("jira.transitions", { key: issue.key })); }
+    catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+  async function apply(transition) {
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      await invoke("jira.transition", { key: issue.key, transitionId: transition.id });
+      if (popup.current) popup.current.open = false;
+      setOptions(null); onChanged?.();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+  return <details ref={popup} className="jira-status-popover" onToggle={read}
+    onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); popup.current.open = false; popup.current.querySelector("summary")?.focus(); } }}>
+    <summary aria-label={`Change status of ${issue.key}`}><span className="pill">{issue.fields.status?.name || "Unknown"}</span></summary>
+    <div className="jira-status-options" style={position} aria-label={`Status options for ${issue.key}`}>
+      <b>{issue.key} · Change in Jira</b>
+      {busy && <small role="status">Loading…</small>}
+      {options?.map(option => <button className="btn" key={option.id} disabled={busy} onClick={() => apply(option)}>Apply {option.name}</button>)}
+      {options?.length === 0 && <small>No transitions available for this issue.</small>}
+      {error && <><small role="alert">{error}</small><button className="btn" disabled={busy} onClick={read}>Retry status options</button></>}
+    </div>
+  </details>;
 }
 export default function ConnectedWorkspace({
   section,
@@ -84,6 +135,10 @@ export default function ConnectedWorkspace({
   const loadedPages = useRef(1);
   const appliedFilters = useRef({ query: "", jql });
   const [filterVersion, setFilterVersion] = useState(0);
+  const [jiraFilters, setJiraFilters] = useState({ scope: view === "Sprint" ? "sprint" : "recent", project: "", search: "" });
+  const appliedJiraFilters = useRef(jiraFilters);
+  const [jiraProjects, setJiraProjects] = useState([]), [jiraProjectError, setJiraProjectError] = useState(""),
+    [customJql, setCustomJql] = useState(false), [requestedJiraQuery, setRequestedJiraQuery] = useState("");
   const service =
     section === "Code" ? "gitlab" : section === "Docs" ? "confluence" : "jira";
   const savedDocsView = section === "Docs" && ["Recent", "Favorites"].includes(view);
@@ -146,9 +201,9 @@ export default function ConnectedWorkspace({
     };
   }, [configVersion]);
   useEffect(() => {
-    onContext?.("");
+    if (section !== "Projects" || !selected) onContext?.("");
     setSnapshot(null);
-    setSelected(null);
+    if (section !== "Projects") setSelected(null);
     setPage(null);
     setItems([]);
     setNext(null);
@@ -158,7 +213,14 @@ export default function ConnectedWorkspace({
       configs?.[service]?.tokenConfigured &&
       !["Home", "My Work"].includes(section)
     )
-      load(null, "");
+      if (section === "Projects") {
+        const filters = { ...appliedJiraFilters.current, scope: view === "Sprint" ? "sprint" : appliedJiraFilters.current.scope === "sprint" ? "recent" : appliedJiraFilters.current.scope };
+        appliedJiraFilters.current = filters;
+        setJiraFilters(previous => ({ ...filters, search: previous.search }));
+        const nextJql = customJql ? appliedFilters.current.jql : jiraWorkspaceQuery(filters);
+        if (!customJql) setJql(nextJql);
+        load(null, "", nextJql);
+      } else load(null, "");
   }, [section, view, project, space, configs]);
   useEffect(() => {
     let alive = true;
@@ -170,6 +232,10 @@ export default function ConnectedWorkspace({
       invoke("gitlab.projects", {})
         .then(d => { if (alive) setProjects(d.items || []); })
         .catch(e => { if (alive) setError(e.message); });
+    if (configs?.jira?.tokenConfigured && section === "Projects")
+      invoke("jira.projects")
+        .then(d => { if (alive) { setJiraProjects(d.values || []); setJiraProjectError(""); } })
+        .catch(e => { if (alive) setJiraProjectError(e.message); });
     return () => { alive = false; };
   }, [configs, section]);
   async function fetchRows(cursor, filters) {
@@ -198,19 +264,20 @@ export default function ConnectedWorkspace({
     }
     return { rows: rows || [], more: more || null };
   }
-  async function load(cursor = null, searchQuery = query) {
+  async function load(cursor = null, searchQuery = query, queryOverride = jql) {
     const ticket = ++requestId.current;
-    const filters = cursor ? { ...appliedFilters.current } : { query: searchQuery, jql };
-    if (!cursor) {
-      appliedFilters.current = filters;
-      loadedPages.current = 1;
-      setFilterVersion(version => version + 1);
-    }
+    const filters = cursor ? { ...appliedFilters.current } : { query: searchQuery, jql: queryOverride };
+    if (!cursor && section === "Projects") setRequestedJiraQuery(filters.jql);
+    if (!cursor) setFilterVersion(version => version + 1);
     setLoading(true);
     setError("");
     try {
       const { rows, more } = await fetchRows(cursor, filters);
       if (requestId.current === ticket) {
+        if (!cursor) {
+          appliedFilters.current = filters;
+          loadedPages.current = 1;
+        }
         setItems(old => cursor ? [...new Map([...old, ...rows].map(row => [row.id || row.key, row])).values()] : rows);
         setNext(more);
         if (cursor) loadedPages.current++;
@@ -221,6 +288,13 @@ export default function ConnectedWorkspace({
     } finally {
       if (requestId.current === ticket) setLoading(false);
     }
+  }
+  function applyJiraFilters(changes = {}, includeSearchDraft = true) {
+    const filters = { ...jiraFilters, search: includeSearchDraft ? jiraFilters.search : appliedJiraFilters.current.search, ...changes };
+    appliedJiraFilters.current = filters;
+    const nextJql = jiraWorkspaceQuery(filters);
+    setJiraFilters(previous => ({ ...filters, search: includeSearchDraft ? filters.search : previous.search })); setCustomJql(false); setJql(nextJql);
+    load(null, "", nextJql);
   }
   async function openMR(mr, refresh = false) {
     const ticket = ++requestId.current;
@@ -334,7 +408,7 @@ export default function ConnectedWorkspace({
         ? view
         : section === "My Work"
           ? "My Jira issues"
-          : "Project issues";
+          : view === "Sprint" ? "Active sprint" : view === "Board" ? "Issue board" : view === "Roadmap" ? "Issue deadlines" : view === "Overview" ? "Project overview" : "Project issues";
   return (
     <div
       className={`connected-workspace ${selected && section !== "Docs" ? "has-selection" : ""}`}
@@ -406,10 +480,34 @@ export default function ConnectedWorkspace({
             </form>
           </div>
         ) : section !== "Code" ? (
-          <form
+          <div className="jira-filters">
+            <form className="jira-quick-search" onSubmit={event => { event.preventDefault(); applyJiraFilters(); }}>
+              <Search size={14} />
+              <input aria-label="Find Jira issues" placeholder="Search issues or PAY-382…" value={jiraFilters.search}
+                onChange={event => setJiraFilters(filters => ({ ...filters, search: event.target.value }))} />
+              <button className="btn" disabled={loading}>Search issues</button>
+            </form>
+            <div className="jira-filter-controls">
+              <label>Project <select aria-label="Jira project filter" value={jiraFilters.project}
+                onChange={event => applyJiraFilters({ project: event.target.value }, false)}>
+                <option value="">All projects</option>
+                {jiraProjects.map(project => <option key={project.id || project.key} value={project.key}>{project.key} · {project.name}</option>)}
+              </select></label>
+              <label>Show <select aria-label="Jira work filter" value={customJql ? "custom" : jiraFilters.scope}
+                onChange={event => applyJiraFilters({ scope: event.target.value }, false)}>
+                {customJql && <option value="custom">Custom JQL</option>}
+                {jiraScopes.map(scope => <option key={scope.id} value={scope.id}>{scope.label}</option>)}
+              </select></label>
+              <small aria-label="Jira result coverage">{items.length} loaded{next ? " · More available" : ""}{items.length > 0 && requestedJiraQuery !== appliedFilters.current.jql ? " · Previous query results" : ""}</small>
+              {requestedJiraQuery && requestedJiraQuery !== appliedFilters.current.jql && !loading && <button className="btn" onClick={() => load(null, "", requestedJiraQuery)}>Retry selected query</button>}
+            </div>
+            {jiraProjectError && <small className="jira-filter-warning" role="status">Project list unavailable. Search and JQL still work.</small>}
+            {jiraProjects.length >= 50 && <small className="jira-filter-warning">Showing up to 50 accessible projects. Use JQL for a project not listed here.</small>}
+            <details className="jira-advanced"><summary>Advanced JQL{customJql ? " · Custom filter" : ""}</summary><form
             className="jql-search"
             onSubmit={(e) => {
               e.preventDefault();
+              setCustomJql(true);
               load();
             }}
           >
@@ -424,7 +522,8 @@ export default function ConnectedWorkspace({
             <button className="btn" disabled={loading}>
               Run query
             </button>
-          </form>
+          </form></details>
+          </div>
         ) : null}
         {error && (
           <div className="connection-error" role="alert">
@@ -432,6 +531,11 @@ export default function ConnectedWorkspace({
           </div>
         )}
         {loading && <Pending />}
+        {section === "Projects" && view !== "Issues" && !items.length && !loading && <div className="connected-empty">
+          <h3>{view === "Sprint" ? "No issues in this sprint filter" : "No matching Jira issues"}</h3>
+          <p>{view === "Sprint" ? "Check that your project has an active sprint, or choose another work filter." : "Try another project or work filter, or clear your search."}</p>
+          <button className="btn" onClick={() => applyJiraFilters({ scope: view === "Sprint" ? "sprint" : "recent", project: "", search: "" })}>Reset issue filters</button>
+        </div>}
         {section === "Docs" && view === "Spaces" ? (
           <div className="wiki-spaces">
             {spaces.map((s) => (
@@ -615,6 +719,7 @@ export default function ConnectedWorkspace({
                         {i.fields.assignee?.displayName || "Unassigned"} ·{" "}
                         {i.fields.priority?.name || "—"}
                       </small>
+                      {i.fields.duedate && <small>Due {i.fields.duedate}</small>}
                     </button>
                   ))}
               </section>
@@ -656,7 +761,7 @@ export default function ConnectedWorkspace({
             ))}
           </div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap jira-issue-table">
             <table>
               <thead>
                 <tr>
@@ -665,6 +770,7 @@ export default function ConnectedWorkspace({
                   <th>Status</th>
                   <th>Assignee</th>
                   <th>Priority</th>
+                  <th>Due</th>
                 </tr>
               </thead>
               <tbody>
@@ -687,10 +793,11 @@ export default function ConnectedWorkspace({
                       </button>
                     </td>
                     <td>
-                      <span className="pill">{i.fields.status?.name}</span>
+                      <IssueStatus issue={i} onChanged={() => sync.run()} />
                     </td>
                     <td>{i.fields.assignee?.displayName || "Unassigned"}</td>
                     <td>{i.fields.priority?.name || "—"}</td>
+                    <td><time className="jira-due" dateTime={i.fields.duedate || undefined}>{i.fields.duedate || "—"}</time></td>
                   </tr>
                 ))}
               </tbody>
@@ -698,7 +805,8 @@ export default function ConnectedWorkspace({
             {!items.length && !loading && (
               <div className="connected-empty">
                 <h3>No matching Jira issues</h3>
-                <p>Check your JQL query and project access.</p>
+                <p>Try another project or work filter, or clear your search.</p>
+                <button className="btn" onClick={() => applyJiraFilters({ scope: view === "Sprint" ? "sprint" : "recent", project: "", search: "" })}>Reset issue filters</button>
               </div>
             )}
           </div>
@@ -717,9 +825,9 @@ export default function ConnectedWorkspace({
           view !== "Issues" &&
           view !== "Today" && (
             <p className="live-mode-note">
-              Showing {items.length} issues from your query. Use{" "}
-              <code>sprint in openSprints()</code> to focus on active sprints.
-              Open an issue to update its status.
+              {view === "Sprint" && !customJql && jiraFilters.scope === "sprint" ? "Issues in active sprints. " : "Issues from the current filter. "}
+              {next ? "These counts cover loaded issues; load more for the remaining results. " : ""}
+              {view === "Roadmap" ? "Ordered by issue due date; this is a deadline view." : "Open an issue for details and linked work."}
             </p>
           )}
       </div>

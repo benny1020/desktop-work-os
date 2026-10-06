@@ -15,3 +15,19 @@
 @media(max-width:1050px){.plan-carryover>header{align-items:flex-start}.carryover-row{gap:10px}.plan-carryover{padding:12px}.plan-rollover{gap:7px}.schedule-undo{flex-wrap:wrap}}
 .carryover-row>.btn{min-height:26px;padding:5px 8px;font-size:10px}
 .carryover-row{padding:6px 0}
+.plan-quick-target b{font-weight:500;color:var(--text)}
+.plan-quick-target.has-error{color:var(--red)}
+.backlog-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 0 13px;border-bottom:1px solid var(--line)}
+.backlog-toolbar>input{flex:1;min-width:150px;max-width:300px;min-height:30px;font-size:11px}
+.backlog-completed{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--secondary);white-space:nowrap}
+.backlog-completed input{width:13px;height:13px;accent-color:var(--accent)}
+.backlog-toolbar>.btn{font-size:10px;max-width:100%;white-space:normal}
+.planning-backlog-drop{border:1px dashed var(--line-strong);border-radius:4px;padding:12px;margin-bottom:16px}
+.planning-backlog-drop>h3{font-size:12px;margin:0 0 9px}
+.planning-backlog-drop>h3>.muted{font-size:10px;font-weight:400;margin-left:8px}
+.linked-plan-action{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.linked-plan-action>small{color:var(--secondary);font-size:9px;font-variant-numeric:tabular-nums}
+.linked-plan-action>.btn{white-space:nowrap}
+.linked-plan-action>.btn:disabled{opacity:.65;color:var(--secondary)}
+.daily-connected .plan-task-actions>button{min-width:22px;min-height:24px}
+@media(max-width:1050px){.backlog-toolbar{gap:8px}.planning-backlog-drop>h3>.muted{display:block;margin:5px 0 0}.linked-plan-action>small{max-width:130px;text-align:right;line-height:1.4}}

@@ -19,7 +19,6 @@ test('issue auto-sync refreshes remote fields while preserving every pending fie
   await page.getByRole('button', { name: 'Find people' }).click();
   await page.getByLabel('Jira assignee', { exact: true }).selectOption('daniel');
   await page.getByText('Sprint & priority', { exact: true }).click();
-  await page.getByRole('button', { name: 'Load project options' }).click();
   await page.getByLabel('Jira priority', { exact: true }).selectOption('2');
   await page.getByLabel('Jira scrum board').selectOption('10');
   await page.getByLabel('Jira sprint', { exact: true }).selectOption('25');
@@ -117,6 +116,7 @@ test('automatic issue reads pause while an external write is still pending', asy
   expect(await issueReads(page)).toBe(reads);
   await page.evaluate(() => window.finishIssueWrite());
   await expect(page.getByLabel('Live Jira comment')).toHaveValue('');
+  await page.getByLabel('Jira due date').fill('2026-10-09');
   await expect(page.getByRole('button', { name: 'Save due date in Jira' })).toBeEnabled();
   expect(await issueReads(page)).toBe(reads + 1);
 });

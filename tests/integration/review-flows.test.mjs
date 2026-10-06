@@ -161,3 +161,32 @@ test('hundreds of source and test files retain complete bounded coverage', () =>
   assert.equal(flows.length, Math.ceil(paths.length / 12));
   assert.deepEqual(buildReviewFlows(files([...paths].reverse()), g), flows);
 });
+
+test('flat Spring role folders separate recognizable Payment and Order reviews with uniquely matched tests', () => {
+  const paths = ['src/main/java/com/acme/backend/controller/PaymentController.java', 'src/main/java/com/acme/backend/service/PaymentService.java', 'src/main/java/com/acme/backend/repository/PaymentRepository.java',
+    'src/main/java/com/acme/backend/controller/OrderController.java', 'src/main/java/com/acme/backend/service/OrderService.java', 'src/test/java/com/acme/backend/PaymentServiceTest.java'];
+  const flows = buildReviewFlows(files(paths), graph(paths, [[paths[0], paths[1]], [paths[1], paths[2]], [paths[3], paths[4]]]));
+  assert.equal(flows.length, 2);
+  const payment = flows.find(flow => flow.entrypoint.path === paths[0]);
+  assert.equal(payment.title, 'Payment request handling');
+  assert.ok(payment.paths.includes(paths[5]));
+  assert.ok(!payment.paths.includes(paths[3]));
+  assert.deepEqual(payment.rolePath, ['Controller', 'Service', 'Repository', 'Tests']);
+  completePartition(flows, paths);
+});
+
+test('flat role naming provides separate visible groups without inventing import edges', () => {
+  const paths = ['src/controllers/PaymentController.ts', 'src/services/PaymentService.ts', 'src/controllers/OrderController.ts', 'src/services/OrderService.ts'];
+  const flows = buildReviewFlows(files(paths), graph(paths));
+  assert.equal(flows.length, 2);
+  assert.deepEqual(flows.map(flow => flow.title).sort(), ['Order request handling', 'Payment request handling']);
+  assert.ok(flows.every(flow => flow.confidence === 'convention' && flow.kind === 'group'));
+  completePartition(flows, paths);
+});
+
+test('flow metadata and primary membership are unchanged by inferred AI edges', () => {
+  const paths = ['src/controllers/PaymentController.ts', 'src/services/PaymentService.ts'];
+  const original = graph(paths);
+  const augmented = { ...original, dependencies: [{ from: paths[0], to: paths[1], evidence: 'inferred' }] };
+  assert.deepEqual(buildReviewFlows(files(paths), original), buildReviewFlows(files(paths), augmented));
+});

@@ -349,7 +349,6 @@ test("Sprint and priority use server options and explicit mutation buttons", asy
   await nav(page, "Projects");
   await page.getByRole("button", { name: "PAY-382", exact: true }).click();
   await page.getByText("Sprint & priority", { exact: true }).click();
-  await page.getByRole("button", { name: "Load project options" }).click();
   await page.getByLabel("Jira priority", { exact: true }).selectOption("2");
   await page.getByRole("button", { name: "Save priority in Jira" }).click();
   await page.getByLabel("Jira scrum board").selectOption("10");

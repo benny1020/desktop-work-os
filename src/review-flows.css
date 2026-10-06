@@ -1,9 +1,9 @@
 .review-flow-picker { position:relative; flex-shrink:0; font-size:10px; }
-.review-flow-picker > summary { display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none; padding:5px 7px; border:1px solid var(--line); border-radius:4px; max-width:250px; }
+.review-flow-picker > summary { display:flex; align-items:center; gap:7px; cursor:pointer; list-style:none; padding:6px 9px; border:1px solid var(--line-strong); border-radius:5px; max-width:320px; }
 .review-flow-picker > summary::-webkit-details-marker { display:none; }
 .review-flow-picker > summary > span { color:var(--muted); }
 .review-flow-picker[open] > summary { background:var(--accent-soft); }
-.review-flow-menu { position:absolute; top:calc(100% + 6px); left:0; z-index:30; width:340px; max-width:calc(100vw - 60px); border:1px solid var(--line-strong); border-radius:6px; box-shadow:0 8px 26px #0002; padding:10px; background:var(--surface); }
+.review-flow-menu { position:absolute; top:calc(100% + 6px); left:0; z-index:30; width:420px; max-width:calc(100vw - 80px); border:1px solid var(--line-strong); border-radius:6px; box-shadow:0 8px 26px #0002; padding:12px; background:var(--surface); }
 .review-flow-menu input { width:100%; margin-bottom:8px; }
 .review-flow-menu > small { display:block; color:var(--muted); font-size:10px; margin-bottom:8px; }
 .review-flow-options { max-height:300px; overflow:auto; }
@@ -19,3 +19,59 @@
 .review-flow-boundaries > small { width:100%; color:var(--muted); font-size:9px; }
 .review-flow-boundaries .linked-chip { font-size:9px; }
 .review-component-list button > small { color:var(--accent); font-size:9px; margin-left:auto; }
+.review-flow-picker .review-flow-trigger-text {min-width:0;color:var(--text);}
+.review-flow-trigger-text b {display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600;}
+.review-flow-trigger-text small {display:block;font-size:9px;color:var(--secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;margin-top:2px;}
+.review-flow-trigger-count {font-size:10px;white-space:nowrap;}
+.review-flow-menu-heading {margin-bottom:12px;}
+.review-flow-menu-heading b {display:block;font-size:13px;}
+.review-flow-menu-heading small {display:block;font-size:10px;color:var(--secondary);margin-top:5px;}
+.review-flow-options button {padding:11px 9px;align-items:flex-start;border-bottom:1px solid var(--line);border-radius:3px;}
+.review-flow-options button b {font-size:12px;line-height:1.5;}
+.review-flow-options button .review-flow-route {font-size:11px;line-height:1.55;color:var(--secondary);margin-top:5px;}
+.review-flow-options button .review-flow-option-meta {font-size:9px;margin-top:7px;}
+.review-flow-option-progress {display:flex;flex-direction:column;align-items:flex-end;min-width:38px;padding-top:3px;font-size:11px;color:var(--secondary);}
+.review-flow-menu-note,.review-flow-empty {font-size:10px;line-height:1.6;color:var(--secondary);margin:10px 2px 0;}
+.review-flow-context {padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg);}
+.review-flow-context-heading {display:flex;justify-content:space-between;align-items:center;gap:6px;}
+.review-flow-context-heading strong {font-size:13px;font-weight:650;line-height:1.45;}
+.review-flow-paging {display:flex;align-items:center;gap:2px;white-space:nowrap;font-size:9px;color:var(--secondary);}
+.review-flow-paging .icon-button {width:25px;height:25px;min-width:25px;}
+.review-flow-context-route {font-size:11px;line-height:1.6;color:var(--secondary);margin:5px 0;overflow-wrap:anywhere;}
+.review-flow-context-meta {display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--secondary);}
+.review-flow-context-meta .quiet-button {display:flex;align-items:center;gap:4px;color:var(--accent);font-size:10px;}
+.review-flow-explanation {margin-top:7px;font-size:10px;color:var(--secondary);}
+.review-flow-explanation summary {cursor:pointer;font-size:10px;}
+.review-flow-explanation p {line-height:1.6;margin:8px 0;}
+.review-flow-explanation ul {list-style:none;margin:0;padding:0;max-height:160px;overflow:auto;}
+.review-flow-explanation li button {font-size:10px;text-align:left;overflow-wrap:anywhere;padding:4px 0;color:var(--secondary);}
+.review-flow-endpoint {font-size:10px;margin:5px 0;color:var(--accent);}
+.review-flow-import-path {margin:5px 0;font-size:10px;}
+.review-flow-import-path > small {color:var(--secondary);font-size:9px;}
+.review-flow-import-path > div {display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.review-flow-import-path button {font-size:10px;color:var(--accent);text-align:left;overflow-wrap:anywhere;}
+.architecture-layer .architecture-band {fill:var(--bg);stroke:var(--line);stroke-width:1;}
+.architecture-layer[data-role=controller] .architecture-band {fill:var(--accent-soft);}
+.architecture-layer[data-role=service] .architecture-band {fill:var(--surface);}
+.architecture-layer text {font-size:11px;font-weight:600;fill:var(--text);}
+.architecture-layer .architecture-layer-count {font-weight:400;fill:var(--secondary);}
+.architecture-layer line {stroke:var(--line);stroke-dasharray:none;}
+.review-map-mode {display:flex;align-items:center;gap:4px;padding:0 12px 9px;}
+.review-map-mode button {font-size:10px;padding:5px 8px;border-radius:4px;color:var(--secondary);}
+.review-map-mode button[aria-pressed=true] {background:var(--accent-soft);color:var(--accent);font-weight:600;}
+.review-map-mode small {font-size:9px;margin-left:auto;color:var(--secondary);}
+.visual-review .architecture-layer ~ .diagram-node .node-label {font-size:13px;}
+.visual-review .diagram-toolbar {flex-wrap:nowrap;gap:5px;padding:9px 12px 6px;}
+.visual-review .diagram-toolbar > div {flex-basis:auto;min-width:0;}
+.visual-review .diagram-toolbar small {display:none;}
+.visual-review .diagram-evidence-count {display:block;margin:4px 0 0;}
+.visual-review .diagram-toolbar .icon-button {width:25px;height:25px;min-width:25px;}
+.visual-review .diagram-toolbar .quiet-button {white-space:nowrap;}
+.review-map-mode {padding-bottom:6px;}
+.visual-review .visual-tabs button {padding-block:10px 8px;}
+@container(max-width:1050px) {
+ .review-flow-context {padding:8px 10px;}
+ .review-flow-context-heading strong {font-size:12px;}
+ .review-flow-context-route {font-size:10px;}
+ .review-flow-explanation {margin-top:5px;}
+}

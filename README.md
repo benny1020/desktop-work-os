@@ -26,8 +26,8 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 
 ![Dependency graph → sequence → source → review comment → sample AI guide](docs/media/visual-review.gif)
 
-- Dependency-layer layout and a clickable reading path, with separate sequence views and exact source references.
-- Flow-based review for every MR: cohesive changes open directly; larger or unrelated changes get searchable scopes with their own diagram, code and AI guide. Shared files retain one draft and viewed state across scopes.
+- Role-based architecture bands: Controller → Service → Repository, with UI, contracts, workers and tests separated when present. Switch to import-depth layout when useful; unknown roles stay explicit.
+- Understandable review scopes such as **Payment request handling** and **Order request handling**, with an entry point, verified import reading path, grouping evidence and per-scope progress. Large scopes get numbered parts; shared files keep one draft and viewed state. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
 - Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
 - Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.
 - Code and diffs come from an app-managed local Git repository and isolated MR checkout. File browsing makes no GitLab code API requests. New revisions are fetched automatically and staged without replacing the code you are reviewing.
@@ -40,6 +40,8 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 - Explicit review approval; Worklane does not merge the MR.
 
 Solid dependency edges represent resolved imports; dashed relationships and sequence flows are inferred. These are **not runtime traces or a complete repository analysis**.
+
+![Controller, service and repository beside actual code and human review](docs/media/review-architecture-desktop.png)
 
 ## Follow the work across tools
 
@@ -73,7 +75,9 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 
 ![Quick add → weekly plan → monthly calendar → global search](docs/media/daily-planning.gif)
 
-- Quick add: `Prepare deployment review tomorrow 2pm`.
+- Quick add: `Prepare deployment review tomorrow 2pm`, with the parsed title, date and time visible before saving.
+- Searchable backlog with completed work folded away; schedule only the shown unfinished items, with guarded undo.
+- Linked issues and reviews show their planned date. Moving an existing task is explicit and reversible, without duplicates.
 - Personal tasks and events, with Day / Week / Month calendar views.
 - Drag-to-schedule, keyboard reordering, and editable linked personal plans.
 - Click a calendar date to focus quick add without losing the current month.
@@ -85,6 +89,8 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 - Separate quick-create text drafts survive closing the palette during the app session.
 
 Personal planning changes stay local. Checking a task or moving its date does **not** change a Jira status or deadline.
+
+Jira issue search supports project, personal work, due-soon and active-sprint filters without writing JQL. Status changes are available inline; the inspector retains comment and field drafts when changing views. [Jira usability](docs/JIRA_USABILITY.md) · [Planning usability](docs/TODO_USABILITY.md).
 
 <details>
 <summary><strong>More screens: dark mode, calendar, wiki and contextual assistant</strong></summary>
@@ -197,7 +203,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **219 browser tests**, **94 adapter/model tests** and **9 native connected workflow checks** passed for flow-based review. The **5 native memory lifecycle checks** passed in the earlier memory validation. Native checks use an isolated profile and HTTPS protocol fixtures; no real company records are modified. See the [flow review validation](docs/REVIEW_FLOWS.md), [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md), [AI co-review validation](docs/AI_COLLABORATIVE_REVIEW.md), [four-cycle UI/UX review](docs/UX_REVIEW_CYCLES.md), [quality pass](docs/PRODUCT_QUALITY.md) and [validation record](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **253 browser tests**, **107 adapter/model tests**, **9 native connected workflow checks** and **5 native memory lifecycle checks** passed after the role-based review, planning and Jira usability pass. Native profile compatibility and encrypted-vault checks also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. See the [latest team review and validation](docs/LAYERED_REVIEW_USABILITY.md), [architecture review](docs/REVIEW_ARCHITECTURE.md), [planning review](docs/TODO_USABILITY.md), [Jira review](docs/JIRA_USABILITY.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

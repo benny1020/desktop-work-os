@@ -105,3 +105,8 @@ The [AI collaborative review pass](AI_COLLABORATIVE_REVIEW.md) supersedes the la
 ## Workflow convenience expansion — 2026-10-03
 
 The [workflow convenience review](WORKFLOW_CONVENIENCE.md) supersedes the current counts: **170/170 browser**, **30/30 adapter**, **7/7 native connected workflows** passed. The native run used 39 adapter requests and had zero renderer console errors; the production build passed. Three agents and the primary implementer performed implementation and independent cross-review of planning, documents/issues, search/creation and Assistant sessions. Later rounds corrected menu-return state loss, Home date leakage, same-URL credential-session reuse and a pending MR submission/navigation duplicate-post path. Tests use synthetic service responses; live organization authentication and model quality remain unverified.
+
+
+## Layered review and practical planning/Jira pass — 2026-10-06
+
+The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts: **253/253 browser**, **107/107 adapter/model**, **9/9 native connected** and **5/5 native memory lifecycle** checks passed. Native profile compatibility, OS encrypted-vault validation, production build and whitespace checks also passed. Three agents implemented and cross-reviewed changes; the integrated resize regression was repaired before a complete clean rerun. Screenshots use synthetic fixtures. Native connected checks used real temporary Git repositories, zero automatic external writes and zero renderer console errors. Company accounts and live Claude quality remain unverified.

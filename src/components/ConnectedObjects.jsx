@@ -7,7 +7,6 @@ import { invoke } from "../lib/integration-client";
 import {
   rememberObject,
   favoriteObject,
-  addPlanTask,
   usePlan,
   objectKey,
 } from "../lib/planning";
@@ -17,6 +16,7 @@ import SyncStatus from "./SyncStatus";
 import { useAutoSync } from "../lib/use-auto-sync";
 import AssistantAvatar from "./AssistantAvatar";
 import ConnectedAssistant from "./ConnectedAssistant";
+import PlanObjectButton from "./PlanObjectButton";
 export function MRLinks({ mr, onOpen, origin, pending = false }) {
   const [pipelines, setPipelines] = useState(null),
     [error, setError] = useState(""),
@@ -80,28 +80,9 @@ export function MRLinks({ mr, onOpen, origin, pending = false }) {
         </button>
       ))}
       {pipelines?.length === 0 && <small>No MR pipelines</small>}
-      <button
-        className="linked-chip"
-        onClick={() => {
-          try {
-            addPlanTask({
-              title: `!${mr.iid} ${mr.title}`,
-              object: {
-                type: "mr",
-                iid: mr.iid,
-                projectId: mr.project_id,
-                title: mr.title,
-                origin,
-              },
-            });
-            setNotice("Added to Today");
-          } catch (e) {
-            setError(e.message);
-          }
-        }}
-      >
-        Add review to Today
-      </button>
+      <PlanObjectButton title={`!${mr.iid} ${mr.title}`} addLabel="Add review to Today"
+        object={{ type: "mr", iid: mr.iid, projectId: mr.project_id, title: mr.title, origin }}
+        onNotice={setNotice} onError={setError} />
       {notice && <small role="status">{notice}</small>}
       {error && <small role="alert">{error}</small>}
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { invoke } from "../lib/integration-client";
-import { addPlanTask } from "../lib/planning";
+import PlanObjectButton from "./PlanObjectButton";
 import CrossToolContext from "./CrossToolContext";
 import { useAutoSync } from "../lib/use-auto-sync";
 import SyncStatus from "./SyncStatus";
@@ -35,6 +35,7 @@ export default function JiraIssue({
   const planningRequest = useRef(0);
   const draftOwner = useRef(draftKey);
   const sprintRequest = useRef(0);
+  const transitionRequest = useRef(0);
   const fieldSnapshot = useRef(null);
   activeKey.current = scopeKey;
   const isActive = (scope = scopeKey) => mounted.current && activeKey.current === scope;
@@ -60,6 +61,8 @@ export default function JiraIssue({
     [account, setAccount] = useState(""),
     [due, setDue] = useState(""),
     [notice, setNotice] = useState("");
+  const [peopleBusy, setPeopleBusy] = useState(false), [planningBusy, setPlanningBusy] = useState(false),
+    [transitionError, setTransitionError] = useState(""), [transitionLoading, setTransitionLoading] = useState(false);
   useEffect(() => {
     if (draftOwner.current !== draftKey) return;
     try {
@@ -83,11 +86,14 @@ export default function JiraIssue({
   }, [issue]);
   async function searchPeople() {
     const ticket = ++peopleRequest.current;
+    setPeopleBusy(true); setError("");
     try {
       const result = await invoke("jira.assignees", { key: item.key, query: personQuery });
       if (isActive() && ticket === peopleRequest.current) setPeople(result);
     } catch (e) {
       if (isActive() && ticket === peopleRequest.current) setError(e.message);
+    } finally {
+      if (isActive() && ticket === peopleRequest.current) setPeopleBusy(false);
     }
   }
   function beginMutation() {
@@ -126,20 +132,26 @@ export default function JiraIssue({
     [sprint, setSprint] = useState(""),
     [priority, setPriority] = useState("");
   async function loadPlanning() {
+    if (planningBusy) return;
     const ticket = ++planningRequest.current;
+    setPlanningBusy(true);
     setError("");
     try {
-      const [m, b] = await Promise.all([
+      const [m, b] = await Promise.allSettled([
         invoke("jira.editMetadata", { key: item.key }),
         invoke("jira.boards", {
           project: issue.fields.project?.key || item.key.split("-")[0],
         }),
       ]);
       if (!isActive() || ticket !== planningRequest.current) return;
-      setMeta(m);
-      setBoards(b.values || []);
+      if (m.status === "fulfilled") setMeta(m.value);
+      if (b.status === "fulfilled") setBoards(b.value.values || []);
+      const failures = [m, b].filter(result => result.status === "rejected");
+      if (failures.length) setError(failures.map(result => result.reason.message).join(" · "));
     } catch (e) {
       if (isActive() && ticket === planningRequest.current) setError(e.message);
+    } finally {
+      if (isActive() && ticket === planningRequest.current) setPlanningBusy(false);
     }
   }
   async function chooseBoard(id) {
@@ -180,17 +192,46 @@ export default function JiraIssue({
   async function load(isCurrent = () => true, afterMutation = false) {
     if (!isActive() || (mutationBusy.current && !afterMutation)) return false;
     const ticket = ++requestVersion.current;
-    const [i, t] = await Promise.all([
-      invoke("jira.issue", { key: item.key }),
-      invoke("jira.transitions", { key: item.key }),
-    ]);
-    if (!isActive() || !isCurrent() || ticket !== requestVersion.current || (mutationBusy.current && !afterMutation)) return false;
-    setIssue(i);
-    setTransitions(t);
-    setReadError("");
-    sync.markSynced();
-    onContext?.(JSON.stringify({ key: i.key, ...i.fields }));
-    return true;
+    const optionTicket = ++transitionRequest.current;
+    try {
+      const [issueResult, transitionResult] = await Promise.allSettled([
+        invoke("jira.issue", { key: item.key }),
+        invoke("jira.transitions", { key: item.key }),
+      ]);
+      if (!isActive() || !isCurrent() || ticket !== requestVersion.current || (mutationBusy.current && !afterMutation)) return false;
+      if (issueResult.status === "rejected") throw issueResult.reason;
+      const i = issueResult.value;
+      setIssue(i);
+      if (optionTicket === transitionRequest.current) {
+        setTransitions(transitionResult.status === "fulfilled" ? transitionResult.value : []);
+        if (transitionResult.status === "fulfilled") setTransition(current => transitionResult.value.some(option => String(option.id) === current) ? current : "");
+        setTransitionError(transitionResult.status === "rejected" ? transitionResult.reason.message : "");
+        if (transitionResult.status === "rejected") setTransition("");
+      }
+      setReadError("");
+      sync.markSynced();
+      onContext?.(JSON.stringify({ key: i.key, ...i.fields }));
+      return true;
+    } finally {
+      // A background read can supersede a manual status retry. Its owner must
+      // release the shared loading state even when the issue read fails or goes stale.
+      if (isActive() && optionTicket === transitionRequest.current) setTransitionLoading(false);
+    }
+  }
+  async function retryTransitions() {
+    const ticket = ++transitionRequest.current;
+    setTransitionLoading(true);
+    try {
+      const options = await invoke("jira.transitions", { key: item.key });
+      if (isActive() && ticket === transitionRequest.current && !mutationBusy.current) {
+        setTransitions(options); setTransitionError("");
+        setTransition(current => options.some(option => String(option.id) === current) ? current : "");
+      }
+    } catch (e) {
+      if (isActive() && ticket === transitionRequest.current) setTransitionError(e.message);
+    } finally {
+      if (isActive() && ticket === transitionRequest.current) setTransitionLoading(false);
+    }
   }
   const sync = useAutoSync({
     key: `jira-issue:${scopeKey}`,
@@ -206,8 +247,11 @@ export default function JiraIssue({
     setInitialSettled(false);
     setIssue(null);
     setTransitions([]);
+    setTransitionError(""); setTransitionLoading(false); transitionRequest.current++;
     setTransition("");
     setPeople([]);
+    setPeopleBusy(false); setPlanningBusy(false);
+    peopleRequest.current++; planningRequest.current++; sprintRequest.current++;
     setMeta(null);
     setBoards([]);
     setSprints([]);
@@ -228,11 +272,13 @@ export default function JiraIssue({
   }, [scopeKey]);
   async function update(kind) {
     if (!beginMutation()) return;
+    let accepted = false;
     try {
       if (kind === "comment") {
         const submittedText = text;
         await invoke("jira.comment", { key: item.key, body: submittedText });
         if (!isActive()) return;
+        accepted = true;
         setNotice("Comment posted to Jira.");
         try {
           if (localStorage.getItem(draftKey) === submittedText) localStorage.removeItem(draftKey);
@@ -240,14 +286,22 @@ export default function JiraIssue({
           if (isActive()) setError("Your comment was posted, but its saved draft could not be cleared.");
         }
         setText((current) => (current === submittedText ? "" : current));
-      } else
+      } else {
         await invoke("jira.transition", {
           key: item.key,
           transitionId: transition,
         });
+        if (!isActive()) return;
+        accepted = true;
+        setTransition(""); setTransitions([]);
+        setNotice("Status updated in Jira.");
+      }
       if (await load(() => true, true)) onChanged?.();
     } catch (e) {
-      if (isActive()) setError(e.message);
+      if (isActive()) {
+        if (accepted) setReadError(`Update saved in Jira. Issue refresh failed: ${e.message}`);
+        else setError(e.message);
+      }
     } finally {
       endMutation();
     }
@@ -264,6 +318,11 @@ export default function JiraIssue({
           <X size={16} />
         </button>
       </div>
+      {(notice || error || readError) && <div className="issue-feedback">
+        {notice && <p className="connection-success" role="status">{notice}</p>}
+        {readError && <div className="connection-error" role="alert">{readError}<button className="btn" disabled={busy || sync.syncing} onClick={() => sync.run()}>Retry issue refresh</button></div>}
+        {error && <div className="connection-error" role="alert">{error}</div>}
+      </div>}
       {issue ? (
         <div className="live-inspector-body">
           <SyncStatus sync={sync} />
@@ -271,7 +330,11 @@ export default function JiraIssue({
           <div className="inline">
             <span className="pill">{issue.fields.status?.name}</span>
             <span>{issue.fields.assignee?.displayName || "Unassigned"}</span>
+            <span className="pill">{issue.fields.priority?.name || "No priority"}</span>
           </div>
+          <PlanObjectButton title={`${item.key} ${issue.fields.summary}`}
+            object={{ type: "issue", key: item.key, title: `${item.key} ${issue.fields.summary}`, origin }}
+            onNotice={setNotice} onError={setError} />
           <p className="live-description">
             {adfText(issue.fields.description) || "No description"}
           </p>
@@ -281,6 +344,7 @@ export default function JiraIssue({
             <select
               aria-label="Jira status transition"
               value={transition}
+              disabled={busy || transitionLoading || Boolean(transitionError)}
               onChange={(e) => setTransition(e.target.value)}
             >
               <option value="">Choose a transition</option>
@@ -291,9 +355,12 @@ export default function JiraIssue({
               ))}
             </select>
           </label>
+          {transitionError && <div className="connection-error" role="alert">Status options unavailable. {transitionError}
+            <button className="btn" disabled={busy || transitionLoading} onClick={retryTransitions}>Retry status options</button>
+          </div>}
           <button
             className="btn"
-            disabled={!transition || busy}
+            disabled={!transition || busy || transitionLoading || Boolean(transitionError)}
             onClick={() => update("status")}
           >
             Apply in Jira
@@ -305,10 +372,11 @@ export default function JiraIssue({
                 aria-label="Find Jira assignee"
                 value={personQuery}
                 onChange={(e) => setPersonQuery(e.target.value)}
+                onKeyDown={event => { if (event.key === "Enter" && !busy && !peopleBusy) { event.preventDefault(); searchPeople(); } }}
               />
             </label>
-            <button className="btn" disabled={busy} onClick={searchPeople}>
-              Find people
+            <button className="btn" disabled={busy || peopleBusy} onClick={searchPeople}>
+              {peopleBusy ? "Finding…" : "Find people"}
             </button>
             <select
               aria-label="Jira assignee"
@@ -332,7 +400,7 @@ export default function JiraIssue({
             </select>
             <button
               className="btn"
-              disabled={busy}
+              disabled={busy || account === (issue.fields.assignee?.accountId || "")}
               onClick={() => editField("assignee")}
             >
               Save assignee in Jira
@@ -348,18 +416,19 @@ export default function JiraIssue({
             </label>
             <button
               className="btn"
-              disabled={busy}
+              disabled={busy || due === (issue.fields.duedate || "")}
               onClick={() => editField("due")}
             >
               Save due date in Jira
             </button>
           </div>
-          <details className="issue-planning-details">
+          <details className="issue-planning-details" onToggle={event => { if (event.currentTarget.open && !meta && !planningBusy) loadPlanning(); }}>
             <summary>Sprint & priority</summary>
-            <button className="btn" onClick={loadPlanning}>
-              Load project options
+            <button className="btn" disabled={planningBusy || busy} onClick={loadPlanning}>
+              Refresh project options
             </button>
-            {meta && (
+            {planningBusy && <p className="form-note" role="status">Loading priority and sprint options…</p>}
+            {(meta || boards.length > 0) && (
               <>
                 <label>
                   Priority
@@ -369,7 +438,7 @@ export default function JiraIssue({
                     onChange={(e) => setPriority(e.target.value)}
                   >
                     <option value="">Choose priority</option>
-                    {(meta.fields?.priority?.allowedValues || []).map((p) => (
+                    {(meta?.fields?.priority?.allowedValues || []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                       </option>
@@ -378,7 +447,7 @@ export default function JiraIssue({
                 </label>
                 <button
                   className="btn"
-                  disabled={!priority || busy}
+                  disabled={!priority || busy || priority === issue.fields.priority?.id}
                   onClick={() => savePlanning("priority")}
                 >
                   Save priority in Jira
@@ -427,32 +496,6 @@ export default function JiraIssue({
               </>
             )}
           </details>
-          <button
-            className="btn"
-            onClick={() => {
-              try {
-                addPlanTask({
-                  title: `${item.key} ${issue.fields.summary}`,
-                  object: {
-                    type: "issue",
-                    key: item.key,
-                    title: `${item.key} ${issue.fields.summary}`,
-                    origin,
-                  },
-                });
-                setNotice("Added to Today · local plan");
-              } catch (e) {
-                setError(e.message);
-              }
-            }}
-          >
-            Add to Today
-          </button>
-          {notice && (
-            <p className="connection-success" role="status">
-              {notice}
-            </p>
-          )}
           {onOpen && issue.fields.issuelinks?.length > 0 && (
             <section className="issue-related">
               <h3>Linked Jira issues</h3>
@@ -479,7 +522,17 @@ export default function JiraIssue({
               })}
             </section>
           )}
+          {issue.fields.subtasks?.length > 0 && <section className="issue-related">
+            <h3>Subtasks</h3>
+            {issue.fields.subtasks.map(task => <button key={task.key} className="linked-object" disabled={!onOpen}
+              onClick={() => onOpen?.({ type: "issue", key: task.key, title: task.fields?.summary || task.key, origin })}>
+              <code>{task.key}</code> {task.fields?.summary}<small>{task.fields?.status?.name}</small>
+            </button>)}
+          </section>}
           <h3>Comments</h3>
+          {issue.fields.comment?.total > (issue.fields.comment?.comments?.length || 0) && <p className="form-note">
+            Showing {issue.fields.comment.comments?.length || 0} of {issue.fields.comment.total} comments returned by Jira. Older comments remain in Jira.
+          </p>}
           {issue.fields.comment?.comments?.map((c) => (
             <div className="component-comment" key={c.id}>
               <b>{c.author?.displayName}</b>
@@ -490,9 +543,14 @@ export default function JiraIssue({
             aria-label="Live Jira comment"
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={event => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && text.trim() && !busy) {
+                event.preventDefault(); event.stopPropagation(); update("comment");
+              }
+            }}
             placeholder="Write a comment for Jira…"
           />
-          <small className="form-note">Comment drafts are stored on this device.</small>
+          <small className="form-note">Draft saved on this device · ⌘/Ctrl + Enter to post</small>
           <button
             className="btn primary"
             disabled={!text.trim() || busy}
@@ -505,12 +563,6 @@ export default function JiraIssue({
         !error && !readError && <Pending />
       )}
       {!issue && initialSettled && <div className="form-note"><SyncStatus sync={sync} /></div>}
-      {readError && <div className="connection-error" role="alert">{readError}</div>}
-      {error && (
-        <div className="connection-error" role="alert">
-          {error}
-        </div>
-      )}
     </aside>
   );
 }

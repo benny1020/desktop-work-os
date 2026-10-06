@@ -42,15 +42,15 @@ export function shiftMonth(day, delta) {
   const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
   d.setDate(Math.min(original,last));return dayKey(d);
 }
-export function parseQuick(text, fallback = dayKey()) {
+export function parseQuick(text, fallback = dayKey(), referenceDay = dayKey()) {
   let title = text.trim(),
     date = fallback,
     time = "";
   if (/\b(tomorrow)\b|내일/i.test(title)) {
-    date = shiftDay(dayKey(), 1);
+    date = shiftDay(referenceDay, 1);
     title = title.replace(/\btomorrow\b|내일/gi, "");
   } else if (/\btoday\b|오늘/i.test(title)) {
-    date = dayKey();
+    date = referenceDay;
     title = title.replace(/\btoday\b|오늘/gi, "");
   }
   const iso = title.match(/\b(\d{4}-\d{2}-\d{2})\b/);

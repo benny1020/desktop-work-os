@@ -1,3 +1,4 @@
+import { reviewFlowMetadata } from './review-architecture.mjs';
 // Review groups are navigation aids derived from paths and verified imports.
 // They describe changed-file structure, never runtime execution or business intent.
 const MAX_PRIMARY_FILES = 12;
@@ -10,7 +11,7 @@ const canonicalPath = file => file?.path || file?.new_path || file?.old_path;
 function describe(path) {
   const segments = path.split('/').filter(Boolean), directories = segments.slice(0, -1);
   const name = basename(path);
-  let kind = /(?:^|\/)(?:tests?|__tests__|specs?|e2e)(?:\/|$)|(?:[._-](?:test|spec)|Test|Tests|Spec)\.[^.]+$/i.test(path)
+  let kind = /(?:^|\/)(?:tests?|__tests__|specs?|e2e)(?:\/|$)|(?:[._-](?:test|spec)|Test|Tests|Spec)\.(?:[cm]?[jt]sx?|java|kt|py|go|rb|rs|c|cpp|cs)$/i.test(path)
     ? 'tests' : /(?:^|\/)(?:docs?|documentation)(?:\/|$)|\.(?:md|mdx|rst|adoc)$/i.test(path)
       ? 'docs' : /(?:^|\/)(?:\.github|\.gitlab|config|configuration)(?:\/|$)|\.(?:json|ya?ml|toml|ini|conf|lock)$|(?:^|\/)(?:Dockerfile|Makefile|\.env[^/]*)$/i.test(path)
         ? 'config' : 'code';
@@ -88,11 +89,27 @@ export function buildReviewFlows(files = [], graph = {}) {
     if (a.area && b.area && a.area !== b.area) continue;
     join(edge.from, edge.to);
   }
+  // Flat Java/TS layer folders often contain several unrelated features. Class
+  // families keep OrderController/OrderService separate from Payment*, even
+  // when both live in the same package. Verified imports still connect helpers.
+  const classFamily = path => details.get(path).stem.match(/^(.+?)(?:Controller|Service|Repository|Repo|DAO|Dao|Mapper|UseCase|Interactor|[._-](?:controller|service|repository|repo|dao|mapper|use-?case|interactor))$/)?.[1] || '';
+  const familiesByArea = new Map();
+  for (const path of parents.keys()) {
+    const item = details.get(path), family = classFamily(path);
+    if (item.kind !== 'code' || !family) continue;
+    if (!familiesByArea.has(item.area)) familiesByArea.set(item.area, new Set());
+    familiesByArea.get(item.area).add(family);
+  }
+  const groupingArea = path => {
+    const item = details.get(path), family = classFamily(path);
+    return (familiesByArea.get(item.area)?.size > 1 && family) ? `${item.area}::${family}` : item.area;
+  };
   const areas = new Map();
   for (const path of parents.keys()) {
-    const { area, kind } = details.get(path);
-    if (!area || kind !== 'code') continue;
-    if (areas.has(area)) join(path, areas.get(area)); else areas.set(area, path);
+    const { kind } = details.get(path);
+    const areaKey = groupingArea(path);
+    if (!areaKey || kind !== 'code') continue;
+    if (areas.has(areaKey)) join(path, areas.get(areaKey)); else areas.set(areaKey, path);
   }
   // A colocated test/document belongs with its area. A uniquely named test may
   // follow its implementation; duplicate basenames never choose an arbitrary owner.
@@ -106,17 +123,18 @@ export function buildReviewFlows(files = [], graph = {}) {
   for (const path of parents.keys()) {
     const item = details.get(path);
     if (item.kind === 'code') continue;
-    if (item.area && areas.has(item.area)) { join(path, areas.get(item.area)); continue; }
+    // Match a test by implementation before choosing a broad directory area.
     if (item.kind === 'tests') {
       const matches = implementations.get(item.stem) || [];
-      if (matches.length === 1) join(path, matches[0]);
+      if (matches.length === 1) { join(path, matches[0]); continue; }
     }
+    if (item.area && areas.has(item.area) && (familiesByArea.get(item.area)?.size || 0) <= 1) { join(path, areas.get(item.area)); continue; }
   }
   const components = new Map();
   for (const path of parents.keys()) { const root = find(path); if (!components.has(root)) components.set(root, []); components.get(root).push(path); }
   const clusters = [...components.values()];
   const substantive = clusters.filter(cluster => cluster.some(path => details.get(path).kind === 'code') &&
-    (cluster.some(path => details.get(path).area) || cluster.length > 1));
+    (cluster.some(path => details.get(path).area || classFamily(path)) || cluster.length > 1));
   const distinctAreas = new Set(paths.filter(path => !shared.has(path) && details.get(path).kind === 'code').map(path => details.get(path).area).filter(Boolean));
   let groups;
   if (!shared.size && distinctAreas.size <= 1 && substantive.length <= 1) {
@@ -129,7 +147,7 @@ export function buildReviewFlows(files = [], graph = {}) {
     const loose = new Map();
     for (const cluster of clusters) {
       const code = cluster.filter(path => details.get(path).kind === 'code');
-      if (code.length && (cluster.length > 1 || details.get(code[0]).area)) {
+      if (code.length && (cluster.length > 1 || details.get(code[0]).area || classFamily(code[0]))) {
         const area = details.get(code[0]).area;
         groups.push({ paths: cluster, label: area || basename(code[0]), reason: area ? `Grouped by the ${area} directory area and verified imports.` : 'Connected by verified imports between changed files.' });
       } else {
@@ -150,9 +168,11 @@ export function buildReviewFlows(files = [], graph = {}) {
       const primarySet = new Set(primary);
       const related = sorted(new Set(primary.flatMap(path => [...neighbors.get(path)].filter(other => shared.has(other) && !primarySet.has(other)))));
       const hasCodeEdge = primary.some(path => [...neighbors.get(path)].some(other => primarySet.has(other)));
-      output.push({ id: identifier(primary), label: count > 1 ? `${group.label} · part ${index + 1} of ${count}` : group.label,
+      const metadata = reviewFlowMetadata(primary, files, { ...graph, dependencies: edges.map(edge => ({ ...edge, evidence: 'code' })) }, group.label);
+      output.push({ ...metadata, id: identifier(primary), label: count > 1 ? `${group.label} · part ${index + 1} of ${count}` : group.label,
         paths: primary, sharedPaths: related.slice(0, MAX_SHARED_FILES), kind: hasCodeEdge ? 'flow' : 'group',
-        reason: group.reason + (count > 1 ? ' Split into at most 12 primary files per group; cross-group links remain visible.' : '') +
+        section: count > 1 ? { index: index + 1, count } : null,
+        reason: (hasCodeEdge ? group.reason : metadata.evidence) + (count > 1 ? ' Split into at most 12 primary files per group; cross-group links remain visible.' : '') +
           (related.length > MAX_SHARED_FILES ? ' Up to 6 shared files are included; other shared dependencies remain in their own groups and boundary links.' : '') });
     }
   }

@@ -1,0 +1,46 @@
+.jira-filters { margin: 22px 0 18px; }
+.jira-quick-search { display: flex; align-items: center; gap: 9px; max-width: 600px; padding: 5px 6px 5px 12px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); }
+.jira-quick-search svg { flex-shrink: 0; color: var(--secondary); }
+.jira-quick-search input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 12px; padding: 6px 0; outline: none; }
+.jira-quick-search:focus-within { border-color: var(--accent); }
+.jira-quick-search .btn { font-size: 11px; white-space: nowrap; }
+.jira-filter-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.jira-filter-controls label { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--secondary); }
+.jira-filter-controls select { max-width: 210px; font-size: 11px; padding: 6px 9px; }
+.jira-filter-controls small { margin-left: auto; font-size: 10px; color: var(--secondary); }
+.jira-filter-warning { display: block; font-size: 11px; color: var(--amber); margin: 8px 0; }
+.jira-advanced { font-size: 11px; color: var(--secondary); }
+.jira-advanced summary { cursor: pointer; width: fit-content; padding: 4px 0; }
+.jira-advanced .jql-search { margin: 10px 0; }
+.jira-advanced input { min-width: 0; width: 100%; }
+.jira-status-popover { position: relative; width: fit-content; }
+.jira-status-popover summary { list-style: none; cursor: pointer; border-radius: 4px; }
+.jira-status-popover summary::-webkit-details-marker { display: none; }
+.jira-status-popover summary:hover .pill, .jira-status-popover[open] .pill { background: var(--accent-soft); color: var(--accent); }
+.jira-status-popover summary .pill::after { content: "⌄"; padding-left: 7px; }
+.jira-status-options { position: fixed; z-index: 10; width: 210px; max-height: 165px; overflow: auto; padding: 10px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 5px; box-shadow: 0 12px 30px #0002; display: flex; flex-direction: column; gap: 8px; white-space: normal; }
+.jira-status-options b { font-size: 10px; color: var(--secondary); font-weight: 500; }
+.jira-status-options .btn { text-align: left; justify-content: flex-start; }
+.jira-status-options small { font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.jira-due { font-size: 11px; white-space: nowrap; color: var(--secondary); }
+.plan-object-action { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.plan-object-action small { font-size: 10px; color: var(--secondary); }
+.mr-linked-context .plan-object-action { margin: 0; }
+.jira-issue-table table { min-width: 700px; }
+.jira-issue-table td { padding: 10px; }
+.jira-issue-table td button { color: var(--text); }
+.jira-issue-table .object-key { font-size: 10px; color: var(--secondary); }
+.issue-feedback { position: sticky; top: 43px; z-index: 2; background: var(--surface); padding: 0 12px; }
+.issue-feedback .connection-error, .issue-feedback .connection-success { margin: 6px 0; padding: 8px 10px; font-size: 11px; }
+.issue-planning-details { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; margin: 18px 0; }
+.issue-planning-details summary { cursor: pointer; font-size: 11px; }
+.issue-planning-details > .btn { margin-top: 12px; }
+.issue-related .linked-object { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; text-align: left; font-size: 11px; padding: 9px 0; }
+.issue-related .linked-object small { margin-left: auto; color: var(--secondary); }
+@media (max-width: 1100px) {
+  .connected-workspace.has-selection .connected-content { padding: 20px 16px; }
+  .jira-filter-controls { gap: 8px; }
+  .jira-filter-controls small { margin-left: 0; width: 100%; }
+  .jira-advanced .jql-search { flex-wrap: wrap; }
+  .jira-advanced .jql-search label { min-width: 200px; }
+}

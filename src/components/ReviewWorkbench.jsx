@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
 import ReviewGuidePanel from "./ReviewGuidePanel";
+import { ReviewFlowPicker, ReviewFlowContext } from "./ReviewFlowNavigator";
 import "../review-collaboration.css";
 import "../review-local-git.css";
 import "../review-flows.css";
 import { buildReviewFlows, scopeReviewGraph } from "../lib/review-flows.mjs";
+import { annotateReviewGraph, architectureLayout } from "../lib/review-architecture.mjs";
 import {
   ArrowLeft,
   ArrowRight,
@@ -116,7 +118,7 @@ function diagramKeys(event, onActivate) {
     : (index + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + nodes.length) % nodes.length;
   event.preventDefault(); nodes[next]?.focus();
 }
-function DependencyDiagram({ graph, selected, onSelect, zoom, layout }) {
+function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependencyPositions, viewed }) {
   const { positions, layers, layerOffsets, nodeW, nodeH, width: w, height: h } = layout;
   return (
     <div className="diagram-scroll">
@@ -142,9 +144,11 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout }) {
           </marker>
         </defs>
         {layers.map((layer, index) => (
-          <g key={index} className="dependency-layer" aria-hidden="true">
-            <text x="20" y={22 + layerOffsets[index]}>{graph.dependencies.length ? index === 0 ? "Root components" : `Dependency layer ${index}` : "Changed components"}</text>
-            <line x1="20" x2={w - 20} y1={29 + layerOffsets[index]} y2={29 + layerOffsets[index]} />
+          <g key={index} className={`dependency-layer ${layout.semantic ? 'architecture-layer' : ''}`} data-role={layout.layerRoles?.[index]}>
+            {layout.semantic && <rect className="architecture-band" x="10" y={layerOffsets[index] + 5} width={w - 20} height={(layerOffsets[index + 1] || h - 12) - layerOffsets[index] - 10} rx="6"/>}
+            <text x="20" y={25 + layerOffsets[index]}>{layout.layerLabels?.[index] || (graph.dependencies.length ? index === 0 ? "Root components" : `Dependency layer ${index}` : "Changed components")}</text>
+            <text className="architecture-layer-count" textAnchor="end" x={w - 20} y={25 + layerOffsets[index]}>{layer.length}</text>
+            <line x1="20" x2={w - 20} y1={34 + layerOffsets[index]} y2={34 + layerOffsets[index]} />
           </g>
         ))}
         {graph.dependencies.map((e, i) => {
@@ -160,7 +164,9 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout }) {
             startY = a.y + nodeH,
             endX = b.x + nodeW / 2,
             endY = b.y;
-          const d = sameRow && a.y !== b.y
+          const d = b.layer < a.layer
+            ? `M ${a.x + nodeW} ${a.y + nodeH / 2} L ${w - 12} ${a.y + nodeH / 2} L ${w - 12} ${b.y + nodeH / 2} L ${b.x + nodeW} ${b.y + nodeH / 2}`
+            : sameRow && a.y !== b.y
             ? `M ${a.x + nodeW} ${a.y + nodeH / 2} C ${w - 8} ${a.y + nodeH / 2}, ${w - 8} ${b.y + nodeH / 2}, ${b.x + nodeW} ${b.y + nodeH / 2}`
             : passOtherNodes
               ? `M ${routeLeft ? a.x : a.x + nodeW} ${a.y + nodeH / 2} L ${lane} ${a.y + nodeH / 2} L ${lane} ${endY - 18} L ${endX} ${endY - 18} L ${endX} ${endY}`
@@ -194,7 +200,9 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout }) {
               tabIndex={0}
               aria-label={`Open component ${basename(n.path)}`}
               aria-pressed={selected === n.id}
-              data-dependency-layer={p.layer}
+              data-dependency-layer={dependencyPositions?.get(n.id)?.layer ?? p.layer}
+              data-architecture-role={n.role || 'other'}
+              data-architecture-layer={layout.semantic ? p.layer : undefined}
               onClick={() => onSelect(n.path)}
               onKeyDown={(event) => diagramKeys(event, () => onSelect(n.path))}
             >
@@ -206,16 +214,16 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout }) {
                 x="0"
                 y="10"
               />
-              <text className="node-label" x="15" y="28">
+              <text className="node-label" x="15" y={layout.semantic ? 24 : 28}>
                 {n.label.length > 23 ? n.label.slice(0, 22) + "…" : n.label}
               </text>
-              <text className="node-path" x="15" y="47">
-                {basename(n.path).slice(0, 26)}
+              <text className="node-path" x="15" y={layout.semantic ? 40 : 47}>
+                {layout.semantic ? n.role === 'other' ? n.confidence === 'ambiguous' ? 'Role ambiguous' : 'Role unknown' : `${n.roleLabel}${n.confidence === 'code' ? ' · source evidence' : ' · convention'}` : basename(n.path).slice(0, 26)}
               </text>
-              <text className="node-meta" x="15" y="62">
-                {p.cyclic ? "Cyclic dependency" : n.change} · {n.lines} changed lines
+              <text className="node-meta" x="15" y={layout.semantic ? 54 : 62}>
+                {p.cyclic ? "Cyclic dependency" : viewed?.includes(n.path) ? "Viewed" : n.change} · {n.lines} changed lines
               </text>
-              <title>{n.path}</title>
+              <title>{n.path}{n.evidence?.length ? `\n${n.evidence.map(item => item.detail).join('\n')}` : ''}</title>
             </g>
           );
         })}
@@ -399,6 +407,7 @@ export default function ReviewWorkbench({
   const restored = initialReviewState?.version === viewVersion &&
     files.some((item) => item.path === initialReviewState.selected) ? initialReviewState : null;
   const [tab, setTab] = useState(restored?.tab || (initialTab === "Sequence" ? "Sequence" : "Dependency flow"));
+  const [architectureMode, setArchitectureMode] = useState(restored?.architectureMode ?? true);
   const [guideBusy, setGuideBusy] = useState(false);
   const [guideError, setGuideError] = useState("");
   const [activeFinding, setActiveFinding] = useState(restored?.activeFinding || null);
@@ -483,8 +492,8 @@ export default function ReviewWorkbench({
   const sourceKey = JSON.stringify([sourceRef, file?.deleted_file ? file?.old_path : file?.path]);
   useEffect(() => {
     onReviewState?.({ version: viewVersion, selected, line, side, tab, codeMode,
-      guide, guidelines, activeFinding, zoom, autoFit, flowId: activeFlow?.id, flowViews: flowViews.current });
-  }, [viewVersion, selected, line, side, tab, codeMode, guide, guidelines, activeFinding, zoom, autoFit, activeFlow?.id]);
+      guide, guidelines, activeFinding, zoom, autoFit, architectureMode, flowId: activeFlow?.id, flowViews: flowViews.current });
+  }, [viewVersion, selected, line, side, tab, codeMode, guide, guidelines, activeFinding, zoom, autoFit, architectureMode, activeFlow?.id]);
   useEffect(() => {
     if (codeMode === "Diff" || source[sourceKey] !== undefined || sourceError) onReady?.();
   }, [codeMode, source, sourceKey, sourceError]);
@@ -534,7 +543,7 @@ ${finding.reason}`;
     setGuideError("");
     setNotice("Diff base changed. Previous line drafts remain saved with their original version. Select a line to continue.");
   }, [diffVersion]);
-  const fullGraph = useMemo(() => buildGraph(files, guide), [files, guide]);
+  const fullGraph = useMemo(() => annotateReviewGraph(buildGraph(files, guide), files), [files, guide]);
   const graph = useMemo(() => scopeReviewGraph(fullGraph, activeFlow), [fullGraph, activeFlow]);
   const boundaryPaths = useMemo(() => [...new Set([...graph.boundaryDependencies, ...graph.boundarySequence]
     .map(edge => flowPaths.has(edge.from) ? edge.to : edge.from))], [graph, flowPaths]);
@@ -561,7 +570,9 @@ ${finding.reason}`;
     })();
     return () => { current = false; };
   }, [scopeKey, viewVersion, patchAttempt, live]);
-  const layout = useMemo(() => dependencyLayout(graph), [graph]);
+  const dependency = useMemo(() => dependencyLayout(graph), [graph]);
+  const architecture = useMemo(() => architectureLayout(graph), [graph]);
+  const layout = architectureMode && architecture ? architecture : dependency;
   const changeStats = useMemo(() => files.reduce((stats, item) => {
     for (const row of item.rows || []) {
       if (row.kind === "added") stats.added++;
@@ -571,20 +582,36 @@ ${finding.reason}`;
   }, { added: 0, removed: 0 }), [files]);
   useEffect(() => {
     if (!selected) return;
-    const frame = requestAnimationFrame(() => {
+    let frame;
+    const reveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
       const panel = mapPanel.current;
       const node = panel?.querySelector(".diagram-node.selected");
       if (!node) return;
-      const bounds = panel.getBoundingClientRect(), target = node.getBoundingClientRect();
+      const bounds = panel.getBoundingClientRect();
       const canvas = node.closest('.diagram-scroll');
-      const canvasBounds = canvas?.getBoundingClientRect();
-      if (canvasBounds && (target.left < canvasBounds.left || target.right > canvasBounds.right))
+      if (!canvas) return;
+      let target = node.getBoundingClientRect(), canvasBounds = canvas.getBoundingClientRect();
+      if (target.bottom > bounds.bottom || target.top < bounds.top + 36) {
+        panel.scrollTop += canvasBounds.top - bounds.top - 36;
+        canvasBounds = canvas.getBoundingClientRect(); target = node.getBoundingClientRect();
+      }
+      if (target.left < canvasBounds.left || target.right > canvasBounds.right)
         canvas.scrollLeft += target.left - canvasBounds.left - Math.max(8, (canvasBounds.width - target.width) / 2);
-      if (target.bottom > bounds.bottom || target.top < bounds.top + 36)
-        panel.scrollTop += target.top - bounds.top - Math.max(40, (bounds.height - target.height) / 2);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [activeFinding, selected, tab, zoom]);
+      const visibleTop = Math.max(bounds.top + 36, canvasBounds.top), visibleBottom = Math.min(bounds.bottom, canvasBounds.bottom);
+      if (target.top < visibleTop || target.bottom > visibleBottom)
+        canvas.scrollTop += target.top - visibleTop - Math.max(8, (visibleBottom - visibleTop - target.height) / 2);
+      const revealed = node.getBoundingClientRect();
+      if (revealed.top < bounds.top + 48 || revealed.bottom > bounds.bottom)
+        panel.scrollTop += revealed.top - bounds.top - Math.max(48, (bounds.height - revealed.height) / 2);
+      });
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    if (mapPanel.current) observer.observe(mapPanel.current);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
+  }, [activeFinding, selected, tab, zoom, layout]);
   useEffect(() => {
     if (!autoFit || tab === "AI guide") return;
     const canvas = mapPanel.current?.querySelector(".diagram-scroll");
@@ -669,13 +696,14 @@ ${finding.reason}`;
     const scroll = Object.fromEntries([".visual-map-panel", ".visual-code-scroll", ".ai-review-guide"].map(selector => {
       const el = reviewRoot.current?.querySelector(selector); return [selector, el ? [el.scrollLeft, el.scrollTop] : [0, 0]];
     }));
-    if (activeFlow) flowViews.current[activeFlow.id] = { selected, line, side, codeMode, tab, zoom, autoFit, guide, activeFinding, scroll };
+    if (activeFlow) flowViews.current[activeFlow.id] = { selected, line, side, codeMode, tab, zoom, autoFit, architectureMode, guide, activeFinding, scroll };
     const saved = flowViews.current[flow.id];
     const path = targetPath || (saved && [...flow.paths, ...flow.sharedPaths].includes(saved.selected) ? saved.selected : flow.paths.find(path => !viewed.includes(path)) || flow.paths[0]);
     setFlowId(flow.id); setSelected(path); setLine(saved?.line || null);
     setSide(saved?.side || (files.find(item => item.path === path)?.deleted_file ? "old" : "new"));
     setCodeMode(saved?.codeMode || "Diff"); setTab(saved?.tab || "Dependency flow");
     setZoom(saved?.zoom || .85); setAutoFit(saved?.autoFit ?? "readable");
+    setArchitectureMode(saved?.architectureMode ?? true);
     setGuide(saved?.guide || snapshot.guide || null); setActiveFinding(saved?.activeFinding || null);
     setGuideError(""); setError(""); setNotice("");
     if (flowPicker.current?.open) { flowPicker.current.open = false; flowPicker.current.querySelector("summary")?.focus(); }
@@ -957,27 +985,9 @@ ${finding.reason}`;
             <b className="added">+{changeStats.added}</b><b className="removed">−{changeStats.removed}</b>
             <span>{discussions.filter((d) => d.notes?.some((n) => !n.system)).length} threads</span>
           </div>
-          {flows.length > 1 ? <details className="review-flow-picker" ref={flowPicker}
-            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
-            onToggle={event => { if (event.currentTarget.open) requestAnimationFrame(() => flowPicker.current?.querySelector("input")?.focus()); }}
-            onKeyDown={event => { if (event.key === "Escape" && flowPicker.current.open) { event.preventDefault(); event.stopPropagation(); flowPicker.current.open = false; flowPicker.current.querySelector("summary")?.focus(); } }}>
-            <summary aria-label="Choose review flow" onClick={() => { if (!flowPicker.current?.open) setFlowQuery(""); }}><Workflow size={12}/>{activeFlow?.label}<span>{flows.findIndex(flow => flow.id === activeFlow?.id) + 1}/{flows.length}</span><ChevronDown size={12}/></summary>
-            <div className="review-flow-menu">
-              <input aria-label="Search review flows" placeholder="Find a flow or file…" value={flowQuery} onChange={event => setFlowQuery(event.target.value)} onKeyDown={event => { if (event.key === "ArrowDown") { event.preventDefault(); flowPicker.current?.querySelector('.review-flow-options button')?.focus(); } }} />
-              <small>Grouped from changed code and paths · not runtime traces</small>
-              <div className="review-flow-options" onKeyDown={event => {
-                if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-                const buttons = [...event.currentTarget.querySelectorAll("button")]; const index = buttons.indexOf(document.activeElement);
-                event.preventDefault(); buttons[event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
-              }}>
-                {flows.filter(flow => `${flow.label} ${flow.paths.join(" ")}`.toLowerCase().includes(flowQuery.toLowerCase())).map(flow => <button key={flow.id} aria-label={`Review flow ${flow.label}`} aria-pressed={activeFlow?.id === flow.id} onClick={() => chooseFlow(flow)}>
-                  <span><b>{flow.label}</b><small>{flow.reason}</small></span><small>{flow.paths.filter(path => viewed.includes(path)).length}/{flow.paths.length} viewed</small>
-                </button>)}
-                {!flows.some(flow => `${flow.label} ${flow.paths.join(" ")}`.toLowerCase().includes(flowQuery.toLowerCase())) && <p>No matching flows</p>}
-              </div>
-            </div>
-          </details> : <span className="review-single-flow" title={activeFlow?.reason}>1 review flow</span>}
-          <span className="reading-path-label">Read by dependency</span>
+          <ReviewFlowPicker flows={flows} activeFlow={activeFlow} viewed={viewed} query={flowQuery}
+            onQuery={setFlowQuery} onChoose={chooseFlow} pickerRef={flowPicker}/>
+          <span className="reading-path-label">{layout.semantic ? 'Read by layer' : 'Read by dependency'}</span>
           <div className="reading-path-files">
             {layout.layers.flat().map((node) => (
               <button key={node.id} className={selected === node.id ? "active" : ""}
@@ -1015,7 +1025,7 @@ ${finding.reason}`;
               Next unreviewed <ArrowRight size={12} />
             </button>
           </div>
-          {flows.length > 1 && <div className="review-flow-scope"><span title={activeFlow?.reason}><b>{activeFlow?.label}</b> · {activeFlow?.paths.filter(path => viewed.includes(path)).length}/{activeFlow?.paths.length} viewed{activeFlow?.sharedPaths.length ? ` · ${activeFlow.sharedPaths.length} shared` : ""}</span><button className="quiet-button" aria-label="Next review flow" onClick={() => chooseFlow(flows[(flows.findIndex(flow => flow.id === activeFlow.id) + 1) % flows.length])}><ArrowRight size={13}/></button></div>}
+          <ReviewFlowContext flows={flows} activeFlow={activeFlow} viewed={viewed} onChoose={chooseFlow} onSelect={select} graph={flowIndexGraph}/>
           <div
             className="visual-tabs"
             role="tablist"
@@ -1052,13 +1062,13 @@ ${finding.reason}`;
                 <div>
                   <strong>
                     {tab === "Dependency flow"
-                      ? "Dependency map"
+                      ? layout.semantic ? "Architecture layers" : "Dependency map"
                       : "Interaction sequence"}
                   </strong>
                   {tab === "Dependency flow" && <span className="diagram-evidence-count">{graph.dependencies.filter((e) => e.evidence === "code").length} resolved · {graph.dependencies.filter((e) => e.evidence !== "code").length} inferred</span>}
                   <small>
                     {tab === "Dependency flow"
-                      ? "Changed files only. Solid imports; dashed inferred references."
+                      ? layout.semantic ? "Roles from source and conventions. Arrows show code links." : "Changed files only. Solid imports; dashed inferred references."
                       : "Static code / AI inferred · not a runtime trace"}
                   </small>
                 </div>
@@ -1080,6 +1090,11 @@ ${finding.reason}`;
                   <ZoomIn size={15} />
                 </button>
               </div>
+              {tab === 'Dependency flow' && architecture && <div className="review-map-mode" role="group" aria-label="Diagram layout">
+                <button aria-pressed={architectureMode} onClick={() => { setArchitectureMode(true); setAutoFit('readable'); }}>By role</button>
+                <button aria-pressed={!architectureMode} onClick={() => { setArchitectureMode(false); setAutoFit('readable'); }}>By dependency</button>
+                <small>{layout.semantic ? 'Role groups' : 'Import depth'}</small>
+              </div>}
               {tab === "Dependency flow" ? (
                 <DependencyDiagram
                   graph={graph}
@@ -1087,6 +1102,8 @@ ${finding.reason}`;
                   selected={selected}
                   onSelect={select}
                   zoom={zoom}
+                  dependencyPositions={dependency.positions}
+                  viewed={viewed}
                 />
               ) : (
                 <SequenceDiagram
@@ -1372,7 +1389,7 @@ ${finding.reason}`;
           </div>
         </section>
         <ReviewGuidePanel guide={guide} files={files} mr={mr} live={live}
-          flowPaths={flows.length > 1 ? [...flowPaths] : null} flowLabel={activeFlow?.label}
+          flowPaths={flows.length > 1 ? [...flowPaths] : null} flowLabel={`${activeFlow?.title || activeFlow?.label || 'Changed files'}${activeFlow?.section ? ` · ${activeFlow.section.index}/${activeFlow.section.count}` : ''}`}
           endpoint={configs.claude?.url} guidelines={guidelines} onGuidelines={setGuidelines}
           busy={guideBusy && guideRequestFlow.current === activeFlow?.id} refreshing={refreshing || revisionPending || guideBusy} error={guideError} onGenerate={generate} selectedPath={file.path}
           activeFinding={activeFinding} findingKey={findingKey} canLocate={canLocate}
