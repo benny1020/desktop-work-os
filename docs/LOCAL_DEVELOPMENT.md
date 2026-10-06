@@ -110,3 +110,8 @@ The [workflow convenience review](WORKFLOW_CONVENIENCE.md) supersedes the curren
 ## Layered review and practical planning/Jira pass — 2026-10-06
 
 The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts: **253/253 browser**, **107/107 adapter/model**, **9/9 native connected** and **5/5 native memory lifecycle** checks passed. Native profile compatibility, OS encrypted-vault validation, production build and whitespace checks also passed. Three agents implemented and cross-reviewed changes; the integrated resize regression was repaired before a complete clean rerun. Screenshots use synthetic fixtures. Native connected checks used real temporary Git repositories, zero automatic external writes and zero renderer console errors. Company accounts and live Claude quality remain unverified.
+
+
+## Sidebar layouts — 2026-10-06
+
+[Sidebar layout validation](SIDEBAR_LAYOUT.md): **256/256 browser tests** and **10/10 native connected checks** passed, with production build and whitespace validation. Controls support expanded/icons/hidden modes, persisted last-visible state, keyboard hide/restore, preview draft/focus preservation and native window-control clearance. No adapter/model source changed in this pass.

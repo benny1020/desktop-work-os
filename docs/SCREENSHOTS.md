@@ -4,6 +4,10 @@ All screens below use synthetic data. The connected-mode images are rendered aga
 
 ## Start the day
 
+![Sidebar hidden with a persistent top-left restore control — actual Electron, synthetic service fixtures](media/sidebar-hidden.png)
+
+The top-left control minimizes navigation to icons. Its arrow menu offers Expanded, Icons only and Hide sidebar. Cmd/Ctrl + backslash hides/restores the last visible layout; the preference survives restart, preserving the current work and review draft.
+
 ![Daily command center](media/daily-command-center.png)
 
 Home brings the daily plan and attention items into one workspace. A review opens directly into its context.

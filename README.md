@@ -177,7 +177,7 @@ For details and limits, see the [integration and review guide](docs/INTEGRATIONS
 | `G`, then `H` / `M` / `P` / `C` / `O` | Home / My Work / Projects / Code / Observe |
 | `Esc` | Close the active overlay |
 
-The Home workflow guide opens real sample workflows in one click. Every global action also has a visible button. Light/dark themes, a collapsible sidebar, recent objects and navigation history support longer work sessions.
+The Home workflow guide opens real sample workflows in one click. Every global action also has a visible button. The top-left sidebar control switches between expanded navigation and icons; its menu also hides navigation completely. **Cmd/Ctrl + \\** hides/restores the previous layout, and the app remembers the choice after restart. Light/dark themes, recent objects and navigation history support longer work sessions.
 
 ## Data and execution boundaries
 
@@ -203,7 +203,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Recorded validation: **253 browser tests**, **107 adapter/model tests**, **9 native connected workflow checks** and **5 native memory lifecycle checks** passed after the role-based review, planning and Jira usability pass. Native profile compatibility and encrypted-vault checks also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. See the [latest team review and validation](docs/LAYERED_REVIEW_USABILITY.md), [architecture review](docs/REVIEW_ARCHITECTURE.md), [planning review](docs/TODO_USABILITY.md), [Jira review](docs/JIRA_USABILITY.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+Recorded validation: **256 browser tests**, **107 adapter/model tests**, **10 native connected workflow checks** and **5 native memory lifecycle checks** passed across the usability and sidebar-layout passes. Native profile compatibility and encrypted-vault checks also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. See [sidebar validation](docs/SIDEBAR_LAYOUT.md), the [latest team review and validation](docs/LAYERED_REVIEW_USABILITY.md), [architecture review](docs/REVIEW_ARCHITECTURE.md), [planning review](docs/TODO_USABILITY.md), [Jira review](docs/JIRA_USABILITY.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

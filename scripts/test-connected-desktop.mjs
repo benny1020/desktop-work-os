@@ -303,6 +303,19 @@ try {
   await p.getByLabel("Close context preview").click();
   await p.getByRole("button", { name: "Toggle theme" }).click();
   await p.screenshot({ path: path.join(out, "electron-home-dark.png") });
+  await p.getByLabel("Collapse sidebar", { exact: true }).click();
+  await p.keyboard.press("Meta+Backslash");
+  await expect(p.locator(".sidebar")).toHaveCount(0);
+  const restore = p.getByLabel("Show sidebar", { exact: true });
+  await expect(restore).toBeInViewport();
+  expect((await restore.boundingBox()).x).toBeGreaterThanOrEqual(90);
+  await p.screenshot({ path: path.join(out, "electron-sidebar-hidden.png") });
+  await p.reload();
+  await expect(p.getByLabel("Show sidebar", { exact: true })).toBeVisible();
+  await p.getByLabel("Show sidebar", { exact: true }).click();
+  await expect(p.locator(".sidebar")).toHaveCSS("width", "66px");
+  await p.getByLabel("Expand sidebar", { exact: true }).click();
+  evidence.checks.push("Sidebar hide/restore remembers icon mode across native reload and avoids macOS window controls");
   await p.keyboard.press("Meta+k");
   await p
     .getByRole("combobox", { name: "Connected global search" })

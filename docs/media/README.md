@@ -3,6 +3,7 @@
 These files are curated recordings and screenshots of the actual Worklane UI. All task names, documents, code, identities, service addresses and responses are synthetic demo/fixture data. No real credentials or company responses are captured.
 
 - `daily-command-center.png`: built-in demo home and connected work trail.
+- `sidebar-hidden.png`: actual Electron hidden-navigation mode, top-left recovery control and macOS window-control clearance. Synthetic HTTPS fixtures; reproduce with `npm run test:connected-desktop` and copy `research/completion/electron-sidebar-hidden.png`.
 - `review-architecture-{desktop,picker,collaboration,narrow-dark}.png`: role bands, understandable scopes and AI/human co-review. Reproduce with `npx playwright test tests/review-architecture.spec.js`; copy the corresponding captures from `artifacts/`. Synthetic connected fixtures.
 - `todo-backlog.png`, `todo-backlog-dark.png`, `todo-week.png`: parsed quick add, searchable backlog and one shared weekly plan. Captured by `tests/todo-usability-improvements.spec.js` against local planning data and synthetic service fixtures.
 - `jira-issues-workflow.png`, `jira-inspector-dark.png`: ordinary issue search, inline status popover and retained inspector. Synthetic Jira fixtures; the dark capture waits for theme transitions to settle.

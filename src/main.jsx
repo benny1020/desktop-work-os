@@ -351,7 +351,16 @@ function App() {
   const [route, setRoute] = useState({ section: "Home", view: "Home" });
   const [history, setHistory] = useState([{ section: "Home", view: "Home" }]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [collapsed, setCollapsed] = useState(false);
+  const [sidebar, setSidebar] = useState(() => {
+    const saved = persisted("sidebar", {});
+    return {
+      mode: ["expanded", "icons", "hidden"].includes(saved?.mode) ? saved.mode : "expanded",
+      lastVisible: saved?.lastVisible === "icons" ? "icons" : "expanded",
+    };
+  });
+  const collapsed = sidebar.mode === "icons";
+  const sidebarHidden = sidebar.mode === "hidden";
+  const sidebarToggle = useRef(null);
   const [inspector, setInspector] = useState(null);
   const [panelHistory, setPanelHistory] = useState([]);
   const [recent, setRecent] = useState([]);
@@ -413,11 +422,12 @@ function App() {
   const [workBacklogQuery, setWorkBacklogQuery] = useState("");
   const [activePop, setActivePop] = useState(null);
   const toastTimer = useRef();
-  const shellPopover = notifications ? "notifications" : ["recent", "workspace"].includes(activePop) ? activePop : null;
+  const shellPopover = notifications ? "notifications" : ["recent", "workspace", "sidebar"].includes(activePop) ? activePop : null;
   const popoverSelectors = {
     notifications: ['.notification-popover, .connected-attention', '[aria-label="Notifications"]'],
     recent: ['.recent-popover', '[aria-label="Recently viewed"]'],
     workspace: ['.workspace-popover', '[aria-label="Workspace switcher"]'],
+    sidebar: ['.sidebar-options', '[aria-label="Sidebar options"]'],
   };
   function dismissPopover(restoreFocus = false) {
     const trigger = shellPopover && document.querySelector(popoverSelectors[shellPopover][1]);
@@ -447,6 +457,14 @@ function App() {
     setToast(message);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 3200);
+  }
+  useEffect(() => {
+    try { localStorage.setItem("orbit-sidebar", JSON.stringify(sidebar)); } catch { /* Keep the current layout usable when storage is unavailable. */ }
+  }, [sidebar]);
+  function changeSidebar(mode) {
+    setSidebar(previous => ({ mode, lastVisible: mode === "hidden" ? previous.lastVisible : mode }));
+    setActivePop(null);
+    requestAnimationFrame(() => sidebarToggle.current?.focus());
   }
   useEffect(() => {
     for (const [k, v] of Object.entries({
@@ -701,13 +719,23 @@ function App() {
       // A focused dialog owns its keyboard interaction; never navigate the workspace behind it.
       if (document.querySelector('[role="dialog"]') && !palette) {
         const commandFromPreview = document.querySelector('.object-panel') &&
-          (e.metaKey || e.ctrlKey) && ["k", "n"].includes(e.key.toLowerCase());
+          (e.metaKey || e.ctrlKey) && (["k", "n"].includes(e.key.toLowerCase()) || e.code === "Backslash" || e.key === "\\");
         if (!commandFromPreview) { g = false; return; }
       }
       const typing =
         ["INPUT", "TEXTAREA", "SELECT"].includes(
           document.activeElement?.tagName,
         ) || document.activeElement?.isContentEditable;
+      if (!palette && (e.metaKey || e.ctrlKey) && !e.altKey && (e.code === "Backslash" || e.key === "\\")) {
+        e.preventDefault();
+        if (e.repeat) return;
+        setSidebar(previous => previous.mode === "hidden"
+          ? { mode: previous.lastVisible, lastVisible: previous.lastVisible }
+          : { mode: "hidden", lastVisible: previous.mode });
+        setActivePop(null);
+        if (!document.querySelector('[role="dialog"]')) requestAnimationFrame(() => sidebarToggle.current?.focus());
+        return;
+      }
       if (
         (e.metaKey || e.ctrlKey) &&
         ["k", "n", "j"].includes(e.key.toLowerCase())
@@ -3481,6 +3509,7 @@ function App() {
                 ["Global search", "⌘ / Ctrl K"],
                 ["Quick create", "⌘ / Ctrl N"],
                 ["Assistant", "⌘ / Ctrl J"],
+                ["Show / hide sidebar", "⌘ / Ctrl \\"],
                 ["Home", "G then H"],
                 ["My work", "G then M"],
                 ["Projects", "G then P"],
@@ -4186,8 +4215,8 @@ function App() {
         ? `Document: ${allDocs.find((x) => x.id === docId)?.title}`
         : `${route.section} / ${route.view}`;
   return (
-    <div className={cx("app", collapsed && "sidebar-collapsed")}>
-      <aside className="sidebar">
+    <div className={cx("app", collapsed && "sidebar-collapsed", sidebarHidden && "sidebar-hidden")}>
+      {!sidebarHidden && <aside className="sidebar" id="workspace-sidebar" aria-label="Workspace navigation">
         <div className="window-controls">
           <span />
           <span />
@@ -4389,21 +4418,33 @@ function App() {
                 </span>
               )}
             </button>
-            <button
-              className="icon-button"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              onClick={() => setCollapsed(!collapsed)}
-            >
-              <I
-                name={collapsed ? "PanelLeftOpen" : "PanelLeftClose"}
-                size={16}
-              />
-            </button>
           </div>
         </div>
-      </aside>
+      </aside>}
       <div className="app-main">
         <header className="topbar">
+          <div className="sidebar-controls">
+            <button ref={sidebarToggle} className="icon-button"
+              aria-label={sidebarHidden ? "Show sidebar" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-controls="workspace-sidebar" aria-expanded={!sidebarHidden}
+              title={sidebarHidden ? "Show sidebar · ⌘ / Ctrl \\" : collapsed ? "Expand sidebar" : "Minimize sidebar"}
+              onClick={() => changeSidebar(sidebarHidden ? sidebar.lastVisible : collapsed ? "expanded" : "icons")}>
+              <I name={sidebarHidden || collapsed ? "PanelLeftOpen" : "PanelLeftClose"} size={17}/>
+            </button>
+            <button className="icon-button sidebar-options-trigger" aria-label="Sidebar options"
+              aria-expanded={activePop === "sidebar"} aria-controls="sidebar-options"
+              title="Sidebar layout" onClick={() => { setNotifications(false); setActivePop(activePop === "sidebar" ? null : "sidebar"); }}>
+              <I name="ChevronDown" size={11}/>
+            </button>
+            {activePop === "sidebar" && <div className="sidebar-options" id="sidebar-options" role="group" aria-label="Sidebar layout" tabIndex={-1}>
+              <small>Sidebar</small>
+              {[["expanded", "Expanded", "PanelLeftOpen"], ["icons", "Icons only", "PanelLeftClose"], ["hidden", "Hide sidebar", "EyeOff"]].map(([mode, label, icon]) =>
+                <button key={mode} aria-pressed={sidebar.mode === mode} onClick={() => changeSidebar(mode)}>
+                  <I name={icon} size={15}/><span>{label}</span>{sidebar.mode === mode && <I name="Check" size={13}/>}
+                </button>)}
+              <kbd>{"⌘ / Ctrl \\ · Show / hide"}</kbd>
+            </div>}
+          </div>
           <div className="history-controls">
             <button
               className="icon-button"
