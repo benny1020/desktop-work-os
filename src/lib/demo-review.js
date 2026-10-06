@@ -1,4 +1,5 @@
 import { parseDiff, buildGraph } from "./review-model.mjs";
+import { complexDemoSnapshot } from './complex-demo-review.js';
 const order = {
   "src/OrderController.ts": `import { OrderService } from './OrderService';\n\nexport class OrderController {\n  constructor(private readonly orderService: OrderService) {}\n\n  async getOrder(id: string) {\n    return this.orderService.getOrder(id);\n  }\n}`,
   "src/OrderService.ts": `import { StatusMapper } from './StatusMapper';\n\nexport class OrderService {\n  constructor(private readonly repository: OrderRepository) {}\n\n  async getOrder(id: string): Promise<OrderResponse> {\n    const order = await this.repository.findById(id);\n    if (!order) throw new OrderNotFoundError(id);\n\n    return {\n      id: order.id,\n      status: StatusMapper.toPublic(order.status),\n      total: order.total,\n      currency: order.currency,\n      updatedAt: order.updatedAt.toISOString(),\n    };\n  }\n}`,
@@ -12,6 +13,7 @@ const payment = {
   "src/PaymentWorker.ts": `import { PaymentService } from './PaymentService';\n\nexport class PaymentWorker {\n  constructor(private readonly paymentService: PaymentService) {}\n  async process(job: RetryJob) {\n    if (job.attempt > 3) throw new RetryBudgetExceeded(job);\n    return this.paymentService.capture(job);\n  }\n}`,
 };
 export function demoSnapshot(mr) {
+  if (String(mr.id) === '428') return complexDemoSnapshot(mr);
   const contents = String(mr.id) === "391" ? order : payment;
   const files = Object.entries(contents).map(([path, content]) => {
     const diff =

@@ -40,6 +40,14 @@ Every MR uses the same review model. Cohesive changes open directly; independent
 
 See [flow grouping and validation](REVIEW_FLOWS.md).
 
+## Review a more complex PR
+
+![Capture, reconciliation and webhook review scopes](media/complex-review-scopes.png)
+
+![Thirty-file PR with layered diagram, source, AI checkpoints and a private review draft](media/complex-review-capture.png)
+
+[Open the complex PR walkthrough](COMPLEX_PR_DEMO.md) for sequence and dark-mode captures. The source, existing discussions and AI guide are synthetic fixtures, available as !428 in Demo workspace.
+
 ## Keep the original context
 
 ![Connected context stack](media/connected-context.gif)

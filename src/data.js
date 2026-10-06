@@ -1,3 +1,5 @@
+import { complexDemoMR } from './lib/complex-demo-review.js';
+
 export const initialIssues = [
   {
     id: "PAY-382",
@@ -186,6 +188,7 @@ export const initialMRs = [
     added: 142,
     removed: 38,
   },
+  complexDemoMR,
   {
     id: "384",
     title: "Verify webhook signatures before processing",

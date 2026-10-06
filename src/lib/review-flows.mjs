@@ -176,7 +176,9 @@ export function buildReviewFlows(files = [], graph = {}) {
           (related.length > MAX_SHARED_FILES ? ' Up to 6 shared files are included; other shared dependencies remain in their own groups and boundary links.' : '') });
     }
   }
-  return output.sort((a, b) => compare(a.paths[0], b.paths[0]));
+  // Start with connected changes; configuration and documentation remain
+  // explicit scopes after the business flows instead of obscuring them.
+  return output.sort((a, b) => Number(b.kind === 'flow') - Number(a.kind === 'flow') || compare(a.paths[0], b.paths[0]));
 }
 
 export function scopeReviewGraph(graph = {}, flow) {

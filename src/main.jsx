@@ -343,7 +343,11 @@ function App() {
   const [issues, setIssues] = useState(() =>
     persisted("issues", initialIssues),
   );
-  const [mrs, setMRs] = useState(() => persisted("mrs", initialMRs));
+  const [mrs, setMRs] = useState(() => {
+    const saved = persisted("mrs", initialMRs);
+    const sample = initialMRs.find(mr => mr.id === '428');
+    return saved.some(mr => mr.id === sample.id) ? saved : [...saved, sample];
+  });
   const [comments, setComments] = useState(() => persisted("comments", {}));
   const [incidents, setIncidents] = useState(() => persisted("incidents", []));
   const [customDocs, setCustomDocs] = useState(() => persisted("docs", []));

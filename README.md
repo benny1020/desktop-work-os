@@ -43,6 +43,8 @@ Solid dependency edges represent resolved imports; dashed relationships and sequ
 
 ![Controller, service and repository beside actual code and human review](docs/media/review-architecture-desktop.png)
 
+Try **Demo workspace → Code → !428 → Review** for a larger example: 30 changed files spanning capture retries, webhook ordering and settlement reconciliation, with shared infrastructure and code-linked sample review questions. [Complex PR walkthrough and screenshots](docs/COMPLEX_PR_DEMO.md).
+
 ## Follow the work across tools
 
 **Issue → wiki → merge request → pipeline → back to your day.** Related items open in a context stack, preserving the original workspace.
