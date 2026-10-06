@@ -45,6 +45,8 @@ Solid dependency edges represent resolved imports; dashed relationships and sequ
 
 Try **Demo workspace → Code → !428 → Review** for a larger example: 30 changed files spanning capture retries, webhook ordering and settlement reconciliation, with shared infrastructure and code-linked sample review questions. Large sequences offer readable step-by-step navigation; a PR-wide draft menu resumes exact code positions, and the composer folds for more reading space. [Complex PR walkthrough and screenshots](docs/COMPLEX_PR_DEMO.md).
 
+Diff and Source use [IDE-style syntax and rainbow bracket colors](docs/CODE_READABILITY.md), with language-aware highlighting, 12px code typography and contrasting light/dark palettes.
+
 ## Follow the work across tools
 
 **Issue → wiki → merge request → pipeline → back to your day.** Related items open in a context stack, preserving the original workspace.
@@ -210,6 +212,8 @@ npm run build                   # Production renderer build
 ```
 
 Latest validation: **301 browser tests**, **119 adapter/model tests** and **11 native connected workflow checks** passed in the [repeated large-PR usability audit](docs/LARGE_PR_REVIEW_AUDIT.md). Native profile compatibility, encrypted-vault checks and production build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+
+The subsequent [code readability follow-up](docs/CODE_READABILITY.md) passed **42 affected browser checks**, **124 adapter/model checks** and **11 native connected workflows**, plus production build. It did not rerun the complete browser suite.
 
 ```text
 src/components/     Connected planning, commands, inspectors and review UI

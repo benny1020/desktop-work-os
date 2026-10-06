@@ -123,3 +123,7 @@ The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts:
 ## Large PR usability review — 2026-10-07
 
 [Large-PR usability audit](LARGE_PR_REVIEW_AUDIT.md): **301/301 browser**, **119/119 adapter/model** and **11/11 native connected** checks passed. Native profile/vault, production build and whitespace checks passed. Three agents audited and independently rechecked diagram correctness, layout and review context/drafts. The final bounded review found no unresolved reproducible Critical/P1/P2. Six [complex demo screenshots](COMPLEX_PR_DEMO.md) captured with zero page errors; native connected checks recorded 71 synthetic HTTPS requests, zero renderer errors and zero automatic external writes. Live company services and Claude quality remain unverified.
+
+## Syntax and rainbow brackets — 2026-10-07
+
+[Code readability](CODE_READABILITY.md): **42/42 affected browser checks**, **124/124 adapter/model checks** and **11/11 native connected workflows** passed, plus build and whitespace checks. Bundled Prism grammars replace the line-by-line keyword regex; exact source text, old/new diff coordinates and review drafts remain intact. Both themes' syntax/bracket palettes meet 4.5:1 against plain/added/removed/selected backgrounds. Eight captures have zero page errors. The complete browser suite was not rerun in this follow-up; the preceding complete run remains 301/301. Native checks use protocol fixtures and temporary Git repositories, not company credentials.

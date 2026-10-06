@@ -3,6 +3,7 @@ import "../review-polish.css";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import ReviewDraftNavigator from './ReviewDraftNavigator';
 import { listReviewDrafts } from '../lib/review-drafts.mjs';
+import { highlightCode, highlightDiff, codeLanguage } from '../lib/review-code.mjs';
 import { ReviewFlowPicker, ReviewFlowContext } from "./ReviewFlowNavigator";
 import "../review-collaboration.css";
 import "../review-local-git.css";
@@ -30,33 +31,12 @@ import {
 } from "lucide-react";
 import { buildGraph, basename, reviewPosition } from "../lib/review-model.mjs";
 import { invoke, isDesktop } from "../lib/integration-client";
-function CodeText({ text }) {
-  const pattern =
-    /(\/\/.*$|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:async|await|class|const|let|var|return|if|else|try|catch|throw|new|export|import|from|interface|type|public|private|protected|readonly|static|extends|implements|function|void|boolean|number|string|package)\b|\b\d+\b)/g;
-  const pieces = String(text).split(pattern);
-  return (
-    <>
-      {pieces.map((part, i) => {
-        const type =
-          /^\/\//.test(part) || /^\/\*/.test(part)
-            ? "comment"
-            : /^["']/.test(part)
-              ? "string"
-              : /^\d+$/.test(part)
-                ? "number"
-                : /^[a-z]+$/.test(part) && i % 2 === 1
-                  ? "keyword"
-                  : "";
-        return type ? (
-          <span key={i} className={"syntax-" + type}>
-            {part}
-          </span>
-        ) : (
-          part
-        );
-      })}
-    </>
-  );
+function CodeText({ tokens }) {
+  return tokens?.length ? tokens.map((token, index) =>
+    token.types.length || token.depth !== null ? <span key={index}
+      className={`review-code-token ${token.types.join(' ')}${token.depth !== null ? ` rainbow-bracket bracket-${token.depth % 6}` : ''}`}
+      data-bracket-depth={token.depth ?? undefined}>{token.text}</span> : token.text
+  ) : ' ';
 }
 // Collapse strongly connected components before layering: cycles stay together,
 // while every edge between groups flows from an earlier layer to a later one.
@@ -500,6 +480,9 @@ export default function ReviewWorkbench({
   const file = files.find((f) => f.path === selected) || files[0];
   const sourceRef = file?.deleted_file ? mr.diff_refs.base_sha : mr.diff_refs.head_sha;
   const sourceKey = JSON.stringify([sourceRef, file?.deleted_file ? file?.old_path : file?.path]);
+  const sourceCode = source[sourceKey];
+  const highlightedSource = useMemo(() => highlightCode(sourceCode ?? '', file?.path), [sourceCode, file?.path]);
+  const highlightedDiff = useMemo(() => highlightDiff(file || {}, file?.content ?? (file?.deleted_file ? undefined : sourceCode)), [file, sourceCode]);
   useEffect(() => {
     onReviewState?.({ version: viewVersion, selected, line, side, tab, codeMode,
       guide, guidelines, activeFinding, zoom, autoFit, architectureMode, sequenceMode, sequenceStep, composerOpen, flowId: activeFlow?.id, flowViews: flowViews.current });
@@ -1252,7 +1235,7 @@ ${finding.reason}`;
             </div>
           </div>
           <div className="code-provenance">
-            {localCheckout ? "Local Git code" : live ? "Repository code" : "Sample fixture"} ·{" "}
+            <div>{localCheckout ? "Local Git code" : live ? "Repository code" : "Sample fixture"} ·{" "}
             {codeMode === "Source"
               ? (file.deleted_file ? "base" : "head") +
                 " " +
@@ -1261,6 +1244,7 @@ ${finding.reason}`;
                   : mr.diff_refs.head_sha
                 ).slice(0, 8)
               : "Old / New line numbers"}
+            <span className="code-language" title="Language syntax colors and matching bracket colors">{codeMode === 'Source' ? highlightedSource.label : codeLanguage(file.path)[1]}</span></div>
             {line && (
               <span>
                 Selected {side === "old" ? "old" : "new"} line {line}
@@ -1299,7 +1283,7 @@ ${finding.reason}`;
                   >
                     <span className="code-number">{i + 1}</span>
                     <code>
-                      <CodeText text={text || " "} />
+                      <CodeText tokens={highlightedSource.lines[i]} />
                     </code>
                   </button>
                 ))
@@ -1336,7 +1320,7 @@ ${finding.reason}`;
                           : " "}
                     </span>
                     <code>
-                      <CodeText text={r.text || " "} />
+                      <CodeText tokens={highlightedDiff[i]} />
                     </code>
                   </button>
                 ),

@@ -20,6 +20,8 @@ Large sequences default to **Step by step**: two participants, one source-linked
 
 Use **Review drafts** to resume a private note at its file, line and old/new side. Earlier old-side revisions remain available for reference. Approval shows viewed-file and unposted-draft counts and never posts drafts. **Hide editor** gives more space to code while keeping its draft intact; existing discussions expand on demand.
 
+Diff and Source also provide [language-aware syntax and rainbow bracket colors](CODE_READABILITY.md), with light/dark palettes that remain readable on changed and selected lines.
+
 ![Three principal review areas](media/complex-review-scopes.png)
 
 ![Capture diagram, exact source and human review beside AI checkpoints](media/complex-review-capture.png)
@@ -34,4 +36,4 @@ Use **Review drafts** to resume a private note at its file, line and old/new sid
 
 Reproduce the 1440 × 900 captures with `node scripts/capture-complex-review.mjs` while the development server runs on port 5178. The capture uses the actual app, selects source lines and fills private demo drafts; it does not modify styles for screenshots.
 
-Latest validation: 301 browser tests, 119 adapter/model tests, native profile/vault and 11 native connected checks, production build, and six captures with zero page errors. See [the repeated large-PR usability audit](LARGE_PR_REVIEW_AUDIT.md). Live GitLab and Claude connections are not exercised by this fixture.
+Large-PR validation: 301 browser tests, 119 adapter/model tests, native profile/vault and 11 native connected checks, production build, and six captures with zero page errors. See [the repeated large-PR usability audit](LARGE_PR_REVIEW_AUDIT.md). The subsequent [code readability pass](CODE_READABILITY.md) verified 42 affected browser checks, 124 adapter/model checks, 11 native connected workflows and eight updated captures. Live GitLab and Claude connections are not exercised by this fixture.

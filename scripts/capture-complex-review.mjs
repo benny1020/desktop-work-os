@@ -22,6 +22,14 @@ try {
   await page.getByRole('button', { name: 'Select source line 21', exact: true }).click();
   await page.getByLabel('Diagram review comment').fill('pending은 최종 결과가 아니므로 바로 반환하면 Worker가 gateway를 재호출하지 못할 것 같습니다. 완료 상태만 반환하고 재시도 통합 테스트를 추가해 주세요.');
   await shot('capture');
+  await page.getByRole('button', { name: 'Select source line 27', exact: true }).click();
+  await page.getByLabel('Collapse review composer', { exact: true }).click();
+  await shot('rainbow-light');
+  await page.getByLabel('Toggle theme').click();
+  await shot('rainbow-dark');
+  await page.getByLabel('Toggle theme').click();
+  await page.getByLabel('Expand review composer', { exact: true }).click();
+  await page.getByRole('button', { name: 'Select source line 21', exact: true }).click();
   await page.getByLabel('Choose review flow', { exact: true }).click();
   await shot('scopes');
   await page.getByRole('button', { name: 'Review flow webhooks', exact: true }).click();
@@ -48,6 +56,6 @@ try {
   await page.getByLabel('Review drafts', { exact: true }).click();
   await page.getByLabel('Collapse review composer', { exact: true }).click();
   await shot('reading-dark');
-  console.log(JSON.stringify({ screenshots: 6, viewport: '1440×900', pageErrors: errors }));
+  console.log(JSON.stringify({ screenshots: 8, viewport: '1440×900', pageErrors: errors }));
   if (errors.length) throw Error(errors.join('\n'));
 } finally { await browser.close(); }

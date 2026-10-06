@@ -1,0 +1,51 @@
+.visual-code-panel {
+  --code-keyword: #7136a6;
+  --code-function: #185e9e;
+  --code-type: #09685f;
+  --code-string: #89450e;
+  --code-number: #923562;
+  --code-property: #79491c;
+  --code-comment: #53616e;
+  --code-punctuation: #526474;
+  --bracket-0: #80500e;
+  --bracket-1: #7441a6;
+  --bracket-2: #176291;
+  --bracket-3: #96334f;
+  --bracket-4: #12685d;
+  --bracket-5: #66559b;
+}
+:root[data-theme="dark"] .visual-code-panel {
+  --code-keyword: #d9a6f0;
+  --code-function: #99c8ff;
+  --code-type: #8fd4c6;
+  --code-string: #ddbb78;
+  --code-number: #eea8cb;
+  --code-property: #e8be97;
+  --code-comment: #9caebd;
+  --code-punctuation: #bdc9d2;
+  --bracket-0: #eac36d;
+  --bracket-1: #cba4ed;
+  --bracket-2: #92c7fa;
+  --bracket-3: #f0a8bc;
+  --bracket-4: #85d4c1;
+  --bracket-5: #bcb5f1;
+}
+.visual-code-panel .visual-code-line { font-size: 12px; tab-size: 2; }
+.visual-code-panel .code-provenance > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.code-language { color: var(--secondary); font-size: 9px; padding: 1px 4px; border: 1px solid var(--line-strong); border-radius: 3px; }
+.visual-code-panel .review-code-token { color: inherit; }
+.visual-code-panel .review-code-token:is(.operator,.punctuation) { color: var(--code-punctuation); }
+.visual-code-panel .review-code-token:is(.property,.attr-name,.parameter) { color: var(--code-property); }
+.visual-code-panel .review-code-token:is(.class-name,.builtin,.constant,.namespace) { color: var(--code-type); }
+.visual-code-panel .review-code-token:is(.function,.function-variable,.method) { color: var(--code-function); }
+.visual-code-panel .review-code-token:is(.keyword,.tag,.annotation) { color: var(--code-keyword); font-weight: 500; }
+.visual-code-panel .review-code-token:is(.number,.boolean) { color: var(--code-number); }
+.visual-code-panel .review-code-token:is(.string,.char,.regex,.attr-value) { color: var(--code-string); }
+.visual-code-panel .review-code-token.comment { color: var(--code-comment); font-style: italic; }
+.visual-code-panel .review-code-token.rainbow-bracket { font-weight: 500; }
+.visual-code-panel .review-code-token.bracket-0 { color: var(--bracket-0); }
+.visual-code-panel .review-code-token.bracket-1 { color: var(--bracket-1); }
+.visual-code-panel .review-code-token.bracket-2 { color: var(--bracket-2); }
+.visual-code-panel .review-code-token.bracket-3 { color: var(--bracket-3); }
+.visual-code-panel .review-code-token.bracket-4 { color: var(--bracket-4); }
+.visual-code-panel .review-code-token.bracket-5 { color: var(--bracket-5); }

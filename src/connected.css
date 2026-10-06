@@ -1131,20 +1131,6 @@
   line-height: 25px;
   min-height: 25px;
 }
-.syntax-keyword {
-  color: var(--purple);
-  font-weight: 500;
-}
-.syntax-string {
-  color: var(--accent);
-}
-.syntax-number {
-  color: var(--blue);
-}
-.syntax-comment {
-  color: var(--muted);
-  font-style: italic;
-}
 .model-fetch {
   align-self: flex-start;
   font-size: 10px;
