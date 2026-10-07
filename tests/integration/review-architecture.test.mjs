@@ -63,7 +63,7 @@ test('role bands keep controller/service/repository readable without inventing e
   const graph = annotateReviewGraph(original, files);
   const layout = architectureLayout(graph);
   assert.deepEqual(layout.layerRoles, ['controller', 'service', 'repository', 'other']);
-  assert.equal(layout.width, 284);
+  assert.equal(layout.width, 332); // Separate side lanes rather than stacked rails.
   assert.equal(layout.nodeH, 64);
   assert.equal(layout.height, 492);
   assert.deepEqual(graph.dependencies, []);

@@ -19,6 +19,12 @@ try {
   await shot('scopes');
   await page.getByRole('button',{name:'Review flow Kafka · SettlementConsumer.onCaptured()',exact:true}).click();
   await page.getByRole('button',{name:'Preview AI guide',exact:true}).click();
+  await page.getByRole('button',{name:'Open component SettlementService.ts',exact:true}).click();
+  await page.locator('.diagram-scroll').evaluate(canvas => { canvas.scrollTop = 110; });
+  await shot('routing');
+  await page.getByLabel('Toggle theme',{exact:true}).click();
+  await shot('routing-dark');
+  await page.getByLabel('Toggle theme',{exact:true}).click();
   await page.getByRole('button',{name:'Open component SettlementPersistenceAdapter.ts',exact:true}).click();
   await page.getByRole('button',{name:'Select source line 9',exact:true}).click();
   await page.getByLabel('Diagram review comment').fill('동시 재전달 시 unique 제약과 outbox 저장이 같은 트랜잭션에서 보호되는지 확인하고 싶습니다.');
@@ -37,7 +43,7 @@ try {
   await page.getByLabel('Toggle theme',{exact:true}).click();
   await shot('narrow-dark');
   await fs.mkdir('research/business-flow-review',{recursive:true});
-  const evidence={screenshots:5,pageErrors:errors,scope:'Actual app in isolated Chromium; synthetic mixed-flow fixture and sample AI'};
+  const evidence={screenshots:7,pageErrors:errors,scope:'Actual app in isolated Chromium; synthetic mixed-flow fixture and sample AI'};
   await fs.writeFile('research/business-flow-review/screenshots.json',JSON.stringify(evidence,null,2));
   console.log(JSON.stringify(evidence));
   expect(errors).toEqual([]);

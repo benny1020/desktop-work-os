@@ -28,6 +28,7 @@ test('Kafka, scheduled, API and core scopes keep one coherent method path and in
 });
 test('Kafka dependency graph separates domain, adapters, persistence and data contracts; source-line draft stays shared', async ({page}) => {
   await open(page);
+  await page.getByRole('button', { name: 'Calls + types', exact: true }).click();
   for (const role of ['consumer','service','domainservice','domain','persistenceadapter','repository','producer','port','dto','entity','model']) await expect(page.locator(`.architecture-layer[data-role="${role}"]`)).toHaveCount(1);
   await page.getByRole('button', { name: 'Open component SettlementPersistenceAdapter.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 6', exact: true }).click();
@@ -88,4 +89,27 @@ test('Kafka review restores unchanged domain context, selected source line and p
   await expect(page.locator('.visual-code-heading')).toContainText('SettlementDomain.ts');
   await expect(page.getByRole('button', {name:'Select source line 4',exact:true})).toHaveClass(/selected/);
   await expect(page.getByLabel('Diagram review comment')).toHaveValue('Keep the unchanged settlement fee invariant in review context.');
+});
+
+test('Calls-first diagram reveals type references on demand while code and draft stay in context', async ({page}) => {
+  await open(page);
+  await expect(page.locator('.dependency-edge')).toHaveCount(6);
+  await expect(page.locator('.diagram-node')).toHaveCount(7);
+  await expect(page.getByRole('group', {name:'Diagram relationships'})).toContainText('6 type links hidden');
+  await page.getByRole('button', {name:'Open component SettlementPersistenceAdapter.ts',exact:true}).click();
+  await page.getByRole('button', {name:'Select source line 9',exact:true}).click();
+  await page.getByLabel('Diagram review comment').fill('Keep this source-line draft while revealing contracts.');
+  await page.getByRole('button', {name:'Calls + types',exact:true}).click();
+  await expect(page.locator('.dependency-edge')).toHaveCount(12);
+  await expect(page.locator('.dependency-edge.type')).toHaveCount(6);
+  await expect(page.locator('.diagram-node')).toHaveCount(12);
+  await expect(page.getByLabel('Diagram review comment')).toHaveValue('Keep this source-line draft while revealing contracts.');
+  await expect(page.locator('.code-provenance')).toContainText('Selected new line 9');
+  await page.getByRole('button', {name:'Calls',exact:true}).click();
+  await expect(page.locator('.dependency-edge')).toHaveCount(6);
+  await expect(page.locator('.code-provenance')).toContainText('Selected new line 9');
+  await page.getByRole('button', {name:'Calls + types',exact:true}).click();
+  await page.locator('.dependency-edge.type').first().press('Enter');
+  await expect(page.locator('.visual-code-heading')).toContainText('SettlementConsumer.ts');
+  await expect(page.locator('.code-provenance')).toContainText('Selected new line 3');
 });

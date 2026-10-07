@@ -2,6 +2,8 @@
 
 2026-10-07. [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design/tree/d1376371965f513d99cc9ec388835d255c5c88d5)의 디자인 규칙과 architecture·dependency·sequence 예시를 읽고 Worklane의 리뷰 화면에 적용했습니다. 참조 revision은 `d1376371965f513d99cc9ec388835d255c5c88d5`입니다.
 
+최신 화살표 개선과 현재 검증 결과는 [Arrow routing review](ARROW_ROUTING_REVIEW.md)에 있습니다. 아래는 최초 디자인 적용 기록입니다.
+
 ## 적용한 규칙과 결과
 
 | 참조 | Worklane에서 바꾼 부분 |
@@ -42,7 +44,7 @@ CI에서 이전 API-flow 커밋의 최초 리뷰 2개가 실패한 trace를 확�
 
 이 다이어그램은 정적 소스 분석을 읽는 도구입니다. 런타임 activation·응답 순서·commit/rollback을 새로 추정하지 않습니다. 원본에 없는 분기 조건이나 return 화살표를 만들지 않습니다. 기존 API 추적의 [지원 범위](API_FLOW_REVIEW.md)는 동일합니다.
 
-직각 경로 검색에는 연결당 20,000개 상태 상한이 있습니다. 배치할 수 없는 연결은 안내를 표시하고, Sequence·원본 코드에서 검토할 수 있습니다. 브리지는 두 선의 직선 부분이 교차하는 곳에 적용하며, 매우 가까운 교차나 코너는 브리지를 생략합니다. 모든 크기와 관계에서 교차가 완전히 없어지는 레이아웃은 보장하지 않습니다.
+직각 경로 검색에는 연결당 80,000개 상태 상한이 있습니다. 배치할 수 없는 연결은 안내를 표시하고, Sequence·원본 코드에서 검토할 수 있습니다. 브리지는 두 선의 직선 부분이 교차하는 곳에 적용하며, 매우 가까운 교차나 코너는 브리지를 생략합니다. 모든 크기와 관계에서 교차가 완전히 없어지는 레이아웃은 보장하지 않습니다.
 
 재현:
 

@@ -38,7 +38,7 @@ Try **!452** in the demo. [API flow behavior, screenshots, supported parsers and
 
 [Business-flow support, layer evidence, screenshots and verification](docs/BUSINESS_FLOW_REVIEW.md).
 
-Diagrams use rounded orthogonal rails, shared-dependency badges, source/inferred message styles and call-order navigation. [Diagram Design reference and verified UI improvements](docs/DIAGRAM_DESIGN_REVIEW.md).
+Diagrams open with **Calls**; reveal **Calls + types** when inspecting contracts. Independent rounded rails avoid shared trunks, use fixed arrowheads, and retain exact source navigation and drafts. [Arrow routing, before/after screenshots and verification](docs/ARROW_ROUTING_REVIEW.md).
 
 - Role-based architecture bands: Controller/Consumer/Job → Service → Domain Service/Domain → Adapter/Persistence Adapter → Repository/Producer, with ports, DTOs, entities, models and mappers distinguished. Naming, package conventions and source evidence remain inspectable. Switch to import-depth layout when useful; unknown roles stay explicit.
 - Fallback file groups such as **Payment request handling** and **Order request handling**, with import reading paths and grouping evidence. Large file groups get numbered parts; a traced API stays one flow, and shared code keeps one draft. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).

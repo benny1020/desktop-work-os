@@ -40,6 +40,9 @@ try {
   await p.getByRole('button', { name: /Unify settlement API, Kafka delivery and reconciliation !7/ }).click();
   await expect(p.getByLabel('Current business flow')).toContainText('Kafka · SettlementConsumer.onCaptured()', { timeout: 30000 });
   evidence.checks.push('Native Git source discovers Kafka, API, schedule and core scopes');
+  await expect(p.locator('.dependency-edge')).toHaveCount(6);
+  await p.getByRole('button', {name:'Calls + types',exact:true}).click();
+  await expect(p.locator('.dependency-edge')).toHaveCount(12);
   for (const role of ['consumer','domainservice','persistenceadapter','repository','dto','entity','model','port']) await expect(p.locator(`.architecture-layer[data-role="${role}"]`)).toHaveCount(1);
   evidence.checks.push('Native production rendering separates domain, storage boundaries and data contracts');
   await p.getByRole('button', { name: 'Generate AI guide', exact: true }).click();

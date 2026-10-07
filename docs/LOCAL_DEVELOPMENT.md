@@ -151,3 +151,7 @@ Cold-start regression: `npm run test:cold-review` uses a new empty Vite cache an
 [Business-flow validation](BUSINESS_FLOW_REVIEW.md): 327/327 browser, 167/167 adapter/model/Git, 23/23 native connected checks (11 existing, 6 API, 6 mixed), production build/profile/vault/module-worker, cold-start 2/2 and whitespace checks passed. Eleven affected UI checks revalidated the final data-contract label polish. Five isolated actual-app screenshots have zero page errors. Native fixtures use real immutable Git objects and synthetic service responses, with no remote code API reads or automatic external writes. The primary implementer performed this pass; live company services and live Claude quality remain unverified.
 
 Run `npm run test:business-flow-desktop` for the mixed native path and `node scripts/capture-business-flow-review.mjs` for its isolated UI captures.
+
+### Arrow readability pass — 2026-10-07
+
+See [ARROW_ROUTING_REVIEW.md](ARROW_ROUTING_REVIEW.md). Browser 328/328; adapters/model/Git 168/168; test:desktop passed; production Electron mixed-flow checks 6/6 passed against actual local Git and synthetic HTTPS. Seven screenshots have zero page errors. Company endpoints and live Claude are unverified. Review performed in this task; no separate agent-team audit is claimed.

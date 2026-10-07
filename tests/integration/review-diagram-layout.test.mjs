@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dependencyRoutes, crossesBox, sequenceMessage, roundedRail, fitDiagramText } from '../../src/lib/review-diagram-layout.mjs';
+import { dependencyRoutes, dependencyView, crossesBox, sequenceMessage, roundedRail, fitDiagramText } from '../../src/lib/review-diagram-layout.mjs';
+import { mixedDemoFiles } from '../../src/lib/mixed-demo-review.js';
+import { analyzeApiFlows } from '../../src/lib/review-api-flows.mjs';
+import { annotateReviewGraph } from '../../src/lib/review-architecture.mjs';
 import { architectureLayout } from '../../src/lib/review-architecture.mjs';
 
 const layout = points => ({ positions: new Map(points), nodeW: 204, nodeH: 64, width: 500, height: 500 });
@@ -43,6 +46,7 @@ test('A large layered graph preserves every connection and source reference', ()
   validate(routes, l);
   assert.equal(routes.length, 40);
   assert.ok(routes.every((r, i) => r.edge === graph.dependencies[i]));
+  assertIndependentRails(routes);
 });
 test('API components follow first source-call occurrence inside each role; generic groups keep stable path order', () => {
   const nodes = [{ id: 'audit', path: 'AuditService.ts', role: 'service', methods: [{ name: 'record' }] }, { id: 'payment', path: 'PaymentService.ts', role: 'service', methods: [{ name: 'capture' }] }, { id: 'entry', path: 'Controller.ts', role: 'controller', methods: [{ name: 'capture' }] }];
@@ -75,4 +79,41 @@ test('Korean, mixed identifiers and combining characters keep a readable size wi
   assert.equal(fitDiagramText('결제 v2.1', 100, 12), '결제 v2.1');
   assert.equal(fitDiagramText('Cafe\u0301', 29, 12), 'Cafe\u0301');
   assert.equal(fitDiagramText('PaymentService', 140), 'PaymentService');
+});
+
+function assertIndependentRails(routes) {
+  const segments = routes.flatMap(route => route.points.slice(1).map((p, i) => ({edge: route.index, a: route.points[i], b: p})));
+  for (let i = 0; i < segments.length; i++) for (const other of segments.slice(i + 1)) {
+    const {a, b, edge} = segments[i], {a: p, b: q} = other;
+    if (edge === other.edge) continue;
+    const vertical = a.x === b.x && p.x === q.x && a.x === p.x;
+    const horizontal = a.y === b.y && p.y === q.y && a.y === p.y;
+    const overlap = vertical ? Math.min(Math.max(a.y,b.y),Math.max(p.y,q.y))-Math.max(Math.min(a.y,b.y),Math.min(p.y,q.y))
+      : horizontal ? Math.min(Math.max(a.x,b.x),Math.max(p.x,q.x))-Math.max(Math.min(a.x,b.x),Math.min(p.x,q.x)) : 0;
+    assert.ok(overlap <= 0, `Edges ${edge} and ${other.edge} must not share a trunk`);
+  }
+}
+test('Mixed Kafka call view folds contracts without losing graph, sequence or selected contract source', async () => {
+  const result = await analyzeApiFlows(mixedDemoFiles);
+  const graph = annotateReviewGraph(result.flows.find(flow => flow.kind === 'kafka').graph, mixedDemoFiles);
+  const original = structuredClone(graph);
+  const calls = dependencyView(graph);
+  assert.equal(calls.dependencies.length, 6);
+  assert.equal(calls.nodes.length, 7);
+  assert.equal(calls.sequence, graph.sequence);
+  const contract = graph.nodes.find(node => node.dataContract);
+  assert.ok(dependencyView(graph, {selected: contract.id}).nodes.some(node => node.id === contract.id));
+  const all = dependencyView(graph, {includeTypes: true});
+  assert.equal(all.dependencies.length, 12);
+  assert.equal(all.nodes.length, 12);
+  for (const view of [calls, all]) {
+    const l = architectureLayout(view), routes = dependencyRoutes(view, l);
+    validate(routes, l); assertIndependentRails(routes);
+    for (const route of routes) {
+      const first = route.points[0], second = route.points[1], last = route.points.at(-1), penultimate = route.points.at(-2);
+      assert.equal(first.x, second.x, 'Vertical flow leaves the bottom/top perpendicular to its box');
+      assert.equal(last.x, penultimate.x, 'Arrow enters the top/bottom perpendicular to its box');
+    }
+  }
+  assert.deepEqual(graph, original);
 });

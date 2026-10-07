@@ -33,3 +33,8 @@
 .review-layer-context details[open] { z-index: 8; }
 .review-layer-context details[open] p, .review-layer-context details[open] small { display: block; max-width: 280px; overflow-wrap: anywhere; }
 .review-layer-context button { background: none; border: 0; color: var(--accent); cursor: pointer; }
+
+.diagram-route-overflow { font-size: 10px; color: var(--secondary); padding: 8px 12px; }
+.diagram-route-overflow summary { cursor: pointer; }
+.diagram-route-overflow button { display: block; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 5px 0; text-align: left; overflow-wrap: anywhere; }
+.diagram-route-overflow small { color: var(--secondary); display: block; }

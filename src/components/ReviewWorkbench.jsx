@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
 import "../review-diagram-design.css";
-import { dependencyRoutes, sequenceMessage, fitDiagramText } from "../lib/review-diagram-layout.mjs";
+import { dependencyRoutes, dependencyView, sequenceMessage, fitDiagramText } from "../lib/review-diagram-layout.mjs";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import ApiFlowContext from "./ApiFlowContext";
 import "../review-api-flows.css";
@@ -106,7 +106,7 @@ function diagramKeys(event, onActivate) {
     : (index + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + nodes.length) % nodes.length;
   event.preventDefault(); nodes[next]?.focus();
 }
-function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependencyPositions, viewed }) {
+function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependencyPositions, viewed, hiddenTypes = 0 }) {
   const { positions, layers, layerOffsets, nodeW, nodeH, width: w, height: h } = layout;
   const id = 'dependency-' + useId().replace(/:/g, '');
   const routes = useMemo(() => dependencyRoutes(graph, layout), [graph, layout]);
@@ -131,18 +131,19 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
-            markerWidth="6"
+            markerWidth="8"
             markerHeight="6"
+            markerUnits="userSpaceOnUse"
             orient="auto-start-reverse"
           >
             <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--secondary)" />
           </marker>
         </defs>
-        <defs><marker id={`${id}-arrow-active`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" /></marker></defs>
+        <defs><marker id={`${id}-arrow-active`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" /></marker></defs>
         {layers.map((layer, index) => (
           <g key={index} className={`dependency-layer ${layout.semantic ? 'architecture-layer' : ''}`} data-role={layout.layerRoles?.[index]}>
             {layout.semantic && <rect className="architecture-band" x="10" y={layerOffsets[index] + 5} width={w - 20} height={(layerOffsets[index + 1] || h - 12) - layerOffsets[index] - 10} rx="6"/>}
-            <text x="20" y={25 + layerOffsets[index]}>{layout.layerLabels?.[index] || (graph.dependencies.length ? index === 0 ? "Root components" : `Dependency layer ${index}` : "Changed components")}</text>
+            <text x="20" y={25 + layerOffsets[index]}>{(layout.layerRoles?.[index] === "other" ? layout.layerLabels?.[index] : layout.layerLabels?.[index]?.split(" / ")[0]) || (graph.dependencies.length ? index === 0 ? "Root components" : `Dependency layer ${index}` : "Changed components")}</text>
             <text className="architecture-layer-count" textAnchor="end" x={w - 20} y={25 + layerOffsets[index]}>{layer.length}</text>
             <line x1="20" x2={w - 20} y1={34 + layerOffsets[index]} y2={34 + layerOffsets[index]} />
           </g>
@@ -214,11 +215,17 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
           );
         })}
       </svg>
-      {routes.some(route => route.unavailable) && <p className="diagram-empty-note">Some connections could not be placed. Use the sequence or code to inspect them.</p>}
+      {routes.some(route => route.unavailable) && <details className="diagram-route-overflow">
+        <summary>{routes.filter(route => route.unavailable).length} connections available in source</summary>
+        <p>These links need more routing space. Inspect the original evidence below.</p>
+        {routes.filter(route => route.unavailable).map(({ edge, index }) => <button key={index} onClick={() => onSelect(edge.path, edge.line)} title={edge.label}>
+          {basename(edge.from)} → {basename(edge.to)} <small>{basename(edge.path)}:{edge.line}</small>
+        </button>)}
+      </details>}
       {!graph.dependencies.length && (
         <p className="diagram-empty-note">
-          No file dependencies were resolved from this diff. Open a component
-          to inspect its code, or generate an AI guide to explore possible relationships.
+          {hiddenTypes ? `No call links in this view. Reveal Calls + types to inspect ${hiddenTypes} type references.`
+            : 'No file dependencies were resolved from this diff. Open a component to inspect its code, or generate an AI guide to explore possible relationships.'}
         </p>
       )}
     </div>
@@ -268,8 +275,9 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
-            markerWidth="6"
+            markerWidth="8"
             markerHeight="6"
+            markerUnits="userSpaceOnUse"
             orient="auto"
           >
             <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--secondary)" />
@@ -693,8 +701,12 @@ ${finding.reason}`;
     })();
     return () => { current = false; };
   }, [scopeKey, viewVersion, patchAttempt, live]);
-  const dependency = useMemo(() => dependencyLayout(graph), [graph]);
-  const architecture = useMemo(() => architectureLayout(graph), [graph]);
+  const [includeTypes, setIncludeTypes] = useState(false);
+  // Ordinary code selection changes the highlight, not the route geometry.
+  const selectedContract = graph.nodes.find(node => node.id === selected && node.dataContract)?.id;
+  const diagramGraph = useMemo(() => dependencyView(graph, { includeTypes, selected: selectedContract }), [graph, includeTypes, selectedContract]);
+  const dependency = useMemo(() => dependencyLayout(diagramGraph), [diagramGraph]);
+  const architecture = useMemo(() => architectureLayout(diagramGraph), [diagramGraph]);
   const layout = architectureMode && architecture ? architecture : dependency;
   const changeStats = useMemo(() => changedFiles.reduce((stats, item) => {
     for (const row of item.rows || []) {
@@ -1283,6 +1295,11 @@ ${finding.reason}`;
                 <button aria-pressed={!architectureMode} onClick={() => { setArchitectureMode(false); setAutoFit('readable'); }}>By dependency</button>
                 <small>{layout.semantic ? 'Role groups' : activeFlow.methodFlow ? 'Call depth' : 'Import depth'}</small>
               </div>}
+              {tab === 'Dependency flow' && graph.dependencies.some(edge => edge.evidence === 'type') && <div className="review-map-mode diagram-relationship-mode" role="group" aria-label="Diagram relationships">
+                <button aria-pressed={!includeTypes} onClick={() => setIncludeTypes(false)}>Calls</button>
+                <button aria-pressed={includeTypes} onClick={() => setIncludeTypes(true)}>Calls + types</button>
+                <small>{includeTypes ? 'Type references are dashed' : `${graph.dependencies.filter(edge => edge.evidence === 'type').length} type links hidden`}</small>
+              </div>}
               {tab === 'Sequence' && graph.sequence.length > 0 && <>
                 <div className="sequence-scope-controls" role="group" aria-label="Sequence detail">
                   <button aria-pressed={sequenceByStep} onClick={() => { setSequenceMode('step'); setAutoFit('readable'); }}>Step by step</button>
@@ -1302,7 +1319,8 @@ ${finding.reason}`;
           <>
               {tab === "Dependency flow" ? (
                 <DependencyDiagram
-                  graph={graph}
+                  graph={diagramGraph}
+                  hiddenTypes={includeTypes ? 0 : graph.dependencies.filter(edge => edge.evidence === "type").length}
                   layout={layout}
                   selected={selected}
                   onSelect={select}

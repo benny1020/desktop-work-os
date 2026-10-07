@@ -81,15 +81,16 @@ class Queue {
     return first;
   }
 }
-function route(start, end, boxes, width, height, segments) {
+function route(start, end, boxes, width, height, segments, reserved = []) {
   const sorted = values => [...new Set(values)].sort((a, b) => a - b);
-  const xs = sorted([4, width - 4, start.x, end.x, ...boxes.flatMap(box => [box.x - 12, box.x + box.w + 12])].filter(x => x >= 4 && x <= width - 4));
-  const ys = sorted([4, height - 4, start.y, end.y, ...boxes.flatMap(box => [box.y - 12, box.y + box.h + 12])].filter(y => y >= 4 && y <= height - 4));
+  const xs = sorted([...Array.from({ length: Math.floor(width / 12) }, (_, i) => 4 + i * 12), 4, width - 4, start.x, end.x, ...boxes.flatMap(box => [box.x - 12, box.x + box.w + 12]), ...segments.flatMap(([a, b]) => a.x === b.x ? [a.x - 12, a.x + 12] : [])].filter(x => x >= 4 && x <= width - 4));
+  const ys = sorted([...Array.from({ length: Math.floor(height / 12) }, (_, i) => 4 + i * 12), 4, height - 4, start.y, end.y, ...boxes.flatMap(box => [box.y - 12, box.y + box.h + 12]), ...segments.flatMap(([a, b]) => a.y === b.y ? [a.y - 12, a.y + 12] : [])].filter(y => y >= 4 && y <= height - 4));
+  const occupied = [...segments, ...reserved];
   const queue = new Queue(), costs = new Map(), previous = new Map(), positions = new Map();
   const initial = { ix: xs.indexOf(start.x), iy: ys.indexOf(start.y), dir: 0, cost: 0, score: distance(start, end) };
   const key = state => `${state.ix}:${state.iy}:${state.dir}`;
   queue.push(initial); costs.set(key(initial), 0);
-  let budget = 20000;
+  let budget = 80000;
   while (queue.items.length && budget--) {
     const current = queue.pop(), currentKey = key(current);
     if (current.cost !== costs.get(currentKey)) continue;
@@ -104,10 +105,12 @@ function route(start, end, boxes, width, height, segments) {
       if (ix < 0 || iy < 0 || ix >= xs.length || iy >= ys.length) continue;
       const b = { x: xs[ix], y: ys[iy] };
       if (boxes.some(box => crossesBox(a, b, box, box.padding ?? 8))) continue;
-      // Separate overlapping rails where space allows; shared endpoints are fanned.
-      const overlap = segments.some(([p, q]) => a.x === b.x && p.x === q.x && a.x === p.x && Math.min(Math.max(a.y, b.y), Math.max(p.y, q.y)) > Math.max(Math.min(a.y, b.y), Math.min(p.y, q.y)) ||
+      // Reserve every endpoint approach, including connectors not routed yet.
+      // Sharing a trunk is forbidden; allocate another lane rather than add ink.
+      const overlap = occupied.some(([p, q]) => a.x === b.x && p.x === q.x && a.x === p.x && Math.min(Math.max(a.y, b.y), Math.max(p.y, q.y)) > Math.max(Math.min(a.y, b.y), Math.min(p.y, q.y)) ||
         a.y === b.y && p.y === q.y && a.y === p.y && Math.min(Math.max(a.x, b.x), Math.max(p.x, q.x)) > Math.max(Math.min(a.x, b.x), Math.min(p.x, q.x)));
-      const cost = current.cost + distance(a, b) * (overlap ? 3 : 1) + (current.dir && current.dir !== dir ? 16 : 0);
+      if (overlap) continue;
+      const cost = current.cost + distance(a, b) + (current.dir && current.dir !== dir ? 16 : 0);
       const next = { ix, iy, dir, cost, score: cost + distance(b, end) }, nextKey = key(next);
       if (cost >= (costs.get(nextKey) ?? Infinity)) continue;
       costs.set(nextKey, cost); previous.set(nextKey, currentKey); queue.push(next);
@@ -115,12 +118,20 @@ function route(start, end, boxes, width, height, segments) {
   }
   return null;
 }
+// Calls and structural contracts are different reading tasks. Keep the source
+// graph intact; this is a reversible presentation filter, never a topology edit.
+export function dependencyView(graph, { includeTypes = false, selected } = {}) {
+  const nodes = graph.nodes.filter(node => includeTypes || !node.dataContract || node.id === selected);
+  const ids = new Set(nodes.map(node => node.id));
+  return { ...graph, nodes, dependencies: graph.dependencies.filter(edge =>
+    (includeTypes || edge.evidence !== 'type') && ids.has(edge.from) && ids.has(edge.to)) };
+}
 export function dependencyRoutes(graph, layout) {
   const { positions, nodeW, nodeH, width, height } = layout;
   const boxes = [...positions].map(([id, point]) => ({ id, ...point, w: nodeW, h: nodeH }));
   // Layer captions are obstacles too: a rail must never run through its text.
   (layout.layerOffsets || []).forEach((offset, index) => boxes.push({ x: 18, y: offset + 13,
-    w: Math.min(width - 48, (layout.layerLabels?.[index] || 'Dependency layer').length * 6.2 + 8), h: 16 }));
+    w: Math.min(width - 48, ((layout.layerRoles?.[index] === 'other' ? layout.layerLabels?.[index] : layout.layerLabels?.[index]?.split(' / ')[0]) || 'Dependency layer').length * 6 + 8), h: 16, padding: 4 }));
   const endpoints = new Map(), specs = [];
   const attach = (id, side, edgeIndex, end) => {
     const k = `${id}:${side}`, group = endpoints.get(k) || [];
@@ -139,17 +150,19 @@ export function dependencyRoutes(graph, layout) {
     const span = horizontalSide ? nodeW : nodeH, offset = 12 + (span - 24) * (index + 1) / (group.length + 1);
     spec.port = horizontalSide ? { x: box.x + offset, y: box.y + (spec.side === 'bottom' ? nodeH : 0) }
       : { x: box.x + (spec.side === 'right' ? nodeW : 0), y: box.y + offset };
-    spec.stub = { x: spec.port.x + (spec.side === 'right' ? 8 : spec.side === 'left' ? -8 : 0),
-      y: spec.port.y + (spec.side === 'bottom' ? 8 : spec.side === 'top' ? -8 : 0) };
+    spec.stub = { x: spec.port.x + (spec.side === 'right' ? 12 : spec.side === 'left' ? -12 : 0),
+      y: spec.port.y + (spec.side === 'bottom' ? 12 : spec.side === 'top' ? -12 : 0) };
   });
   const segments = [];
-  return specs.map(spec => {
-    const middle = route(spec.source.stub, spec.target.stub, boxes, width, height, segments);
+  return [...specs].sort((a, b) => (a.edge.evidence === 'type') - (b.edge.evidence === 'type') ||
+    distance(a.source.port, a.target.port) - distance(b.source.port, b.target.port) || a.index - b.index).map(spec => {
+    const reserved = specs.filter(other => other !== spec).flatMap(other => [[other.source.port, other.source.stub], [other.target.port, other.target.stub]]);
+    const middle = route(spec.source.stub, spec.target.stub, boxes, width, height, segments, reserved);
     const points = middle ? simplify([spec.source.port, ...middle, spec.target.port]) : [];
     const d = roundedRail(points, segments);
     for (let i = 1; i < points.length; i++) segments.push([points[i - 1], points[i]]);
     return { ...spec, points, d, unavailable: !middle };
-  });
+  }).sort((a, b) => a.index - b.index);
 }
 
 export function sequenceMessage(step, number, maxCharacters = 44) {

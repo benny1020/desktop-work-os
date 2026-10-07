@@ -154,3 +154,11 @@ Synthetic source and sample AI guide; not live company data.
 ![Kafka call sequence beside a transaction declaration in source](media/business-review-sequence-dark.png)
 
 The !464 demo distinguishes application/domain logic, external and persistence adapters, repositories, ports and transfer/storage models. [Supported mechanisms, layer evidence and current verification](BUSINESS_FLOW_REVIEW.md).
+
+## Calls-first arrow routing
+
+[Before/after, routing rules and current validation](ARROW_ROUTING_REVIEW.md). Actual app captures with synthetic MR !464 and a sample AI guide.
+
+![Calls-first storage review](media/business-review-layers.png)
+
+![Service branches in dark mode](media/business-review-routing-dark.png)
