@@ -4,6 +4,7 @@ import "../review-diagram-design.css";
 import { dependencyRoutes, dependencyView, sequenceMessage, fitDiagramText } from "../lib/review-diagram-layout.mjs";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import ApiFlowContext from "./ApiFlowContext";
+import ReviewCallContext from "./ReviewCallContext";
 import "../review-api-flows.css";
 import ReviewDraftNavigator from './ReviewDraftNavigator';
 import { listReviewDrafts } from '../lib/review-drafts.mjs';
@@ -800,12 +801,25 @@ ${finding.reason}`;
     );
   }, [file?.path, file?.diff, line, side, codeMode, source, sourceKey, mr.id, mr.diff_refs.head_sha, guide?.summary, activeFlow?.id]);
   useEffect(() => {
-    if (line !== null)
-      requestAnimationFrame(() =>
-        reviewRoot.current
-          ?.querySelector(`[data-code-line="${side}-${line}"]`)
-          ?.scrollIntoView({ block: "nearest" }),
-      );
+    if (line === null) return;
+    const canvas = reviewRoot.current?.querySelector(".visual-code-scroll");
+    if (!canvas) return;
+    let frame;
+    function reveal() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const target = canvas.querySelector(`[data-code-line="${side}-${line}"]`);
+        if (!target) return;
+        const bounds = canvas.getBoundingClientRect(), row = target.getBoundingClientRect();
+        if (row.top < bounds.top) canvas.scrollTop += row.top - bounds.top;
+        else if (row.bottom > bounds.bottom) canvas.scrollTop += row.bottom - bounds.bottom;
+      });
+    }
+    reveal();
+    // Preserve the selected call site when resizing, without resetting manual scrolling.
+    const observer = new ResizeObserver(reveal);
+    observer.observe(canvas);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [line, side, codeMode, source, file?.path, file?.rows]);
   useEffect(() => {
     setSourceLoading(false);
@@ -1360,12 +1374,12 @@ ${finding.reason}`;
         <section className="visual-code-panel" aria-label="Code and your review">
           <div className="visual-code-heading">
             <FileCode2 size={15} />
-            <strong title={file.path}>{file.path}</strong>
-            {!file.contextOnly && <label className="review-viewed-toggle">
+            <strong title={file.path}><span className="review-code-directory">{file.path.slice(0, file.path.length - basename(file.path).length)}</span>{basename(file.path)}</strong>
+            {!file.contextOnly && <label className="review-viewed-toggle" title={`Mark ${file.path} as viewed`}>
               <input type="checkbox" checked={viewed.includes(file.path)}
                 onChange={(e) => markViewed(e.target.checked)}
                 aria-label={`Mark ${file.path} as viewed`} />
-              Viewed
+              <span>Viewed</span>
             </label>}
             <div className="segmented">
               {["Diff", "Source"].map((t) => (
@@ -1382,8 +1396,9 @@ ${finding.reason}`;
           </div>
           {(() => { const node = graph.nodes.find(item => item.path === file.path); return node && <div className="review-layer-context"><b>{node.roleLabel}</b><span>{node.confidence === 'code' ? 'Source declaration' : node.confidence === 'ambiguous' ? 'Conflicting evidence' : node.confidence === 'unknown' ? 'Unclassified' : 'Architecture convention'}</span><details><summary>Why this layer?</summary>{node.evidence?.map((evidence, index) => <p key={index}>{evidence.detail}{evidence.line && <button onClick={() => select(file.path, evidence.line)}>L{evidence.line}</button>}</p>)}<small>Layers organize code. Call arrows come from separate source evidence.</small></details></div>; })()}
           {activeFlow.methodFlow && <div className="api-method-focus" aria-label={activeFlow.api ? "Methods in this API flow" : "Methods in this business flow"}>
-            <span>{file.contextOnly ? 'Unchanged context' : 'In this flow'}</span>
+            <span className={file.contextOnly ? 'context-source-note' : ''}>{file.contextOnly ? 'Unchanged context' : 'In this flow'}</span>
             {activeFlow.ranges.filter(range => range.path === file.path).map(range => <button key={range.id} onClick={() => select(file.path, range.bodyLine)}>{range.name}() <small>L{range.startLine}–{range.endLine}</small></button>)}
+            <ReviewCallContext graph={graph} selected={file.path} onInspect={showInteraction}/>
           </div>}
           <div className="code-provenance">
             <div>{localCheckout ? "Local Git code" : live ? "Repository code" : "Sample fixture"} ·{" "}

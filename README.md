@@ -40,6 +40,8 @@ Try **!452** in the demo. [API flow behavior, screenshots, supported parsers and
 
 Diagrams open with **Calls**; reveal **Calls + types** when inspecting contracts. Independent rounded rails avoid shared trunks, use fixed arrowheads, and retain exact source navigation and drafts. [Arrow routing, before/after screenshots and verification](docs/ARROW_ROUTING_REVIEW.md).
 
+**Flow details** keeps contracts and boundaries available without squeezing the diagram. The selected component's **Calls** lists distinct operations with exact source lines; inspecting a call preserves the diagram and your draft. Weekly actions likewise open in stable compact menus, and the command palette keeps destinations searchable. [Source-backed team UX audit and independent rechecks](docs/UPSTREAM_UX_REVIEW.md).
+
 - Role-based architecture bands: Controller/Consumer/Job → Service → Domain Service/Domain → Adapter/Persistence Adapter → Repository/Producer, with ports, DTOs, entities, models and mappers distinguished. Naming, package conventions and source evidence remain inspectable. Switch to import-depth layout when useful; unknown roles stay explicit.
 - Fallback file groups such as **Payment request handling** and **Order request handling**, with import reading paths and grouping evidence. Large file groups get numbered parts; a traced API stays one flow, and shared code keeps one draft. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
 - Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
@@ -98,6 +100,8 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 - Searchable backlog with completed work folded away; schedule only the shown unfinished items, with guarded undo.
 - Linked issues and reviews show their planned date. Moving an existing task is explicit and reversible, without duplicates.
 - Personal tasks and events, with Day / Week / Month calendar views.
+- Stable weekly cards with keyboard-accessible Edit/More actions, explicit event completion and guarded completion Undo.
+- Personal editor drafts survive incidental Escape/outside dismissal during the app session; explicit Cancel discards them.
 - Drag-to-schedule, keyboard reordering, and editable linked personal plans.
 - Click a calendar date to focus quick add without losing the current month.
 - A clear next review from real requests, daily planning summaries and undo for local task deletion.
@@ -226,7 +230,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Latest validation: **301 browser tests**, **119 adapter/model tests** and **11 native connected workflow checks** passed in the [repeated large-PR usability audit](docs/LARGE_PR_REVIEW_AUDIT.md). Native profile compatibility, encrypted-vault checks and production build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+Latest validation: **343 browser tests**, **168 adapter/model/Git tests** and **23 native connected workflow checks** passed in the [upstream-informed team UX audit](docs/UPSTREAM_UX_REVIEW.md). Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 The subsequent [code readability follow-up](docs/CODE_READABILITY.md) passed **42 affected browser checks**, **124 adapter/model checks** and **11 native connected workflows**, plus production build. It did not rerun the complete browser suite.
 
@@ -243,10 +247,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for a focused contribution workflow and [
 
 ## Current limits
 
-Background synchronization, offline external writes, rich-text editing of existing Confluence pages, signed distribution, and full-repository AST analysis are not implemented. Some project-specific required Jira fields are intentionally rejected rather than silently omitted. Resource caps and partial-result behavior are documented in the integration guide.
+Synchronization while the app is closed, offline external writes, rich-text editing of existing Confluence pages, signed distribution, and full-repository AST analysis are not implemented. Visible connected views synchronize automatically while Worklane runs. Some project-specific required Jira fields are intentionally rejected rather than silently omitted. Resource caps and partial-result behavior are documented in the integration guide.
 
 ## References and licensing
 
-Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [workflow convenience review](docs/WORKFLOW_CONVENIENCE.md) records reproduced defects, independent review and validation.
+Interaction patterns were studied in cmdk, Radix, Plane, Huly, GitLab, Grafana, PR Lens and Microsoft’s VS Code Pull Requests extension. Worklane uses its own application UI; it is not a wholesale copy of those projects. [Source review notes](research/SOURCE_REVIEW.md) and [review-progress references](docs/REVIEW_REFERENCES.md) record inspected commits, line ranges and what was adopted. The latest [upstream-informed UX review](docs/UPSTREAM_UX_REVIEW.md) records reproduced defects, independent review and validation.
 
 DM Sans and IBM Plex Mono are bundled locally under their SIL Open Font Licenses; the app makes no external font requests. Dependencies retain their respective licenses. **No project-wide license has been selected for Worklane yet**; making this repository public does not grant a new open-source license.

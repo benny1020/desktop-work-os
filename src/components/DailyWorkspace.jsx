@@ -12,6 +12,7 @@ import {
   ArrowUp,
   ArrowDown,
   Pencil,
+  MoreHorizontal,
   CalendarDays,
   GitPullRequest,
   ArrowUpRight,
@@ -35,13 +36,33 @@ import {
 // Keep the personal planning position and reversible local actions across app navigation.
 // This is renderer memory only, matching the lifetime of the undo controls.
 const planningSessions = new Map();
-let planningUndo = { removed: null, scheduleUndo: null };
-function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete, due }) {
+let planningUndo = { removed: null, scheduleUndo: null, completionUndo: null };
+const editorDrafts = new Map();
+function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete, due, compact = false }) {
+  const [actions, setActions] = useState(null);
+  const rowRef = useRef(null), moreRef = useRef(null);
+  useEffect(() => {
+    if (!actions) return;
+    const closeOutside = event => { if (!rowRef.current?.contains(event.target)) setActions(null); };
+    const closeOnScroll = () => setActions(null);
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("focusin", closeOutside);
+    window.addEventListener("scroll", closeOnScroll, true);
+    window.addEventListener("resize", closeOnScroll);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("focusin", closeOutside);
+      window.removeEventListener("scroll", closeOnScroll, true);
+      window.removeEventListener("resize", closeOnScroll);
+    };
+  }, [actions]);
   const siblings = tasks.filter((item) => item.date === task.date && (item.time || "") === (task.time || ""));
   const index = siblings.findIndex((item) => item.id === task.id);
   return (
     <div
-      className={`plan-task ${task.done ? "done" : ""} ${task.kind}`}
+      ref={rowRef}
+      className={`plan-task ${task.done ? "done" : ""} ${task.kind} ${compact ? "compact-actions" : ""}`}
+      onKeyDown={event => { if (actions && event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setActions(null); moreRef.current?.focus(); } }}
       data-plan-task-id={task.id}
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/orbit-task", task.id)}
@@ -56,21 +77,23 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete,
       <button
         className="plan-check"
         aria-label={`${task.done ? "Reopen" : "Complete"} ${task.title}`}
+        aria-pressed={Boolean(task.done)}
+        title={`${task.done ? "Reopen" : "Complete"} ${task.kind === "event" ? "event" : "task"} locally`}
         onClick={() => onComplete(task)}
       >
         {task.done ? (
           <Check size={13} />
-        ) : task.kind === "event" ? (
-          <CalendarDays size={13} />
         ) : null}
       </button>
+      {compact && <div className="plan-task-compact-meta">{task.kind === "event" && <span className="plan-event-marker" title="Personal event" aria-hidden="true"><CalendarDays size={12} /></span>}{task.time ? <time>{task.time}</time> : <span>Any time</span>}</div>}
       <div className="plan-task-main">
         <button
           onClick={() =>
             task.object ? onOpen(task.object) : onEdit({ ...task })
           }
         >
-          {task.time && <time>{task.time}</time>}
+          {!compact && task.kind === "event" && <span className="plan-event-marker" title="Personal event" aria-hidden="true"><CalendarDays size={12} /></span>}
+          {!compact && task.time && <time>{task.time}</time>}
           {task.title}
         </button>
         <small>
@@ -85,7 +108,14 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete,
         </small>
         {due && <div className="plan-deadline"><span className={`plan-due-badge ${due < today ? "overdue" : ""}`}>Jira due {due}</span>{!task.done && task.date && task.date > due && <span className="plan-deadline-warning">Planned after deadline</span>}</div>}
       </div>
-      <div className="plan-task-actions">
+      {compact && <div className="plan-task-compact-controls">
+        <button title="Edit personal plan" aria-label={`Edit plan for ${task.title}`} onClick={() => onEdit({ ...task })}><Pencil size={12} /></button>
+        <button ref={moreRef} title="More planning actions" aria-label={`More planning actions for ${task.title}`} aria-expanded={Boolean(actions)} aria-controls={`plan-actions-${task.id}`} onClick={event => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setActions(actions ? null : { left: Math.max(8, Math.min(rect.right - 224, window.innerWidth - 232)), top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 160)) });
+        }}><MoreHorizontal size={13} /></button>
+      </div>}
+      {(!compact || actions) && <div id={`plan-actions-${task.id}`} className={`plan-task-actions ${compact ? "plan-actions-popover" : ""}`} style={compact ? actions : undefined} role={compact ? "group" : undefined} aria-label={compact ? `Planning actions for ${task.title}` : undefined} onKeyDown={event => { if (compact && event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setActions(null); moreRef.current?.focus(); } }}>
         <button
           title="Move up"
           aria-label={`Move up ${task.title}`}
@@ -102,13 +132,13 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete,
         >
           <ArrowDown size={12} />
         </button>
-        <button
+        {!compact && <button
           title="Edit personal plan"
           aria-label={`Edit plan for ${task.title}`}
           onClick={() => onEdit({ ...task })}
         >
           <Pencil size={12} />
-        </button>
+        </button>}
         <label>
           <span className="sr-only">Date for {task.title}</span>
           <input
@@ -136,7 +166,7 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete,
         >
           <ChevronRight size={14} />
         </button>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -166,8 +196,43 @@ function PlanningWorkspace({
   const ranges = useRef({ ...planningSession?.ranges });
   const explicitRange = useRef(null);
   const [editing, setEditing] = useState(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const editorBase = useRef(null);
+  const [editorConflict, setEditorConflict] = useState(null);
+  function editTask(task) {
+    const draft = editorDrafts.get(task.id);
+    const valid = draft && JSON.stringify(draft.base) === JSON.stringify(task);
+    if (draft && !valid) { editorDrafts.delete(task.id); setNotice("Saved work changed since this draft. Opened the latest saved item; earlier edits were not applied."); }
+    editorBase.current = { ...task }; setEditorConflict(null); setError("");
+    setDraftRestored(Boolean(valid)); setEditing(valid ? { ...draft.value } : { ...task });
+  }
+  function closeEditor(discard = false) {
+    if (editing) {
+      const saved = editorBase.current;
+      if (discard || !saved || JSON.stringify(editing) === JSON.stringify(saved)) editorDrafts.delete(editing.id);
+      else { editorDrafts.set(editing.id, { base: { ...saved }, value: { ...editing } }); setNotice("Personal work draft kept. Reopen the item to continue editing."); }
+    }
+    if (discard) setNotice("");
+    setEditing(null); setDraftRestored(false); setEditorConflict(null);
+  }
+  function saveEditor(expectedBase = editorBase.current) {
+    act(() => {
+      planChange(p => {
+        const saved = p.tasks.find(task => task.id === editing.id);
+        if (!saved) throw Error("This item was removed while you were editing. Your draft remains open; it was not saved.");
+        if (JSON.stringify(saved) !== JSON.stringify(expectedBase)) {
+          setEditorConflict({ ...saved });
+          throw Error("This item changed while you were editing. Your draft is kept here. Review the latest saved work before applying your edits.");
+        }
+        return { ...p, tasks: p.tasks.map(task => task.id === editing.id ? { ...task, title: editing.title.trim(), date: editing.date, time: editing.time, kind: editing.kind } : task),
+          activity: [{ id: crypto.randomUUID(), at: new Date().toISOString(), text: `${saved.title}: Updated` }, ...p.activity].slice(0, 100) };
+      });
+      editorDrafts.delete(editing.id); setDraftRestored(false); setEditorConflict(null); setEditing(null); setNotice("Personal work saved locally.");
+    });
+  }
   const [removed, setRemoved] = useState(() => planningUndo.removed);
   const [scheduleUndo, setScheduleUndo] = useState(() => planningUndo.scheduleUndo);
+  const [completionUndo, setCompletionUndo] = useState(() => planningUndo.completionUndo);
   const [returnRange, setReturnRange] = useState(() => planningSession?.returnRange || null);
   const quickInput = useRef(null);
   const rootRef = useRef(null);
@@ -199,8 +264,8 @@ function PlanningWorkspace({
     const currentRange = lastRange.current;
     ranges.current[view] = { date: currentRange.date, mode: currentRange.mode };
     planningSessions.set(planningKey, { ...currentRange, ranges: { ...ranges.current }, quick, kind, quickDate, returnRange, backlogQuery, showCompleted });
-    planningUndo = { removed, scheduleUndo };
-  }, [planningKey, view, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo, backlogQuery, showCompleted]);
+    planningUndo = { removed, scheduleUndo, completionUndo };
+  }, [planningKey, view, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo, completionUndo, backlogQuery, showCompleted]);
   useEffect(() => {
     if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) setDate(focusDate);
     if (!focusTaskId) return;
@@ -367,10 +432,12 @@ function PlanningWorkspace({
     </div>;
   }
   const taskDue = (task) => task.object?.type === "issue" && task.object.origin === configs.jira?.url ? feed.issues.find((issue) => issue.key === task.object.key)?.fields.duedate : null;
-  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={setEditing} onMove={movePlanTask} onComplete={completePlanTask} due={taskDue(task)} />;
+  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={editTask} onMove={movePlanTask} onComplete={completePlanTask} due={taskDue(task)} compact={(view === "This Week" || view === "Calendar" && mode === "Week") && Boolean(task.date)} />;
   function completePlanTask(task) {
     act(() => {
-      updateTask(task.id, { done: !task.done });
+      const after = { ...task, done: !task.done };
+      updateTask(task.id, { done: after.done });
+      setCompletionUndo({ before: { ...task }, after });
       if (view === "Backlog" && !showCompleted && !task.done) {
         const index = tasks.findIndex((item) => item.id === task.id);
         const next = tasks[index + 1] || tasks[index - 1];
@@ -426,7 +493,7 @@ function PlanningWorkspace({
   const feedPlanDate = weekly ? quickDate || date : today;
   const availableBacklogAction = (object) => <button className="quiet-button" disabled={linkedPlan(object)?.date === ""} onClick={() => planObject(object, "")}>{linkedPlan(object)?.date === "" ? "In Backlog" : linkedPlan(object) ? "Move to Backlog" : "Backlog"}</button>;
   const carryoverRow = (task) => <div className="carryover-row" key={task.id}>
-    <button className="carryover-title" onClick={() => task.object ? onOpen(task.object) : setEditing({ ...task })}>{task.title}</button>
+    <button className="carryover-title" onClick={() => task.object ? onOpen(task.object) : editTask({ ...task })}>{task.title}</button>
     <time dateTime={task.date}>{task.date}</time>
     <button className="btn" onClick={() => act(() => scheduleTasks([task], today, `Brought ${task.title} to Today.`))}>Bring to Today</button>
   </div>;
@@ -562,6 +629,18 @@ function PlanningWorkspace({
           {notice}
         </p>
       )}
+      {completionUndo && <div role="status" className="plan-undo completion-undo">
+        <span>{completionUndo.after.done ? "Completed" : "Reopened"} {completionUndo.before.title} · locally</span>
+        <button className="quiet-button" onClick={() => act(() => {
+          let restored = false;
+          planChange(p => ({ ...p, tasks: p.tasks.map(task => {
+            if (task.id !== completionUndo.after.id || JSON.stringify(task) !== JSON.stringify(completionUndo.after)) return task;
+            restored = true; return { ...completionUndo.before };
+          }) }));
+          setCompletionUndo(null); setNotice(restored ? "Completion undone in your personal plan." : "This item changed after completion. Its current details were kept.");
+        })}><Undo2 size={13} />Undo completion</button>
+        <button className="quiet-button" aria-label="Dismiss completion undo" onClick={() => setCompletionUndo(null)}>Dismiss</button>
+      </div>}
       {scheduleUndo && <div role="status" className="plan-undo schedule-undo">
         <span>Moved {scheduleUndo.moves.length} {scheduleUndo.moves.length === 1 ? "task" : "tasks"} · local schedule only</span>
         <button className="quiet-button" onClick={undoSchedule}><Undo2 size={13} />Undo schedule move</button>
@@ -777,7 +856,7 @@ function PlanningWorkspace({
         <details className="plan-boundary available-work-details"><summary>About this work feed</summary><p>Shows up to 50 items per service. Search Projects and My Reviews for all work. Attention items use service data; no AI request runs automatically.</p></details>
       </section>
       {editing && (
-        <Dialog.Root open onOpenChange={(v) => !v && setEditing(null)}>
+        <Dialog.Root open onOpenChange={(v) => !v && closeEditor()}>
           <Dialog.Portal>
             <Dialog.Overlay className="live-command-overlay" />
             <Dialog.Content className="live-command">
@@ -785,20 +864,19 @@ function PlanningWorkspace({
               <Dialog.Description>
                 Changes stay in your personal plan on this device.
               </Dialog.Description>
+              {draftRestored && <p className="form-note" role="status">Your unsaved personal work draft was restored. Save it or Cancel to discard.</p>}
               {error && <p role="alert" className="connection-error">{error}</p>}
+              {editorConflict && <section className="plan-editor-conflict" aria-label="Latest saved personal work">
+                <b>Latest saved work</b><p>{editorConflict.title} · {editorConflict.date || "Backlog"}{editorConflict.time && ` · ${editorConflict.time}`}</p>
+                <small>The fields below contain your draft. Applying them replaces the saved title, date, time and type shown here.</small>
+                <div className="inline"><button type="button" className="btn" onClick={() => { editorDrafts.delete(editing.id); editTask(editorConflict); }}>Discard draft and load latest</button>
+                <button type="button" className="btn" disabled={!editing.title.trim()} onClick={() => saveEditor(editorConflict)}>Apply these edits to latest work</button></div>
+              </section>}
               <form
                 className="live-create"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  act(() => {
-                    updateTask(editing.id, {
-                      title: editing.title.trim(),
-                      date: editing.date,
-                      time: editing.time,
-                      kind: editing.kind,
-                    });
-                    setEditing(null);
-                  });
+                  saveEditor();
                 }}
               >
                 <label>
@@ -855,7 +933,7 @@ function PlanningWorkspace({
                   >
                     Save personal work
                   </button>
-                  <Dialog.Close className="btn">Cancel</Dialog.Close>
+                  <button type="button" className="btn" onClick={() => closeEditor(true)}>Cancel</button>
                   <button
                     className="btn"
                     type="button"
@@ -869,7 +947,7 @@ function PlanningWorkspace({
                         }));
                         if (task) setRemoved({ task, index });
                         setNotice("");
-                        setEditing(null);
+                        editorDrafts.delete(editing.id); setDraftRestored(false); setEditing(null);
                       })
                     }
                   >

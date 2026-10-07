@@ -2,6 +2,8 @@
 
 These files are curated recordings and screenshots of the actual Worklane UI. All task names, documents, code, identities, service addresses and responses are synthetic demo/fixture data. No real credentials or company responses are captured.
 
+The latest upstream review captures are reproduced with `node scripts/capture-upstream-ux.mjs` and `node scripts/capture-planning-ux.mjs`. Both own an ephemeral Vite server and isolated Chromium instance. They capture actual 1440×900 app pixels (plus a 980×650 dark review), use synthetic data, and assert zero page errors. `upstream-review-*` shows source-call disclosure and bounded flow context; `upstream-planning-week*` shows stable scheduling actions; `upstream-search-*` shows searchable destinations and explicit no-result recovery.
+
 - `daily-command-center.png`: built-in demo home and connected work trail.
 - `sidebar-hidden.png`: actual Electron hidden-navigation mode, top-left recovery control and macOS window-control clearance. Synthetic HTTPS fixtures; reproduce with `npm run test:connected-desktop` and copy `research/completion/electron-sidebar-hidden.png`.
 - `review-architecture-{desktop,picker,collaboration,narrow-dark}.png`: role bands, understandable scopes and AI/human co-review. Reproduce with `npx playwright test tests/review-architecture.spec.js`; copy the corresponding captures from `artifacts/`. Synthetic connected fixtures.

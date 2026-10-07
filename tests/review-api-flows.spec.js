@@ -73,7 +73,8 @@ for (const layout of [{ width: 1440, height: 900 }, { width: 980, height: 650 }]
     expect(await page.locator('.visual-map-panel').evaluate(panel => panel.scrollTop)).toBe(0);
     await page.getByRole('tab', { name: 'Sequence', exact: true }).click();
     await expect(page.locator('.sequence-svg .sequence-step')).toBeInViewport();
-    await page.getByLabel('Current API flow').locator('summary').click();
+    await page.getByLabel('Flow details',{exact:true}).click();
+    await page.locator('.api-flow-boundaries summary').click();
     await expect(page.getByRole('button', { name: 'Zoom in diagram', exact: true })).toBeInViewport();
     await page.getByLabel('Diagram review comment').fill('Inspect atomic persistence and replay behavior.');
     await expect(page.getByRole('button', { name: 'Add demo comment', exact: true })).toBeInViewport();

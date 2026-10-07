@@ -38,6 +38,7 @@ test('Kafka dependency graph separates domain, adapters, persistence and data co
   await page.getByRole('button', { name: 'Select source line 6', exact: true }).click();
   await expect(page.getByLabel('Diagram review comment')).toHaveValue('멱등성 조회와 insert 사이의 경쟁 조건을 확인해 주세요.');
   await choose(page, 'Kafka · SettlementConsumer.onCaptured()');
+  await page.getByLabel('Flow details',{exact:true}).click();
   await page.locator('.api-contracts summary').click();
   await page.locator('.api-contracts').getByRole('button', { name: 'SettlementEvent.ts', exact: true }).click();
   await expect(page.getByLabel('Component code')).toContainText('eventVersion: 2');

@@ -2,6 +2,26 @@
 
 All screens below use synthetic data. The connected-mode images are rendered against test fixtures, not a live company environment.
 
+## Latest upstream-informed UX pass
+
+![Distinct source operations beside the diagram and sample AI review](media/upstream-review-calls.png)
+
+The selected component's Calls list distinguishes reads, writes and message dispatch, with exact source line links. Flow details opens contracts without shrinking the diagram.
+
+![Bounded context disclosure with a preserved code-line draft](media/upstream-review-details.png)
+
+![Narrow dark review with contracts open and selected source still visible](media/upstream-review-narrow-dark.png)
+
+![Stable compact week cards and scheduling menu](media/upstream-planning-week.png)
+
+![Same planning view in dark mode](media/upstream-planning-week-dark.png)
+
+![Typed destinations remain searchable](media/upstream-search-navigation.png)
+
+![Local search misses offer useful recovery](media/upstream-search-empty.png)
+
+These are actual isolated app captures. [The agent-team review](UPSTREAM_UX_REVIEW.md) records pinned upstream sources, reproduced problems and independent rechecks.
+
 ## Start the day
 
 ![Sidebar hidden with a persistent top-left restore control — actual Electron, synthetic service fixtures](media/sidebar-hidden.png)

@@ -155,3 +155,24 @@ Run `npm run test:business-flow-desktop` for the mixed native path and `node scr
 ### Arrow readability pass — 2026-10-07
 
 See [ARROW_ROUTING_REVIEW.md](ARROW_ROUTING_REVIEW.md). Browser 328/328; adapters/model/Git 168/168; test:desktop passed; production Electron mixed-flow checks 6/6 passed against actual local Git and synthetic HTTPS. Seven screenshots have zero page errors. Company endpoints and live Claude are unverified. Review performed in this task; no separate agent-team audit is claimed.
+
+## Upstream-informed agent-team UX pass — 2026-10-08
+
+[Pinned-source audit and independent rechecks](UPSTREAM_UX_REVIEW.md): three agents compared review, planning/Jira and navigation/assistant interactions with primary documentation and relevant PR Lens, diagram-design, Plane, Huly, Radix and cmdk source. Twelve reproduced findings were addressed, including three independent follow-ups. Final independent rechecks found no remaining reproducible Critical/P1/P2 in the audited paths.
+
+Final browser **343/343**, adapter/model/Git **168/168**, production native connected **23/23** (11 connected, 6 API, 6 mixed) passed; profile compatibility, encrypted vault, parser-worker and build passed. Native connected checks used 71 synthetic service requests and zero renderer errors; mixed/API checks used real immutable Git, with no remote code API reads or automatic external writes. Fifteen meaningful browser regressions were added. Fourteen actual UI screenshots have zero page errors, and the mixed-review README GIF was regenerated from actual unaltered frames. Company accounts and live Claude quality remain unverified.
+
+Cold-cache validation **2/2** also passed, with zero unexpected reloads and page errors.
+
+```sh
+npm test -- --workers=5
+npm run test:adapters
+npm run test:desktop
+npm run test:cold-review
+node scripts/test-connected-desktop.mjs
+node scripts/test-api-flow-desktop.mjs
+node scripts/test-business-flow-desktop.mjs
+node scripts/capture-upstream-ux.mjs
+node scripts/capture-planning-ux.mjs
+node scripts/capture-business-flow-review.mjs
+```

@@ -46,6 +46,7 @@ export default function ConnectedCommands({
   const version = useRef(0),
     create = mode !== "search";
   const commandPanel = useRef(null), titleInput = useRef(null), searches = useRef([]);
+  const launchPoint = useRef(document.activeElement);
   const scope = draftScope(kind, configs);
   function editDraft(changes) {
     const next = {title, body, ...changes};
@@ -246,6 +247,16 @@ export default function ConnectedCommands({
   }
   const remoteConfigured = ["jira", "gitlab", "confluence"].some(service => configs[service]?.tokenConfigured);
   const localMatches = plan.tasks.filter(t => t.title.toLowerCase().includes(query.trim().toLowerCase()));
+  const navigationMatches = [
+    ["Home", "Home"],
+    ["My Work", "Today"],
+    ["Projects", "Issues"],
+    ["Code", "My Reviews"],
+    ["Observe", "Logs"],
+    ["Docs", "Home"],
+    ["Settings", "Integrations"],
+  ].filter(([section, view]) => query.trim().toLowerCase().split(/\s+/).every(word => `${section} ${view}`.toLowerCase().includes(word)));
+  const searchSettled = configured && !loading && !Object.values(sourceStates).some(source => source.status === "loading" || source.status === "error");
   function choose(o) {
     if (o.type === "task") {
       onNavigate("My Work", o.date ? "Today" : "Backlog", {
@@ -262,6 +273,19 @@ export default function ConnectedCommands({
         <Dialog.Content
           ref={commandPanel}
           className="live-command"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            requestAnimationFrame(() => {
+              // A selected result may have opened another preview or focused its destination.
+              if (document.querySelector('[role="dialog"]')) return;
+              const active = document.activeElement;
+              if (active && active !== document.body && active.isConnected) return;
+              const target = launchPoint.current?.isConnected && launchPoint.current !== document.body
+                ? launchPoint.current
+                : document.querySelector('[aria-label="Global search"]');
+              target?.focus();
+            });
+          }}
           onEscapeKeyDown={(e) => busy && e.preventDefault()}
           onKeyDown={(event) => {
             if (busy && (event.metaKey || event.ctrlKey) && ["k", "n"].includes(event.key.toLowerCase())) {
@@ -440,28 +464,15 @@ export default function ConnectedCommands({
                 {(loading || Object.values(sourceStates).some(s=>s.status === "loading")) && (
                   <div className="form-note" role="status">Searching connected services… Available results are ready to open.</div>
                 )}
+                {navigationMatches.length > 0 && <Command.Group heading="Navigate">
+                  {navigationMatches.map(([section, view]) => (
+                    <Command.Item key={section} value={`navigate-${section}`} onSelect={() => { onNavigate(section, view); onClose(); }}>
+                      {section} <small>{view}</small>
+                    </Command.Item>
+                  ))}
+                </Command.Group>}
                 {query.trim().length < 2 ? (
                   <>
-                    <Command.Group heading="Navigate">
-                      {[
-                        ["Home", "Home"],
-                        ["My Work", "Today"],
-                        ["Projects", "Issues"],
-                        ["Code", "My Reviews"],
-                        ["Docs", "Home"],
-                      ].map(([s, v]) => (
-                        <Command.Item
-                          key={s}
-                          value={s}
-                          onSelect={() => {
-                            onNavigate(s, v);
-                            onClose();
-                          }}
-                        >
-                          {s} <small>{v}</small>
-                        </Command.Item>
-                      ))}
-                    </Command.Group>
                     <Command.Group heading="Recently viewed">
                       {plan.recent.slice(0, 6).map((o, i) => (
                         <Command.Item
@@ -507,10 +518,12 @@ export default function ConnectedCommands({
                         </Command.Group>
                       ),
                     )}
-                    {!loading && remoteConfigured && !Object.values(sourceStates).some(s=>s.status === "loading" || s.status === "error") && !results.length && (
-                      <p className="form-note">
-                        No remote matches in the first result page.
-                      </p>
+                    {searchSettled && !navigationMatches.length && !localMatches.length && !results.length && (
+                      <div className="form-note" role="status">
+                        <p>{remoteConfigured ? "No matching tasks, commands or service results." : "No matching tasks or commands."}</p>
+                        <p>{remoteConfigured ? "Try another title or issue key. Connected results cover the first page from each service." : "Try a task title or a destination such as Docs."}</p>
+                        <button className="quiet-button" onClick={() => { setQuery(""); commandPanel.current?.querySelector('[cmdk-input]')?.focus(); }}>Clear search</button>
+                      </div>
                     )}
                   </>
                 )}

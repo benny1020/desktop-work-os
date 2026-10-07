@@ -60,3 +60,35 @@
  .api-active-review .diagram-toolbar .quiet-button { font-size:9px; }
  .api-active-review .api-return-points { flex-wrap:wrap; }
 }
+
+/* Keep the entry/trigger visible; secondary source context overlays the canvas. */
+.api-flow-context { position:relative; z-index:8; padding:7px 10px; }
+.api-flow-title > strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.api-entry-point { padding:4px 0 2px; }
+.api-trigger-declaration { margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.api-context-actions { display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:10px; margin-top:3px; }
+.api-flow-details > summary { cursor:pointer; padding:3px 0; color:var(--accent); white-space:nowrap; }
+.api-flow-details > summary small { color:var(--secondary); margin-left:4px; font-size:9px; }
+.api-flow-end { flex-shrink:0; font-size:10px; color:var(--accent); padding:3px 5px; }
+.api-flow-details-list { position:absolute; top:calc(100% - 3px); left:8px; right:8px; z-index:12; background:var(--surface); border:1px solid var(--line-strong); border-radius:5px; padding:9px 10px; box-shadow:0 8px 24px #0002; max-height:min(190px,35vh); overflow:auto; font-size:10px; }
+.api-flow-details-list > p { color:var(--secondary); line-height:1.6; margin:0 0 8px; }
+.api-flow-details-list .api-boundary-list { position:static; max-height:none; border:0; box-shadow:none; padding:0; }
+.api-flow-details-list .api-return-points { flex-wrap:wrap; }
+.review-call-context { margin-left:auto; font-size:10px; }
+.review-call-context summary { cursor:pointer; color:var(--accent); padding:3px 4px; }
+.review-call-context summary small { margin-left:4px; }
+.api-method-focus { position:relative; z-index:5; }
+.review-call-list { position:absolute; top:100%; right:8px; left:8px; z-index:10; max-height:min(250px,40vh); overflow:auto; background:var(--surface); border:1px solid var(--line-strong); border-radius:5px; padding:9px 10px; box-shadow:0 8px 24px #0002; }
+.review-call-list > p { font-size:10px; color:var(--secondary); line-height:1.5; margin:0 0 6px; }
+.review-call-list button { display:block; width:100%; padding:7px 0; border-top:1px solid var(--line); text-align:left; }
+.review-call-list b { display:block; font-size:11px; font-weight:500; overflow-wrap:anywhere; }
+.review-call-list small { display:block; font-size:10px; color:var(--secondary); margin-top:4px; }
+@container (max-width:1050px) {
+ .visual-review .visual-code-heading { flex-wrap:nowrap; }
+ .visual-review .visual-code-heading strong { min-width:0; }
+ .visual-code-heading .review-code-directory, .visual-code-heading .review-viewed-toggle > span { display:none; }
+ .api-method-focus > span:not(.context-source-note) { display:none; }
+}
+@media (max-height:720px) {
+ .visual-review .visual-comment-panel textarea { height:64px; }
+}
