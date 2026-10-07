@@ -204,3 +204,28 @@ test('aggregate preview exhaustion defers readable patches rather than labelling
   const patch = await f.store.readDiff({ projectId: 42, baseSha: f.base, headSha: head, path: deferred.path });
   assert.equal(patch.deferred, false); assert.equal(patch.unavailable, false); assert.match(patch.diff, /bounded local review context/);
 });
+
+test('API source index reads immutable regular Git blobs offline, including unchanged connectors', async t => {
+  const f = await fixture(t);
+  await fs.writeFile(path.join(f.source, 'ContextService.ts'), 'export class ContextService { run() { return 1; } }\n');
+  await fs.symlink('/etc/passwd', path.join(f.source, 'LinkedSource.ts'));
+  await fs.writeFile(path.join(f.source, 'Binary.ts'), Buffer.from([0, 1, 2]));
+  git(f.source, 'add', '.'); git(f.source, 'commit', '-m', 'context'); const base = git(f.source, 'rev-parse', 'HEAD');
+  await fs.writeFile(path.join(f.source, 'EntryController.ts'), "import {Controller, Get} from '@nestjs/common'; @Controller('api') export class EntryController { @Get('run') run() { return 1; } }\n");
+  git(f.source, 'add', '.'); git(f.source, 'commit', '-m', 'entry'); const head = git(f.source, 'rev-parse', 'HEAD');
+  git(f.source, 'update-ref', 'refs/merge-requests/7/head', head);
+  await f.store.snapshot({ ...f.request, refs: { base_sha: base, head_sha: head } });
+  const calls = f.state.transportCalls; f.state.offline = true;
+  const result = await f.store.reviewSources({ projectId: 42, ref: head, baseSha: base });
+  assert.equal(result.headSha, head); assert.equal(result.baseSha, base);
+  assert.equal(result.files.find(file => file.path === 'ContextService.ts').contextOnly, true);
+  assert.equal(result.files.find(file => file.path === 'EntryController.ts').contextOnly, false);
+  assert.ok(!result.files.some(file => /LinkedSource|Binary/.test(file.path)));
+  assert.ok(result.coverage.omittedFiles >= 1);
+  assert.equal(f.state.transportCalls, calls);
+  await fs.writeFile(path.join(f.source, 'ContextService.ts'), 'changed working tree');
+  assert.match((await f.store.reviewSources({ projectId: 42, ref: head, baseSha: base })).files.find(file => file.path === 'ContextService.ts').content, /return 1/);
+  await assert.rejects(f.store.reviewSources({ projectId: 42, ref: 'main', baseSha: base }), /immutable/);
+  f.state.config = { ...f.state.config, token: 'ROTATED' };
+  await assert.rejects(f.store.reviewSources({ projectId: 42, ref: head, baseSha: base }), /not cached/);
+});

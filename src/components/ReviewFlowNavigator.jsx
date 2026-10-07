@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronDown, Workflow } from 'lucide-reac
 const searchText = flow => [flow.title, flow.label, flow.subtitle, ...(flow.paths || []), ...(flow.sharedPaths || [])].join(' ').toLowerCase();
 const displayTitle = flow => `${flow?.title || flow?.label || 'Changed files'}${flow?.section ? ` · ${flow.section.index}/${flow.section.count}` : ''}`;
 
-export function ReviewFlowPicker({ flows, activeFlow, viewed, query, onQuery, onChoose, pickerRef }) {
+export function ReviewFlowPicker({ flows, activeFlow, viewed, reviewedFlows = [], query, onQuery, onChoose, pickerRef }) {
   if (flows.length < 2) return <span className="review-single-flow" title={activeFlow?.reason}>1 review flow</span>;
   const matches = flows.filter(flow => searchText(flow).includes(query.toLowerCase()));
   return <details className="review-flow-picker" ref={pickerRef}
@@ -29,17 +29,18 @@ export function ReviewFlowPicker({ flows, activeFlow, viewed, query, onQuery, on
         event.preventDefault(); buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
       }}>
         {matches.map(flow => {
-          const completed = flow.paths.filter(path => viewed.includes(path)).length;
+          const completed = flow.api ? Number(reviewedFlows.includes(flow.id)) : flow.paths.filter(path => viewed.includes(path)).length;
+          const total = flow.api ? 1 : flow.paths.length;
           const accessibleTitle = flows.filter(item => item.label === flow.label).length > 1 ? displayTitle(flow) : flow.label;
           return <button key={flow.id} aria-label={`Review flow ${accessibleTitle}`} aria-pressed={activeFlow?.id === flow.id} onClick={() => onChoose(flow)}>
             <span className="review-flow-option-body"><b>{displayTitle(flow)}</b><small className="review-flow-route">{flow.subtitle || `${flow.paths.length} changed files`}</small>
-              <small className="review-flow-option-meta">{flow.paths.length} files{flow.sharedPaths.length ? ` + ${flow.sharedPaths.length} shared` : ''} · {flow.kind === 'flow' ? 'Linked code' : 'File group'}</small></span>
-            <span className="review-flow-option-progress">{completed === flow.paths.length ? <Check size={13}/> : null}{completed}/{flow.paths.length}<small>viewed</small></span>
+              <small className="review-flow-option-meta">{flow.paths.length} files{flow.sharedPaths.length ? ` + ${flow.sharedPaths.length} shared` : ''} · {flow.api ? 'API method flow' : flow.kind === 'flow' ? 'Linked code' : 'File group'}</small></span>
+            <span className="review-flow-option-progress">{completed === total ? <Check size={13}/> : null}{flow.api ? completed ? 'Reviewed' : 'To review' : `${completed}/${flow.paths.length}`}<small>{flow.api ? `${flow.ranges.length} methods` : 'viewed'}</small></span>
           </button>;
         })}
         {!matches.length && <p className="review-flow-empty">No matching scopes. Try a file or component name.</p>}
       </div>
-      <p className="review-flow-menu-note">Grouped from changed code. Open a scope to see its entry point, connections and grouping evidence.</p>
+      <p className="review-flow-menu-note">{flows.some(flow => flow.api) ? 'API flows follow methods from request entry to handler return. Shared classes may appear in multiple flows; comments stay attached to their code.' : 'File groups follow source links and directory context. Shared files keep one canonical comment draft.'}</p>
     </div>
   </details>;
 }

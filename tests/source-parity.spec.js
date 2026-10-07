@@ -46,7 +46,8 @@ test("OSS-03 command combobox has stable selection, empty recovery, IME protecti
   const input = page.getByRole("combobox", { name: "Global search input" });
   await expect(input).toBeVisible();
   await input.fill("PAY-382");
-  await expect(page.getByRole("option")).toHaveCount(5);
+  await expect(page.getByRole("option")).toHaveCount(6);
+  await expect(page.getByRole("option").filter({ hasText: "Separate capture and refund request paths" })).toHaveCount(1);
   await expect(page.getByRole("option").filter({ hasText: "Introduce durable payment recovery" })).toHaveCount(1);
   await page.keyboard.press("End");
   await expect(page.getByRole("option").last()).toHaveAttribute(

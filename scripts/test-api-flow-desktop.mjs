@@ -1,0 +1,78 @@
+import { _electron as electron, expect } from '@playwright/test';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { apiDemoSnapshot } from '../src/lib/api-demo-review.js';
+import { prepareLocalReviewFixture } from './fixtures/local-git-review.mjs';
+const root = path.resolve(new URL('..', import.meta.url).pathname);
+const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'worklane-api-native-'));
+const original = apiDemoSnapshot(); original.mr.project_id = 42; original.mr.iid = 7; original.mr.id = 99;
+original.mr.web_url = 'https://gitlab.fixture.test/platform/payment-api/-/merge_requests/7';
+const fixture = await prepareLocalReviewFixture({ root, directory: temp, snapshot: original });
+const app = await electron.launch({ args: [fixture.bootstrap], env: { ...process.env, ORBIT_USER_DATA_DIR: temp } });
+const evidence = { scope: 'Production Electron + actual immutable Git sources + synthetic HTTPS metadata/Claude', externalServicesTested: false, checks: [], consoleErrors: [] };
+try {
+  await app.evaluate(({ protocol }, { snapshot, cloneUrl }) => {
+    global.__apiCalls = [];
+    protocol.handle('https', async request => {
+      const u = new URL(request.url);
+      if (!u.hostname.endsWith('.fixture.test')) return new Response('', { status: 403 });
+      let body; try { body = await request.json(); } catch {}
+      global.__apiCalls.push({ path: u.pathname, method: request.method, body });
+      let data;
+      if (/\/diffs$|\/repository\/files\//.test(u.pathname)) return new Response('Code API forbidden', { status: 410 });
+      if (u.pathname.endsWith('/user')) data = { id: 3, name: 'Reviewer' };
+      else if (u.pathname.endsWith('/projects/42')) data = { id: 42, http_url_to_repo: cloneUrl };
+      else if (u.pathname.endsWith('/merge_requests/7')) data = snapshot.mr;
+      else if (u.pathname.endsWith('/merge_requests')) data = [snapshot.mr];
+      else if (u.pathname.endsWith('/discussions')) data = request.method === 'POST' ? { id: 'posted', notes: [{ id: 1, body: body.body, author: { name: 'Reviewer' } }] } : [];
+      else if (u.pathname.endsWith('/messages')) data = { model: 'claude-fixture', stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ summary: '승인 API 범위 검토', findings: [], readingOrder: [], sequence: [], dependencies: [] }) }] };
+      else return new Response('', { status: 404 });
+      return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json', 'x-next-page': '' } });
+    });
+  }, { snapshot: fixture.snapshot, cloneUrl: fixture.cloneUrl });
+  const p = await app.firstWindow(); p.on('pageerror', error => evidence.consoleErrors.push(error.message));
+  await p.evaluate(async () => {
+    for (const service of ['gitlab', 'claude']) await window.orbit.invoke('config.save', { service, config: { url: `https://${service}.fixture.test`, token: 'synthetic-fixture-token', model: 'claude-fixture' } });
+  });
+  await p.getByLabel('Workspace data mode').selectOption('connected');
+  await p.getByRole('button', { name: 'Code', exact: true }).click();
+  await p.getByRole('button', { name: /Separate capture and refund request paths !7/ }).click();
+  await expect(p.getByLabel('Current API flow')).toContainText('POST /payments/capture');
+  evidence.checks.push('Native IPC traces API methods from an actual Git head');
+  await p.getByRole('button', { name: 'Open component PaymentAuditService.ts', exact: true }).click();
+  await expect(p.getByLabel('Component code')).toContainText('repository.append');
+  await expect(p.getByRole('button', { name: 'Diff', exact: true })).toBeDisabled();
+  const analysis = await p.evaluate(async ({ head, base }) => window.orbit.invoke('gitlab.reviewFlows', { projectId: 42, headSha: head, baseSha: base }), fixture);
+  expect(analysis.contextFiles.find(file => file.path.endsWith('PaymentAuditService.ts')).contextOnly).toBe(true);
+  evidence.checks.push('Unchanged connector source is read from the same commit, without a fabricated diff');
+  await p.getByRole('button', { name: 'Select source line 7', exact: true }).click();
+  await p.getByLabel('Diagram review comment').fill('Fixture: audit retry after payment commit');
+  await p.getByLabel('Choose review flow', { exact: true }).click();
+  await p.getByRole('button', { name: 'Review flow POST /payments/refund', exact: true }).click();
+  await p.getByRole('button', { name: 'Open component PaymentAuditService.ts', exact: true }).click();
+  await p.getByRole('button', { name: 'Select source line 7', exact: true }).click();
+  await expect(p.getByLabel('Diagram review comment')).toHaveValue('Fixture: audit retry after payment commit');
+  const before = await app.evaluate(() => global.__apiCalls.filter(call => call.method === 'POST').length);
+  expect(before).toBe(0);
+  evidence.checks.push('API navigation preserves shared source-line drafts and makes zero automatic external writes');
+  await p.getByRole('button', { name: 'Post to GitLab', exact: true }).click();
+  await expect(p.locator('.component-comment')).toContainText('Fixture: audit retry after payment commit');
+  const posted = await app.evaluate(() => global.__apiCalls.find(call => call.path.endsWith('/discussions') && call.method === 'POST'));
+  expect(posted.body.position).toBeUndefined(); expect(posted.body.body).toContain('PaymentAuditService.ts:7 @ ' + fixture.head.slice(0, 8));
+  evidence.checks.push('Explicit unchanged-source comment uses an MR source reference, not an invalid inline position');
+  await p.getByRole('button', { name: 'Generate AI guide', exact: true }).click();
+  await expect(p.locator('.guide-summary')).toBeVisible();
+  const prompt = await app.evaluate(() => JSON.parse(global.__apiCalls.find(call => call.path.endsWith('/messages')).body.messages[0].content));
+  expect(prompt.scope.kind).toBe('api'); expect(prompt.apiFlow.title).toBe('POST /payments/refund');
+  const code = prompt.files.find(file => file.path.endsWith('PaymentService.ts')).code;
+  expect(code).toContain('async refund'); expect(code).not.toContain('async capture');
+  evidence.checks.push('Native Claude request includes only the selected API method ranges');
+  const calls = await app.evaluate(() => global.__apiCalls);
+  expect(calls.filter(call => /\/diffs$|\/repository\/files\//.test(call.path))).toHaveLength(0);
+  expect(evidence.consoleErrors).toEqual([]);
+  evidence.checks.push('Zero remote code API requests and zero renderer errors');
+  await fs.mkdir(path.join(root, 'research/api-flow-review'), { recursive: true });
+  await fs.writeFile(path.join(root, 'research/api-flow-review/native-tests.json'), JSON.stringify(evidence, null, 2));
+  console.log(JSON.stringify(evidence, null, 2));
+} finally { await app.close(); await fs.rm(temp, { recursive: true, force: true }); }

@@ -96,6 +96,17 @@ try {
   await p.screenshot({
     path: root + "artifacts/visual-review/electron-sequence.png",
   });
+  await p.getByRole('button', { name: 'Code', exact: true }).click();
+  await p.getByRole('row').filter({ hasText: 'Separate capture and refund request paths' }).getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(p.getByLabel('Current API flow')).toContainText('POST /payments/capture');
+  await expect(p.getByRole('button', { name: 'Source', exact: true })).toHaveClass(/active/);
+  evidence.productionApiWorker = true;
+  await p.getByLabel('Choose review flow', { exact: true }).click();
+  await p.getByRole('button', { name: 'Review flow POST /payments/refund', exact: true }).click();
+  await p.getByRole('button', { name: 'Open component PaymentService.ts', exact: true }).click();
+  await expect(p.getByLabel('Methods in this API flow')).toContainText('refund()');
+  await expect(p.getByLabel('Methods in this API flow')).not.toContainText('capture()');
+  evidence.productionApiMethodIsolation = true;
   if (
     Object.values(evidence).includes(false) &&
     evidence.externalServicesTested !== false

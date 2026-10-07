@@ -132,3 +132,8 @@ The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts:
 ## Sequence transaction scopes — 2026-10-07
 
 [Transaction review](TRANSACTION_REVIEW.md): **307/307 browser**, **133/133 adapter/model** and **11/11 native connected** checks passed, plus production build and whitespace checks. Full head-source declarations drive the named regions; exact start/end jumps preserve the current interaction and private line draft. Partial hunks, unresolved wrappers, and AI suggestions cannot create a transaction region. Three actual-app captures recorded zero page errors. Runtime transaction behavior and company services remain unverified.
+
+
+## API business-flow review — 2026-10-07
+
+[API flow review](API_FLOW_REVIEW.md): **316/316 browser**, **152/152 adapter/model**, **11/11 existing native connected** and **6/6 API native connected** checks passed. Production build, native profile/vault, production module-worker execution, and whitespace checks passed. Five actual UI captures recorded zero page errors. Company services and live Claude quality remain unverified; native evidence uses actual temporary Git objects and synthetic metadata/Claude responses. The main agent reviewed source, integration, and UI behavior and repaired the cases documented in the note. No independent subagent audit is claimed for this pass.

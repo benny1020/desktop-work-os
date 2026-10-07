@@ -1,3 +1,4 @@
+import { apiDemoMR } from './lib/api-demo-review.js';
 import { complexDemoMR } from './lib/complex-demo-review.js';
 
 export const initialIssues = [
@@ -189,6 +190,7 @@ export const initialMRs = [
     removed: 38,
   },
   complexDemoMR,
+  apiDemoMR,
   {
     id: "384",
     title: "Verify webhook signatures before processing",

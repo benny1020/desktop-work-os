@@ -677,3 +677,45 @@ test('AI references to clipped or unsent lines are rejected even when those line
   assert.equal(guide.coverage.includedFiles, 1); assert.equal(guide.coverage.truncated, true);
   assert.equal(JSON.stringify(request).includes('evidenceFiles'), false);
 });
+
+async function apiFixture(t) {
+  const { apiDemoFiles } = await import('../../src/lib/api-demo-review.js');
+  const f = await fixture(t, { reply: call => call.path.endsWith('/messages') ? { model: 'claude-fixture', stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ summary: 'API guide', findings: [], readingOrder: [], dependencies: [], sequence: [] }) }] } : undefined });
+  f.localGit.snapshot = async args => ({ files: apiDemoFiles.filter(file => !file.contextOnly), truncated: false });
+  f.localGit.reviewSources = async args => { f.localCalls.push({ action: 'reviewSources', args }); return { files: apiDemoFiles, headSha: head, baseSha: base, coverage: { omittedFiles: 0, source: 'local-git' } }; };
+  f.localGit.readDiff = async args => apiDemoFiles.find(file => file.path === args.path);
+  f.localGit.readFile = async args => { f.localCalls.push({ action: 'readFile', args }); const file = apiDemoFiles.find(file => file.path === args.path); if (!file) throw Error('Source unavailable'); return { content: file.content }; };
+  return f;
+}
+test('API Claude guide uses server-derived method ranges and unchanged context, without leaking another API method', async t => {
+  const { engine, calls, localCalls } = await apiFixture(t);
+  const result = await engine.invoke('gitlab.reviewFlows', { projectId: 42, headSha: head, baseSha: base });
+  assert.equal(result.flows.length, 2);
+  const flow = result.flows[0];
+  const guide = await engine.invoke('claude.review', { projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start, apiFlowId: flow.id });
+  const body = JSON.parse(calls.find(call => call.path.endsWith('/messages')).body.messages[0].content);
+  assert.equal(body.scope.kind, 'api'); assert.equal(body.apiFlow.title, 'POST /payments/capture');
+  const service = body.files.find(file => file.path.endsWith('/PaymentService.ts')).code;
+  assert.match(service, /async capture/); assert.doesNotMatch(service, /async refund|saveRefund/);
+  assert.ok(body.files.some(file => file.path.endsWith('/PaymentAuditService.ts')));
+  assert.equal(guide.coverage.diffOnly, false); assert.equal(guide.coverage.scope, 'api');
+  assert.equal(localCalls.filter(call => call.action === 'reviewSources').length, 1);
+  assert.ok(!calls.some(call => /repository\/files|\/diffs$/.test(call.path)));
+});
+test('unknown API scopes reject before calling Claude', async t => {
+  const { engine, calls } = await apiFixture(t);
+  await assert.rejects(engine.invoke('claude.review', { projectId: 42, iid: 7, headSha: head, apiFlowId: 'invented-api' }), /not in this revision/);
+  assert.ok(!calls.some(call => call.path.endsWith('/messages')));
+});
+test('unchanged context posts an explicit MR-level source reference, never a fake inline diff position', async t => {
+  const { engine, calls, localCalls } = await apiFixture(t);
+  const args = { projectId: 42, iid: 7, headSha: head, baseSha: base, startSha: start,
+    path: 'src/payments/PaymentAuditService.ts', line: 7, side: 'new', contextSource: true, mode: 'file', body: 'Review audit retry behavior' };
+  await engine.invoke('gitlab.comment', args);
+  const post = calls.find(call => call.path.endsWith('/discussions') && call.method === 'POST');
+  assert.match(post.body.body, /PaymentAuditService.ts:7 @ aaaaaaaa/); assert.equal(post.body.position, undefined);
+  assert.ok(localCalls.some(call => call.action === 'readFile' && call.args.ref === head));
+  await assert.rejects(engine.invoke('gitlab.comment', { ...args, mode: 'inline' }), /not in the current diff/);
+  await assert.rejects(engine.invoke('gitlab.comment', { ...args, line: 999 }), /source line/);
+  assert.equal(calls.filter(call => call.path.endsWith('/discussions') && call.method === 'POST').length, 1);
+});

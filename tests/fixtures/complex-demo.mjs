@@ -6,6 +6,8 @@ export async function openComplexReview(page) {
   await page.getByRole('row').filter({ hasText: 'Introduce durable payment recovery' })
     .getByRole('button', { name: 'Review', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Introduce durable payment recovery' })).toBeVisible();
+  await page.getByRole('button', { name: 'File groups', exact: true }).click();
+  await page.getByRole('button', { name: 'Diff', exact: true }).click();
 }
 
 export async function chooseComplexFlow(page, label) {

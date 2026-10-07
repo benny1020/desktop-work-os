@@ -19,6 +19,7 @@ function validPath(value) {
 }
 function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGitExecutable, commandTimeoutMs = 120000 }) {
   const locks = new Map();
+  const sourceIndexes = new Map();
   async function context(projectId) {
     if (!/^\d{1,20}$/.test(String(projectId))) throw new Error('A numeric GitLab project ID is required.');
     const config = await getConfig();
@@ -39,7 +40,7 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
     locks.set(c.root, next);
     try { return await next; } finally { if (locks.get(c.root) === next) locks.delete(c.root); }
   }
-  function run(c, args, { max = MAX_DIFF, transport = false } = {}) {
+  function run(c, args, { max = MAX_DIFF, transport = false, input } = {}) {
     return new Promise((resolve, reject) => {
       const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(GIT_|SSH_|WORKLANE_GIT_)/.test(key)));
       Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_SYSTEM: os.devNull, GIT_TERMINAL_PROMPT: '0', GIT_ATTR_NOSYSTEM: '1', GIT_LFS_SKIP_SMUDGE: '1', LC_ALL: 'C' });
@@ -47,7 +48,8 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
       const options = ['--literal-pathspecs', '-c', 'credential.helper=', '-c', 'core.hooksPath=' + path.join(directory, 'no-hooks'), '-c', 'core.fsmonitor=false', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', '-c', 'http.followRedirects=false', '-c', 'protocol.allow=never', '-c', 'protocol.https.allow=always', '-c', 'diff.external=', '-c', 'core.attributesFile=' + os.devNull];
       if (trustedTransport) options.push('-c', 'protocol.file.allow=always');
       const grouped = process.platform !== 'win32';
-      const child = spawn(trustedGitExecutable || 'git', [...options, ...args], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
+      const child = spawn(trustedGitExecutable || 'git', [...options, ...args], { env, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
+      if (input !== undefined) { child.stdin.on('error', () => {}); child.stdin.end(input); }
       const chunks = []; let bytes = 0; let exceeded = false; let completed = false; let terminationTimer;
       const limitError = () => Object.assign(new Error('Local source exceeds the preview limit or Git timed out.'), { code: 'GIT_LIMIT' });
       function finish(error, value) {
@@ -237,6 +239,49 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
       return { content: content.toString('utf8'), ref: sha, path: safePath, local: true };
     });
   }
-  return { snapshot, readFile, readDiff };
+  async function reviewSources({ projectId, ref, baseSha }) {
+    const c = await context(projectId), sha = validSha(ref), base = validSha(baseSha);
+    return locked(c, async () => {
+      await assertCurrent(c);
+      if (!await exists(c, sha) || !await exists(c, base)) throw new Error('This revision is not cached. Open the merge request first.');
+      const cacheKey = c.root + ':' + sha + ':' + base;
+      if (sourceIndexes.has(cacheKey)) return sourceIndexes.get(cacheKey);
+      const changes = await changedFiles(c, base, sha), changed = new Set(changes.map(item => item.newPath));
+      const tree = (await run(c, ['--git-dir', c.repo, 'ls-tree', '-r', '-l', '-z', sha])).toString('utf8');
+      const entries = tree.split('\0').flatMap(row => {
+        const match = row.match(/^(100644|100755) blob ([a-f0-9]+)\s+(\d+)\t(.+)$/);
+        if (!match || !/\.(?:[cm]?[jt]sx?|java)$/.test(match[4])) return [];
+        return [{ path: validPath(match[4]), object: match[2], size: Number(match[3]) }];
+      }).sort((a, b) => Number(changed.has(b.path)) - Number(changed.has(a.path)) ||
+        Number(/(?:Controller|controller|route)/.test(b.path)) - Number(/(?:Controller|controller|route)/.test(a.path)) || a.path.localeCompare(b.path));
+      let bytes = 0, selectedCount = 0;
+      const selected = entries.filter(item => {
+        if (selectedCount >= 500 || item.size > 200000 || bytes + item.size > 4 * 1024 * 1024) return false;
+        bytes += item.size; selectedCount++; return true;
+      });
+      const files = [];
+      if (selected.length) {
+        const output = await run(c, ['--git-dir', c.repo, 'cat-file', '--batch'], { max: 4 * 1024 * 1024 + 100000,
+          input: selected.map(item => item.object).join('\n') + '\n' });
+        let offset = 0;
+        for (const item of selected) {
+          const newline = output.indexOf(10, offset), header = output.subarray(offset, newline).toString('utf8');
+          if (header !== `${item.object} blob ${item.size}`) throw new Error('Local source index returned inconsistent Git objects.');
+          const content = output.subarray(newline + 1, newline + 1 + item.size); offset = newline + 2 + item.size;
+          if (content.includes(0)) continue;
+          files.push({ path: item.path, old_path: item.path, new_path: item.path,
+            content: content.toString('utf8'), contextOnly: !changed.has(item.path), rows: [], diff: '' });
+        }
+      }
+      await assertCurrent(c);
+      const result = { files, headSha: sha, baseSha: base, coverage: { sourceFiles: entries.length,
+        loadedFiles: files.length, omittedFiles: entries.length - files.length, source: 'local-git' } };
+      sourceIndexes.set(cacheKey, result);
+      if (sourceIndexes.size > 3) sourceIndexes.delete(sourceIndexes.keys().next().value);
+      return result;
+    });
+  }
+  return { snapshot, readFile, readDiff, reviewSources };
+
 }
 module.exports = { createLocalGitStore };

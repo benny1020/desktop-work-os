@@ -350,8 +350,8 @@ function App() {
   );
   const [mrs, setMRs] = useState(() => {
     const saved = persisted("mrs", initialMRs);
-    const sample = initialMRs.find(mr => mr.id === '428');
-    return saved.some(mr => mr.id === sample.id) ? saved : [...saved, sample];
+    const samples = initialMRs.filter(mr => ['428', '452'].includes(mr.id));
+    return [...saved, ...samples.filter(sample => !saved.some(mr => mr.id === sample.id))];
   });
   const [comments, setComments] = useState(() => persisted("comments", {}));
   const [incidents, setIncidents] = useState(() => persisted("incidents", []));

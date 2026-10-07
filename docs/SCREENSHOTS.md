@@ -120,3 +120,18 @@ Synthetic connected-service fixtures; no real company data or live Claude answer
 ![Dark companion workspace](media/assistant-memory-dark.png)
 
 ![Memory workflow walkthrough](media/assistant-memory.gif)
+
+
+## One API per business flow
+
+[API flow walkthrough](API_FLOW_REVIEW.md) · [animated walkthrough](media/api-flow-review.gif)
+
+| View | Actual app screenshot |
+| --- | --- |
+| Capture API / source / AI / draft | [Capture](media/api-review-capture.png) |
+| Named API selection / other changes | [Flow picker](media/api-review-scopes.png) |
+| Same Service / refund methods | [Refund](media/api-review-refund.png) |
+| Method sequence / dark theme | [Sequence](media/api-review-sequence-dark.png) |
+| Three review panes at 980×650 | [Narrow window](media/api-review-narrow-dark.png) |
+
+Synthetic source and sample AI guide; not live company data.

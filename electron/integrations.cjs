@@ -326,6 +326,39 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
     const { parseDiff } = await model;
     return { ...file, path: file.new_path || file.old_path, rows: parseDiff(file.diff || ""), deferred: false, unavailable: !!(file.unavailable || file.binary) };
   }
+  const apiFlowCache = new Map();
+  async function loadReviewFlows(a) {
+    const gitConfig = configFor('gitlab');
+    const store = requireLocalGit();
+    if (!store.reviewSources) throw new Error('Local API analysis is unavailable. File groups remain available.');
+    const source = await store.reviewSources({ projectId: a.projectId, ref: a.headSha, baseSha: a.baseSha });
+    assertGitAccount(gitConfig);
+    const { analyzeApiFlows } = await import('../src/lib/review-api-flows.mjs');
+    const { parseDiff } = await model;
+    const files = [];
+    for (const file of source.files) {
+      if (file.contextOnly) files.push(file);
+      else {
+        const patch = await store.readDiff({ projectId: a.projectId, baseSha: a.baseSha, headSha: a.headSha, path: file.path });
+        files.push({ ...file, ...patch, path: file.path, rows: parseDiff(patch.diff || '') });
+      }
+    }
+    const result = await analyzeApiFlows(files, { coverage: source.coverage });
+    assertGitAccount(gitConfig);
+    return { ...result, headSha: source.headSha, baseSha: source.baseSha };
+  }
+  async function getReviewFlows(a) {
+    const config = configFor('gitlab');
+    const key = require('node:crypto').createHash('sha256').update(JSON.stringify([config.url, config.token, a.projectId, a.baseSha, a.headSha])).digest('hex');
+    if (!apiFlowCache.has(key)) {
+      const pending = loadReviewFlows(a).catch(error => { apiFlowCache.delete(key); throw error; });
+      apiFlowCache.set(key, pending);
+      if (apiFlowCache.size > 3) apiFlowCache.delete(apiFlowCache.keys().next().value);
+    }
+    const result = await apiFlowCache.get(key);
+    assertGitAccount(config);
+    return result;
+  }
   async function getMRUpdates(a) {
     const c = configFor("gitlab");
     const p = gitPath(a);
@@ -348,7 +381,13 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
         "MR changed since you opened it. Refresh and review the new diff before posting. Your draft is retained.",
       );
     let file = snapshot.files.find((f) => f.path === a.path);
-    if (!file) throw new Error("The selected file is not in the current diff.");
+    if (!file) {
+      if (a.contextSource !== true || a.mode !== 'file' || a.side !== 'new') throw new Error("The selected file is not in the current diff.");
+      const source = await getCode({ projectId: snapshot.mr.project_id || a.projectId, path: a.path, ref: snapshot.mr.diff_refs.head_sha });
+      assertGitAccount(c);
+      if (a.line !== null && a.line !== undefined && (!Number.isSafeInteger(a.line) || a.line < 1 || a.line > source.content.split('\n').length)) throw new Error('The selected context source line is unavailable.');
+      file = { path: a.path, old_path: a.path, new_path: a.path, rows: [] };
+    }
     if (file.deferred) {
       file = await getDiff({ projectId: snapshot.mr.project_id || a.projectId, path: file.path,
         baseSha: snapshot.mr.diff_refs.base_sha, headSha: snapshot.mr.diff_refs.head_sha });
@@ -390,7 +429,18 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
     )
       throw new Error("MR changed. Refresh before generating a guide.");
     let reviewSnapshot = snapshot;
-    if (a.paths !== undefined) {
+    if (a.apiFlowId !== undefined) {
+      required(a.apiFlowId, 'API flow', 8192);
+      const analysis = await getReviewFlows({ projectId: snapshot.mr.project_id || a.projectId, headSha: snapshot.mr.diff_refs.head_sha, baseSha: snapshot.mr.diff_refs.base_sha });
+      const flow = analysis.flows.find(item => item.id === a.apiFlowId);
+      if (!flow) throw new Error('The selected API flow is not in this revision.');
+      const selected = analysis.contextFiles.filter(file => flow.paths.includes(file.path)).map(file => ({ ...file,
+        rows: file.content.split('\n').flatMap((text, index) => flow.ranges.some(range => range.path === file.path && index + 1 >= range.startLine && index + 1 <= range.endLine)
+          ? [{ text, newLine: index + 1, oldLine: null, kind: 'source' }] : []) }));
+      reviewSnapshot = { ...snapshot, files: selected, reviewScope: 'api', apiFlow: { title: flow.title, entrypoint: flow.entrypoint,
+        ranges: flow.ranges, endings: flow.endings, boundaries: flow.boundaries }, mrTotalFiles: snapshot.files.length,
+        truncated: !!(flow.coverage.truncated || flow.coverage.omittedFiles || flow.coverage.failedFiles) };
+    } else if (a.paths !== undefined) {
       if (!Array.isArray(a.paths) || !a.paths.length || a.paths.length > 24 || a.paths.some(p => typeof p !== "string" || !p || p.length > 4096) || new Set(a.paths).size !== a.paths.length)
         throw Error("Choose between 1 and 24 distinct changed files for the review flow.");
       const selected = a.paths.map(path => snapshot.files.find(file => file.path === path));
@@ -633,6 +683,7 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
     "gitlab.mr": getMR,
     "gitlab.code": getCode,
     "gitlab.diff": getDiff,
+    "gitlab.reviewFlows": getReviewFlows,
     "gitlab.mrUpdates": getMRUpdates,
     "gitlab.comment": postReviewComment,
     "gitlab.approve": async (a) => {

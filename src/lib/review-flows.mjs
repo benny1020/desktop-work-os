@@ -182,6 +182,8 @@ export function buildReviewFlows(files = [], graph = {}) {
 }
 
 export function scopeReviewGraph(graph = {}, flow) {
+  if (flow?.api) return { ...graph, ...flow.graph, transactions: graph.transactions,
+    boundaryDependencies: [], boundarySequence: [] };
   if (!flow) return { ...graph, nodes: graph.nodes || [], dependencies: graph.dependencies || [], sequence: graph.sequence || [], boundaryDependencies: [], boundarySequence: [] };
   const paths = new Set([...(flow.paths || []), ...(flow.sharedPaths || [])]);
   const nodes = (graph.nodes || []).filter(node => paths.has(node.path || node.id));

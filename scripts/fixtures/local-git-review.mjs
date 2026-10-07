@@ -15,7 +15,12 @@ export async function prepareLocalReviewFixture({ root, directory, snapshot }) {
   const git = async (...args) => (await execute('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Worklane Fixture', '-c', 'user.email=fixture@example.test', ...args], { cwd: repository, env })).stdout.trim();
   await git('init', '-b', 'main');
   await fs.writeFile(path.join(repository, 'README.md'), 'Isolated native review fixture.\n');
-  await git('add', '--', 'README.md');
+  for (const file of snapshot.contextFiles || []) {
+    const target = path.join(repository, file.path);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, file.content);
+  }
+  await git('add', '--', '.');
   await git('commit', '-m', 'Base fixture');
   const base = await git('rev-parse', 'HEAD');
   await git('checkout', '-b', snapshot.mr.source_branch);

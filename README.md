@@ -26,8 +26,14 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 
 ![Dependency graph → sequence → source → review comment → sample AI guide](docs/media/visual-review.gif)
 
+**Review one API from request entry to handler return.** Shared classes appear in each API with that API’s methods; code-line drafts stay shared, while API completion stays independent. Local immutable Git sources supply unchanged connector code, and the Claude guide uses the selected method ranges. Unsupported and unlinked changes remain available in file groups.
+
+![Capture API → choose a flow → refund API → sequence, using the same classes — synthetic fixture](docs/media/api-flow-review.gif)
+
+Try **!452** in the demo. [API flow behavior, screenshots, supported parsers and validation](docs/API_FLOW_REVIEW.md).
+
 - Role-based architecture bands: Controller → Service → Repository, with UI, contracts, workers and tests separated when present. Switch to import-depth layout when useful; unknown roles stay explicit.
-- Understandable review scopes such as **Payment request handling** and **Order request handling**, with an entry point, verified import reading path, grouping evidence and per-scope progress. Large scopes get numbered parts; shared files keep one draft and viewed state. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
+- Fallback file groups such as **Payment request handling** and **Order request handling**, with import reading paths and grouping evidence. Large file groups get numbered parts; a traced API stays one flow, and shared code keeps one draft. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
 - Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
 - Source-backed **transaction scopes** in sequence review: named TX regions, inside/outside indicators and exact start/end code links that preserve your draft. [Supported source patterns and validation](docs/TRANSACTION_REVIEW.md).
 - Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.

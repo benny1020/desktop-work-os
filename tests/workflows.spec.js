@@ -176,7 +176,8 @@ test("Keyboard search, create, navigation, light and dark shell", async ({
   await page.screenshot({ path: "artifacts/home-light.png" });
   await page.keyboard.press("Control+k");
   await page.getByLabel("Global search input").pressSequentially("PAY-382");
-  await expect(page.getByRole("option")).toHaveCount(5);
+  await expect(page.getByRole("option")).toHaveCount(6);
+  await expect(page.getByRole("option").filter({ hasText: "Separate capture and refund request paths" })).toHaveCount(1);
   await expect(page.getByRole("option").filter({ hasText: "Introduce durable payment recovery" })).toHaveCount(1);
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
