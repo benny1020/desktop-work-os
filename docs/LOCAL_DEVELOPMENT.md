@@ -109,12 +109,12 @@ The [workflow convenience review](WORKFLOW_CONVENIENCE.md) supersedes the curren
 
 ## Layered review and practical planning/Jira pass — 2026-10-06
 
-The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts: **253/253 browser**, **107/107 adapter/model**, **9/9 native connected** and **5/5 native memory lifecycle** checks passed. Native profile compatibility, OS encrypted-vault validation, production build and whitespace checks also passed. Three agents implemented and cross-reviewed changes; the integrated resize regression was repaired before a complete clean rerun. Screenshots use synthetic fixtures. Native connected checks used real temporary Git repositories, zero automatic external writes and zero renderer console errors. Company accounts and live Claude quality remain unverified.
+The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts: **253/253 browser**, **107/107 adapter/model**, **11/11 native connected** and **5/5 native memory lifecycle** checks passed. Native profile compatibility, OS encrypted-vault validation, production build and whitespace checks also passed. Three agents implemented and cross-reviewed changes; the integrated resize regression was repaired before a complete clean rerun. Screenshots use synthetic fixtures. Native connected checks used real temporary Git repositories, zero automatic external writes and zero renderer console errors. Company accounts and live Claude quality remain unverified.
 
 
 ## Sidebar layouts — 2026-10-06
 
-[Sidebar layout validation](SIDEBAR_LAYOUT.md): **256/256 browser tests** and **10/10 native connected checks** passed, with production build and whitespace validation. Controls support expanded/icons/hidden modes, persisted last-visible state, keyboard hide/restore, preview draft/focus preservation and native window-control clearance. No adapter/model source changed in this pass.
+[Sidebar layout validation](SIDEBAR_LAYOUT.md): **256/256 browser tests** and **11/11 native connected checks** passed, with production build and whitespace validation. Controls support expanded/icons/hidden modes, persisted last-visible state, keyboard hide/restore, preview draft/focus preservation and native window-control clearance. No adapter/model source changed in this pass.
 
 ## Repeated practical planning review — 2026-10-07
 
@@ -148,6 +148,6 @@ Cold-start regression: `npm run test:cold-review` uses a new empty Vite cache an
 
 ## Business flows and architectural conventions — 2026-10-07
 
-[Business-flow validation](BUSINESS_FLOW_REVIEW.md): 325/325 browser, 167/167 adapter/model/Git, 23/23 native connected checks (11 existing, 6 API, 6 mixed), production build/profile/vault/module-worker, cold-start 2/2 and whitespace checks passed. Nine affected UI checks revalidated the final data-contract label polish. Five isolated actual-app screenshots have zero page errors. Native fixtures use real immutable Git objects and synthetic service responses, with no remote code API reads or automatic external writes. The primary implementer performed this pass; live company services and live Claude quality remain unverified.
+[Business-flow validation](BUSINESS_FLOW_REVIEW.md): 327/327 browser, 167/167 adapter/model/Git, 23/23 native connected checks (11 existing, 6 API, 6 mixed), production build/profile/vault/module-worker, cold-start 2/2 and whitespace checks passed. Eleven affected UI checks revalidated the final data-contract label polish. Five isolated actual-app screenshots have zero page errors. Native fixtures use real immutable Git objects and synthetic service responses, with no remote code API reads or automatic external writes. The primary implementer performed this pass; live company services and live Claude quality remain unverified.
 
 Run `npm run test:business-flow-desktop` for the mixed native path and `node scripts/capture-business-flow-review.mjs` for its isolated UI captures.

@@ -484,7 +484,7 @@ export default function ReviewWorkbench({
   // Session view state is valid only for this exact MR diff. Drafts have their
   // own durable storage; pending requests and approval confirmations never resume.
   const restored = initialReviewState?.version === viewVersion &&
-    (files.some((item) => item.path === initialReviewState.selected) || (initialReviewState.flowMode === "api" && initialReviewState.flowId?.startsWith("api:"))) ? initialReviewState : null;
+    (files.some((item) => item.path === initialReviewState.selected) || (initialReviewState.flowMode === "api" && /^(?:api|kafka|message|scheduled|job|core):/.test(initialReviewState.flowId || ""))) ? initialReviewState : null;
   const [tab, setTab] = useState(restored?.tab || (initialTab === "Sequence" ? "Sequence" : "Dependency flow"));
   const [architectureMode, setArchitectureMode] = useState(restored?.architectureMode ?? true);
   const [sequenceMode, setSequenceMode] = useState(restored?.sequenceMode || 'auto');
@@ -660,7 +660,9 @@ ${finding.reason}`;
       .filter(({ step }) => step.path === selected);
     sequenceIndex = relevant.length
       ? relevant.reduce((nearest, next) => Math.abs(next.step.line - (line || 1)) < Math.abs(nearest.step.line - (line || 1)) ? next : nearest).index
-      : Math.max(0, graph.sequence.findIndex(step => step.to === selected));
+      : (() => { const incoming = graph.sequence.map((step, index) => ({ step, index })).filter(({ step }) => step.to === selected);
+          return incoming.length ? incoming.reduce((nearest, next) => Math.abs((next.step.targetLine || 1) - (line || 1)) < Math.abs((nearest.step.targetLine || 1) - (line || 1)) ? next : nearest).index : 0;
+        })();
   }
   const currentInteraction = graph.sequence[sequenceIndex];
   const sequenceGraph = sequenceByStep && currentInteraction ? { ...graph,
@@ -1250,7 +1252,7 @@ ${finding.reason}`;
                       ? layout.semantic ? "Architecture layers" : "Dependency map"
                       : "Interaction sequence"}
                   </strong>
-                  {tab === "Dependency flow" && <span className="diagram-evidence-count">{graph.dependencies.filter((e) => e.evidence === "code").length} resolved · {graph.dependencies.filter((e) => e.evidence === "type").length} contracts · {graph.dependencies.filter((e) => !["code", "type"].includes(e.evidence)).length} inferred</span>}
+                  {tab === "Dependency flow" && <span className="diagram-evidence-count">{graph.dependencies.filter((e) => e.evidence === "code").length} resolved · {graph.dependencies.filter((e) => e.evidence === "type").length} type links · {graph.dependencies.filter((e) => !["code", "type"].includes(e.evidence)).length} inferred</span>}
                   <small>
                     {tab === "Dependency flow"
                       ? layout.semantic ? "Roles from source and conventions. Arrows show code links." : activeFlow.methodFlow ? "Selected API methods. Resolved source call links." : "Changed files only. Solid imports; dashed inferred references."

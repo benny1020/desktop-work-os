@@ -11,6 +11,8 @@ test('mixed PR separates Kafka, API, schedule and core paths without dropping co
   assert.equal(r.flows[3].title, 'Core · money.convertCurrency()');
   assert.equal(r.flows[3].ranges.length, 2);
   const kafka = r.flows[0], schedule = r.flows[2];
+  assert.equal(r.contextFiles.find(file => file.path.endsWith('SettlementDomain.ts')).contextOnly, true);
+  assert.equal(kafka.ranges.find(range => range.name === 'afterFee').changed, false);
   assert.ok(kafka.trigger.detail.includes('payments.captured.v2'));
   assert.ok(kafka.ranges.some(r => r.name === 'settle'));
   assert.ok(!kafka.ranges.some(r => r.name === 'capture' || r.name === 'reconcile'));

@@ -138,12 +138,13 @@ Broker delivery, acknowledgment, external bank calls and scheduler locks are sep
 `,
 };
 export const mixedDemoFiles = Object.entries(sources).map(([path, content]) => {
-  const diff = `@@ -0,0 +1,${content.split('\n').length} @@\n` + content.split('\n').map(line => '+' + line).join('\n');
-  return { path, new_path: path, old_path: path, content, diff, rows: parseDiff(diff), new_file: true };
+  const contextOnly = path === 'src/settlement/domain/SettlementDomain.ts';
+  const diff = contextOnly ? '' : `@@ -0,0 +1,${content.split('\n').length} @@\n` + content.split('\n').map(line => '+' + line).join('\n');
+  return { path, new_path: path, old_path: path, content, diff, rows: parseDiff(diff), contextOnly, new_file: !contextOnly };
 });
-export const mixedDemoMR = { id: '464', title: 'Unify settlement API, Kafka delivery and reconciliation', repo: 'payment-api', author: 'Mina Choi', status: 'In review', ci: 'Passed', comments: 0, updated: '3m ago', issue: 'PAY-382', files: mixedDemoFiles.length, added: mixedDemoFiles.reduce((n, f) => n + f.rows.length - 1, 0), removed: 0 };
+export const mixedDemoMR = { id: '464', title: 'Unify settlement API, Kafka delivery and reconciliation', repo: 'payment-api', author: 'Mina Choi', status: 'In review', ci: 'Passed', comments: 0, updated: '3m ago', issue: 'PAY-382', files: mixedDemoFiles.filter(file => !file.contextOnly).length, added: mixedDemoFiles.reduce((n, f) => n + f.rows.filter(row => row.kind === 'added').length, 0), removed: 0 };
 export function mixedDemoSnapshot(mr = mixedDemoMR) {
   const path = 'src/settlement/application/SettlementService.ts';
   const line = sources[path].split('\n').findIndex(text => text.includes('const exists')) + 1;
-  return { mr: { id: mr.id, iid: mr.id, project_id: mr.repo, title: mr.title, status: mr.status, source_branch: 'feat/settlement-event-v2', target_branch: 'main', diff_refs: { base_sha: 'b464'.padEnd(40, '0'), start_sha: 'b464'.padEnd(40, '0'), head_sha: 'a464'.padEnd(40, '0') } }, files: mixedDemoFiles, discussions: [], demoGuide: { summary: 'API·Kafka·정기 작업은 서로 다른 진입점입니다. Kafka의 중복 전달, 저장 트랜잭션, 발행 경계와 코어 금액 규칙을 각각 확인하세요.', dependencies: [], sequence: [], readingOrder: [{ path, line, reason: '중복 메시지 조회와 저장 사이의 경쟁 조건을 확인하세요.' }], findings: [{ path, line, title: '동시 Kafka 재전달에서 중복 저장이 가능한가요?', reason: '조회 이후 insert 사이에 동일 이벤트가 도착할 수 있습니다. id unique 제약과 재전달 처리를 확인하세요.', severity: 'high' }] } };
+  return { mr: { id: mr.id, iid: mr.id, project_id: mr.repo, title: mr.title, status: mr.status, source_branch: 'feat/settlement-event-v2', target_branch: 'main', diff_refs: { base_sha: 'b464'.padEnd(40, '0'), start_sha: 'b464'.padEnd(40, '0'), head_sha: 'a464'.padEnd(40, '0') } }, files: mixedDemoFiles.filter(file => !file.contextOnly), contextFiles: mixedDemoFiles.filter(file => file.contextOnly), discussions: [], demoGuide: { summary: 'API·Kafka·정기 작업은 서로 다른 진입점입니다. Kafka의 중복 전달, 저장 트랜잭션, 발행 경계와 코어 금액 규칙을 각각 확인하세요.', dependencies: [], sequence: [], readingOrder: [{ path, line, reason: '중복 메시지 조회와 저장 사이의 경쟁 조건을 확인하세요.' }], findings: [{ path, line, title: '동시 Kafka 재전달에서 중복 저장이 가능한가요?', reason: '조회 이후 insert 사이에 동일 이벤트가 도착할 수 있습니다. id unique 제약과 재전달 처리를 확인하세요.', severity: 'high' }] } };
 }

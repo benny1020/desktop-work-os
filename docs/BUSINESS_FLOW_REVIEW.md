@@ -2,7 +2,7 @@
 
 Worklane reviews a declared API, message handler, scheduled job or a changed core method in its own scope. Shared classes repeat in the flows that use them; each scope lists its own methods. All changed files remain reachable, including contracts, configuration, unsupported languages and source that cannot be traced.
 
-Try **Demo workspace → Code → !464 → Review**. The synthetic 17-file settlement change includes a Kafka consumer, an API, a reconciliation job, shared application/domain/storage code, DTOs/entities and standalone currency functions. The sample AI guide is not a live Claude response.
+Try **Demo workspace → Code → !464 → Review**. The synthetic settlement change (16 changed files and one unchanged domain context file) includes a Kafka consumer, an API, a reconciliation job, shared application/domain/storage code, DTOs/entities and standalone currency functions. The sample AI guide is not a live Claude response.
 
 ![Kafka, API, scheduled and core review scopes](media/business-review-scopes.png)
 
@@ -59,17 +59,17 @@ Calls resolve using explicit relative imports or Java package/import types, plus
 
 Flow IDs are validated by the Electron main process against the current base/head and configured GitLab account. The renderer cannot select arbitrary source by sending a fabricated flow ID. The Claude payload includes the selected method ranges and related contracts, with unchanged code from the same immutable Git revision and bounded coverage. Sample guides use the same scope filter. AI suggestions cannot replace the source-derived topology.
 
-Code-line drafts remain canonical across overlapping scopes. Scope completion, file Viewed state, AI checkpoint assessments and MR approval are separate. Analysis temporarily disables guide generation so a guide cannot silently disappear when an initial fallback scope changes.
+Code-line drafts remain canonical across overlapping scopes. When a leaf component has several incoming method calls, selecting its source method focuses the nearest matching target call rather than the first class call. Returning from Home also restores unchanged source, the selected line and its draft for message/job/core scopes. Scope completion, file Viewed state, AI checkpoint assessments and MR approval are separate. Analysis temporarily disables guide generation so a guide cannot silently disappear when an initial fallback scope changes.
 
 The local Git source index reads one immutable changed-file manifest, batch-reads regular source blobs, then compares exact base/head blob pairs. It does not repeatedly request GitLab code or reread the manifest per changed source. Account checks, file/source/diff budgets and unavailable-patch fallbacks remain enforced. The bounded index loads up to 500 supported source files / 4 MiB, with 200 kB per source file; partial coverage is labeled. Source patches retain the 2 MiB aggregate / 512 KiB individual limits.
 
-![Kafka source sequence with a transaction declaration and sample review guide](media/business-review-sequence-dark.png)
+![Kafka call sequence beside a transaction declaration in source and sample review guide](media/business-review-sequence-dark.png)
 ![Standalone core currency functions without a fabricated request entry](media/business-review-core.png)
 ![Narrow dark core review](media/business-review-narrow-dark.png)
 
 ## Validation — 2026-10-07
 
-- **325/325 browser workflows**; an additional **9/9 affected diagram/business-flow checks** after polishing data-contract labels.
+- **327/327 browser workflows**; including **11/11 affected diagram/business-flow checks** after polishing data-contract labels.
 - **167/167 adapter/model/local Git checks**, including mixed root coverage, trusted trigger imports, lexical shadowing/type-only imports, individual method ranges, type relationships and layer conventions.
 - **23/23 native connected checks**: 11 existing workflows, 6 API flows, 6 mixed business-flow checks. These use production Electron, actual temporary Git objects and synthetic HTTPS metadata/Claude responses.
 - Production build, profile compatibility/encrypted-vault guards, production module worker, cold-start **2/2**, and whitespace checks passed.

@@ -151,6 +151,6 @@ Synthetic source and sample AI guide; not live company data.
 
 ![Persistence Adapter, Repository, source and sample AI review](media/business-review-layers.png)
 
-![Kafka sequence with a source transaction declaration](media/business-review-sequence-dark.png)
+![Kafka call sequence beside a transaction declaration in source](media/business-review-sequence-dark.png)
 
 The !464 demo distinguishes application/domain logic, external and persistence adapters, repositories, ports and transfer/storage models. [Supported mechanisms, layer evidence and current verification](BUSINESS_FLOW_REVIEW.md).

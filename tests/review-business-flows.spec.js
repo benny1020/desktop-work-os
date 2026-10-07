@@ -64,3 +64,28 @@ test('business flows remain readable in dark mode and a narrow window without pa
   await choose(page, 'Core · money.convertCurrency()');
   await expect(page.getByLabel('Current business flow')).toContainText('convertCurrency');
 });
+
+test('selecting a repository method chooses its matching incoming call instead of the first class call', async ({page}) => {
+  await open(page);
+  await page.getByRole('button', { name:'Open component SettlementRepository.ts', exact:true }).click();
+  await page.getByRole('button', { name:'Select source line 7', exact:true }).click();
+  await page.getByRole('tab', { name:'Sequence', exact:true }).click();
+  await expect(page.getByLabel('Sequence interaction').locator('option:checked')).toContainText('SettlementPersistenceAdapter.ts:10');
+  await expect(page.locator('.sequence-label')).toContainText('save()');
+  await expect(page.getByLabel('Component code')).toContainText('this.db.$transaction');
+});
+
+test('Kafka review restores unchanged domain context, selected source line and private draft after Home', async ({page}) => {
+  await open(page);
+  await page.getByRole('button', {name:'Open component SettlementDomain.ts',exact:true}).click();
+  await page.getByRole('button', {name:'Select source line 4',exact:true}).click();
+  await page.getByLabel('Diagram review comment').fill('Keep the unchanged settlement fee invariant in review context.');
+  await expect(page.getByRole('button', {name:'Diff',exact:true})).toBeDisabled();
+  await page.getByRole('button', {name:'Home',exact:true}).click();
+  await page.getByRole('button', {name:'Code',exact:true}).click();
+  await page.getByRole('row').filter({hasText:'Unify settlement API, Kafka delivery and reconciliation'}).getByRole('button', {name:'Review',exact:true}).click();
+  await expect(page.getByLabel('Current business flow')).toContainText('Kafka');
+  await expect(page.locator('.visual-code-heading')).toContainText('SettlementDomain.ts');
+  await expect(page.getByRole('button', {name:'Select source line 4',exact:true})).toHaveClass(/selected/);
+  await expect(page.getByLabel('Diagram review comment')).toHaveValue('Keep the unchanged settlement fee invariant in review context.');
+});
