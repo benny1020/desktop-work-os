@@ -23,7 +23,7 @@ try {
   await page.getByRole('button', { name: 'Draft comment for pending 결제가 재시도 경로를 막나요?', exact: true }).click();
   const draft = 'Cold-start review keeps the private source-line draft.';
   await page.getByLabel('Diagram review comment').fill(draft);
-  await expect(page.getByRole('button', { name: 'API flows · 2', exact: true })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('button', { name: 'Business flows · 4', exact: true })).toBeVisible({ timeout: 30000 });
   await chooseComplexFlow(page, 'webhooks');
   await chooseComplexFlow(page, 'capture');
   await expect(page.getByLabel('Diagram review comment')).toHaveValue(draft);

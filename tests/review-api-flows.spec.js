@@ -57,7 +57,7 @@ test('unlinked documentation remains available and grouping can switch back with
   await expect(page.getByLabel('Component code')).toContainText('Payment response contract');
   await page.getByRole('button', { name: 'File groups', exact: true }).click();
   await expect(page.getByRole('button', { name: 'File groups', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: /^API flows/ }).click();
+  await page.getByRole('button', { name: /^Business flows/ }).click();
   await expect(page.getByLabel('Current API flow')).toContainText('POST /payments/capture');
 });
 for (const layout of [{ width: 1440, height: 900 }, { width: 980, height: 650 }]) for (const theme of ['light', 'dark']) {

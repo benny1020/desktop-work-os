@@ -13,7 +13,7 @@ test('Spring annotations establish roles and endpoint with exact source location
   assert.deepEqual(result.endpoint, { path: '/payments', method: null, line: 2 });
   assert.equal(classifyReviewFile(source('Unclear.java', '@Service\npublic class Unclear {}')).role, 'service');
   assert.equal(classifyReviewFile(source('Unclear.java', 'public interface Unclear extends JpaRepository<Payment, Long> {}')).role, 'repository');
-  assert.equal(classifyReviewFile(source('Unclear.java', '@Entity\npublic class Unclear {}')).role, 'model');
+  assert.equal(classifyReviewFile(source('Unclear.java', '@Entity\npublic class Unclear {}')).role, 'entity');
 });
 
 test('TS Nest controller decorator, directory conventions and strict suffixes retain honest confidence', () => {
@@ -46,12 +46,12 @@ test('tests/docs/config and deferred unknown files stay explicit rather than res
   assert.equal(classifyReviewFile({ path: 'docs/PaymentService.md' }).role, 'docs');
   assert.equal(classifyReviewFile({ path: '.github/workflows/test.yml' }).role, 'config');
   assert.equal(classifyReviewFile({ path: 'src/config/payment.ts' }).role, 'config');
-  assert.equal(classifyReviewFile({ path: 'src/RetryWorker.ts' }).role, 'integration');
-  assert.equal(classifyReviewFile({ path: 'src/RetryQueue.ts' }).role, 'integration');
+  assert.equal(classifyReviewFile({ path: 'src/RetryWorker.ts' }).role, 'job');
+  assert.equal(classifyReviewFile({ path: 'src/RetryQueue.ts' }).role, 'producer');
   assert.equal(classifyReviewFile({ path: 'src/PaymentClient.ts' }).role, 'integration');
-  assert.equal(classifyReviewFile({ path: 'src/PaymentMapper.java' }).role, 'model');
+  assert.equal(classifyReviewFile({ path: 'src/PaymentMapper.java' }).role, 'mapper');
   assert.equal(classifyReviewFile(source('src/PaymentMapper.java', 'import org.apache.ibatis.annotations.Mapper;\n@Mapper\npublic interface PaymentMapper {}')).role, 'repository');
-  assert.equal(classifyReviewFile(source('src/StatusMapper.java', 'import org.mapstruct.Mapper;\n@Mapper\npublic interface StatusMapper {}')).role, 'model');
+  assert.equal(classifyReviewFile(source('src/StatusMapper.java', 'import org.mapstruct.Mapper;\n@Mapper\npublic interface StatusMapper {}')).role, 'mapper');
   const deferred = classifyReviewFile({ path: 'src/unknown.ts', deferred: true });
   assert.equal(deferred.role, 'other');
   assert.match(deferred.evidence[0].detail, /not loaded/);

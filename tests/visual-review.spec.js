@@ -10,6 +10,8 @@ const nav = (p, name) =>
 const openDemo = async (p) => {
   await p.goto("/");
   await p.getByRole("button", { name: /Review changes/ }).click();
+  await p.getByRole("button", { name: "File groups", exact: true }).click();
+  await p.getByRole("button", { name: "Diff", exact: true }).click();
 };
 test("Visual review: dependency component opens exact code and separate sequence view", async ({
   page,

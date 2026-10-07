@@ -330,19 +330,12 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
   async function loadReviewFlows(a) {
     const gitConfig = configFor('gitlab');
     const store = requireLocalGit();
-    if (!store.reviewSources) throw new Error('Local API analysis is unavailable. File groups remain available.');
+    if (!store.reviewSources) throw new Error('Local flow analysis is unavailable. File groups remain available.');
     const source = await store.reviewSources({ projectId: a.projectId, ref: a.headSha, baseSha: a.baseSha });
     assertGitAccount(gitConfig);
     const { analyzeApiFlows } = await import('../src/lib/review-api-flows.mjs');
     const { parseDiff } = await model;
-    const files = [];
-    for (const file of source.files) {
-      if (file.contextOnly) files.push(file);
-      else {
-        const patch = await store.readDiff({ projectId: a.projectId, baseSha: a.baseSha, headSha: a.headSha, path: file.path });
-        files.push({ ...file, ...patch, path: file.path, rows: parseDiff(patch.diff || '') });
-      }
-    }
+    const files = source.files.map(file => ({ ...file, rows: parseDiff(file.diff || '') }));
     const result = await analyzeApiFlows(files, { coverage: source.coverage });
     assertGitAccount(gitConfig);
     return { ...result, headSha: source.headSha, baseSha: source.baseSha };
@@ -429,15 +422,16 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
     )
       throw new Error("MR changed. Refresh before generating a guide.");
     let reviewSnapshot = snapshot;
-    if (a.apiFlowId !== undefined) {
-      required(a.apiFlowId, 'API flow', 8192);
+    if (a.flowId !== undefined || a.apiFlowId !== undefined) {
+      const flowId = a.flowId ?? a.apiFlowId;
+      required(flowId, 'Review flow', 8192);
       const analysis = await getReviewFlows({ projectId: snapshot.mr.project_id || a.projectId, headSha: snapshot.mr.diff_refs.head_sha, baseSha: snapshot.mr.diff_refs.base_sha });
-      const flow = analysis.flows.find(item => item.id === a.apiFlowId);
-      if (!flow) throw new Error('The selected API flow is not in this revision.');
+      const flow = analysis.flows.find(item => item.id === flowId);
+      if (!flow) throw new Error('The selected API flow or business flow is not in this revision.');
       const selected = analysis.contextFiles.filter(file => flow.paths.includes(file.path)).map(file => ({ ...file,
-        rows: file.content.split('\n').flatMap((text, index) => flow.ranges.some(range => range.path === file.path && index + 1 >= range.startLine && index + 1 <= range.endLine)
+        rows: file.content.split('\n').flatMap((text, index) => (flow.contracts?.includes(file.path) || flow.ranges.some(range => range.path === file.path && index + 1 >= range.startLine && index + 1 <= range.endLine))
           ? [{ text, newLine: index + 1, oldLine: null, kind: 'source' }] : []) }));
-      reviewSnapshot = { ...snapshot, files: selected, reviewScope: 'api', apiFlow: { title: flow.title, entrypoint: flow.entrypoint,
+      reviewSnapshot = { ...snapshot, files: selected, reviewScope: flow.api ? 'api' : 'method', apiFlow: { title: flow.title, kind: flow.kind, trigger: flow.trigger, contracts: flow.contracts, entrypoint: flow.entrypoint,
         ranges: flow.ranges, endings: flow.endings, boundaries: flow.boundaries }, mrTotalFiles: snapshot.files.length,
         truncated: !!(flow.coverage.truncated || flow.coverage.omittedFiles || flow.coverage.failedFiles) };
     } else if (a.paths !== undefined) {

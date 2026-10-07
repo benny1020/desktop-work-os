@@ -2,34 +2,68 @@
 // Source annotations outrank path/name conventions; unknown roles stay explicit.
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 export const REVIEW_ROLES = [
-  { id: 'ui', label: 'UI / Presentation', description: 'Screens and components' },
-  { id: 'controller', label: 'Controller / Entry points', description: 'Request handlers and routes' },
-  { id: 'service', label: 'Service / Business logic', description: 'Application behavior' },
-  { id: 'repository', label: 'Repository / Persistence', description: 'Data access and storage' },
-  { id: 'model', label: 'Model / Contracts', description: 'Entities, DTOs and schemas' },
-  { id: 'integration', label: 'Integration / Workers', description: 'External clients and background work' },
-  { id: 'shared', label: 'Shared / Utilities', description: 'Reusable support code' },
-  { id: 'tests', label: 'Tests', description: 'Verification and fixtures' },
-  { id: 'docs', label: 'Documentation', description: 'Written context' },
-  { id: 'config', label: 'Configuration', description: 'Build and runtime settings' },
-  { id: 'other', label: 'Other / Unclassified', description: 'Role could not be established' },
+  { id: 'ui', label: 'UI / Presentation' },
+  { id: 'controller', label: 'Controller / Request entry' },
+  { id: 'consumer', label: 'Consumer / Message entry' },
+  { id: 'job', label: 'Job / Scheduled entry' },
+  { id: 'service', label: 'Service / Application' },
+  { id: 'domainservice', label: 'Domain Service / Business rules' },
+  { id: 'domain', label: 'Domain / Business objects' },
+  { id: 'core', label: 'Core / Shared business logic' },
+  { id: 'port', label: 'Port / Boundary contracts', data: true },
+  { id: 'adapter', label: 'Adapter / External systems' },
+  { id: 'persistenceadapter', label: 'Persistence Adapter / Storage' },
+  { id: 'repository', label: 'Repository / Data access' },
+  { id: 'producer', label: 'Producer / Message dispatch' },
+  { id: 'integration', label: 'Integration / External clients' },
+  { id: 'dto', label: 'DTO / Transfer contracts', data: true },
+  { id: 'entity', label: 'Entity / Stored objects', data: true },
+  { id: 'model', label: 'Model / Data structures', data: true },
+  { id: 'mapper', label: 'Mapper / Data conversion', data: true },
+  { id: 'shared', label: 'Shared / Utilities' },
+  { id: 'tests', label: 'Tests' }, { id: 'docs', label: 'Documentation' },
+  { id: 'config', label: 'Configuration' }, { id: 'other', label: 'Other / Unclassified' },
 ];
-const shortLabels = { ui: 'UI', controller: 'Controller', service: 'Service', repository: 'Repository', model: 'Model', integration: 'Integration', shared: 'Shared', tests: 'Tests', docs: 'Docs', config: 'Config', other: 'Other' };
+const shortLabels = { ui: 'UI', controller: 'Controller', consumer: 'Consumer', job: 'Job', service: 'Service', domainservice: 'Domain Service', domain: 'Domain', core: 'Core', port: 'Port', adapter: 'Adapter', persistenceadapter: 'Persistence Adapter', repository: 'Repository', producer: 'Producer', model: 'Model', dto: 'DTO', entity: 'Entity', mapper: 'Mapper', integration: 'Integration', shared: 'Shared', tests: 'Tests', docs: 'Docs', config: 'Config', other: 'Other' };
 const basename = path => path.split('/').at(-1);
+// Specific conventions must precede generic Service/Adapter names. Both common
+// spellings (Adapter/Adaptor) and camel/dotted/dashed filenames are supported.
 const nameRole = [
+  ['persistenceadapter', /(?:Persistence|Persistent|Jpa|Database|Storage)(?:Adapter|Adaptor)$|[._-](?:persistence|persistent|jpa|database|storage)[._-]adapt[eo]r$/i],
+  ['domainservice', /DomainService$|[._-]domain[._-]service$/i],
+  ['consumer', /(?:Consumer|Listener|Subscriber|[._-](?:consumer|listener|subscriber))$/i],
+  ['job', /(?:Job|Scheduler|Tasklet|Batch|Worker|[._-](?:job|scheduler|tasklet|batch|worker))$/i],
   ['controller', /(?:Controller|Route|Router|Handler|[._-](?:controller|route|router|handler))$/],
-  ['service', /(?:Service|UseCase|Interactor|[._-](?:service|use-?case|interactor))$/],
+  ['producer', /(?:Producer|Publisher|EventBus|Queue|[._-](?:producer|publisher|queue))$/i],
+  ['port', /(?:Port|[._-]port)$/i],
+  ['adapter', /(?:Adapter|Adaptor|[._-](?:adapter|adaptor))$/i],
+  ['dto', /(?:DTO|Dto|Request|Response|Command|Query|Event|[._-](?:dto|request|response|command|query|event))$/],
+  ['entity', /(?:Entity|[._-]entity)$/i],
+  ['mapper', /(?:Mapper|Converter|[._-](?:mapper|converter))$/i],
   ['repository', /(?:Repository|Repo|DAO|Dao|[._-](?:repository|repo|dao))$/],
-  ['model', /(?:Entity|DTO|Dto|Model|Schema|Mapper|[._-](?:entity|dto|model|schema|mapper))$/],
-  ['integration', /(?:Client|Gateway|Worker|Consumer|Producer|Queue|[._-](?:client|gateway|worker|consumer|producer|queue))$/],
+  ['service', /(?:Service|UseCase|Interactor|[._-](?:service|use-?case|interactor))$/],
+  ['model', /(?:Model|Schema|[._-](?:model|schema))$/],
+  ['integration', /(?:Client|Gateway|[._-](?:client|gateway))$/],
 ];
 const pathRole = [
+  ['persistenceadapter', /(?:^|\/)(?:adapters?|adaptors?)(?:\/[^/]+)*\/(?:persistence|persistent|out\/persistence|storage)(?:\/|$)|(?:^|\/)(?:persistence|persistent)[._-]adapt[eo]rs?(?:\/|$)/i],
+  ['domainservice', /(?:^|\/)(?:domains?)(?:\/[^/]+)*\/(?:services?)(?:\/|$)/i],
+  ['consumer', /(?:^|\/)(?:consumers?|listeners?|subscribers?)(?:\/|$)/i],
+  ['job', /(?:^|\/)(?:jobs?|schedulers?|batch|workers?)(?:\/|$)/i],
   ['controller', /(?:^|\/)(?:controllers?|routes?|handlers?)(?:\/|$)/i],
-  ['service', /(?:^|\/)(?:services?|use-?cases?|application)(?:\/|$)/i],
+  ['port', /(?:^|\/)(?:ports?)(?:\/|$)/i],
+  ['adapter', /(?:^|\/)(?:adapters?|adaptors?)(?:\/|$)/i],
+  ['dto', /(?:^|\/)(?:dtos?|requests?|responses?|commands?|events?|contracts?)(?:\/|$)/i],
+  ['entity', /(?:^|\/)(?:entities|entity)(?:\/|$)/i],
+  ['mapper', /(?:^|\/)(?:mappers?|converters?)(?:\/|$)/i],
   ['repository', /(?:^|\/)(?:repositories|repository|repos?|dao|persistence)(?:\/|$)/i],
-  ['model', /(?:^|\/)(?:models?|entities|entity|dto|schemas?|contracts?)(?:\/|$)/i],
+  ['service', /(?:^|\/)(?:services?|use-?cases?|application)(?:\/|$)/i],
+  ['model', /(?:^|\/)(?:models?|schemas?)(?:\/|$)/i],
+  ['domain', /(?:^|\/)(?:domains?)(?:\/|$)/i],
+  ['core', /(?:^|\/)(?:core)(?:\/|$)/i],
   ['ui', /(?:^|\/)(?:components?|views?|pages?|screens?)(?:\/|$)/i],
-  ['integration', /(?:^|\/)(?:workers?|consumers?|clients?|gateways?|integrations?)(?:\/|$)/i],
+  ['producer', /(?:^|\/)(?:producers?|publishers?)(?:\/|$)/i],
+  ['integration', /(?:^|\/)(?:clients?|gateways?|integrations?)(?:\/|$)/i],
   ['shared', /(?:^|\/)(?:shared|common|utils?|helpers?)(?:\/|$)/i],
 ];
 export function classifyReviewFile(file = {}) {
@@ -55,19 +89,23 @@ export function classifyReviewFile(file = {}) {
     ['controller', /@(?:RestController|Controller)\b/],
     ['service', /@Service\b/],
     ['repository', mybatis ? /@(?:Repository|Mapper)\b|\bextends\s+(?:JpaRepository|CrudRepository|PagingAndSortingRepository)\s*</ : /@Repository\b|\bextends\s+(?:JpaRepository|CrudRepository|PagingAndSortingRepository)\s*</],
-    ['model', /@(?:Entity|Table)\b/],
+    ['entity', /@(?:Entity|Table)\b/],
   ];
   const roleEvidence = annotations.flatMap(([role, pattern]) => source.filter(row => /^\s*(?:@|(?:public\s+)?(?:interface|class)\s)/.test(row.text) && pattern.test(row.text))
     .map(row => ({ role, kind: 'code', detail: row.text.trim().slice(0, 120), line: row.newLine })));
   const roles = new Set(roleEvidence.map(item => item.role));
   if (roles.size > 1) return result('other', 'ambiguous', roleEvidence.map(({ role, ...item }) => ({ ...item, detail: `${shortLabels[role]}: ${item.detail}` })));
   if (roles.size === 1) {
-    const role = [...roles][0];
+    let role = [...roles][0];
+    const specific = pathRole.slice(0, 2).find(([, pattern]) => pattern.test(path)) || nameRole.find(([, pattern]) => pattern.test(stem)) || pathRole.find(([, pattern]) => pattern.test(path));
+    if (role === 'service' && ['domainservice', 'persistenceadapter', 'adapter', 'job', 'consumer', 'producer'].includes(specific?.[0]) || role === 'repository' && specific?.[0] === 'persistenceadapter') role = specific[0];
     const route = source.find(row => /^\s*@(?:RequestMapping|GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|Controller)\s*\(/.test(row.text));
     const value = route?.text.match(/["']([^"']+)["']/)?.[1];
     const verb = route?.text.match(/@(Get|Post|Put|Patch|Delete)Mapping/)?.[1]?.toUpperCase();
     return result(role, 'code', roleEvidence.map(({ role, ...item }) => item), value ? { path: value, method: verb || null, line: route.newLine } : undefined);
   }
+  const specialized = pathRole.slice(0, 2).find(([, pattern]) => pattern.test(path));
+  if (specialized) return result(specialized[0], 'path', [{ kind: 'path', detail: `${path} architecture directory convention` }]);
   const naming = nameRole.find(([, pattern]) => pattern.test(stem));
   if (naming) return result(naming[0], 'name', [{ kind: 'name', detail: `${stem} naming convention` }]);
   const directory = pathRole.find(([, pattern]) => pattern.test(path));

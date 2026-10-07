@@ -29,18 +29,18 @@ export function ReviewFlowPicker({ flows, activeFlow, viewed, reviewedFlows = []
         event.preventDefault(); buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
       }}>
         {matches.map(flow => {
-          const completed = flow.api ? Number(reviewedFlows.includes(flow.id)) : flow.paths.filter(path => viewed.includes(path)).length;
-          const total = flow.api ? 1 : flow.paths.length;
+          const completed = flow.methodFlow ? Number(reviewedFlows.includes(flow.id)) : flow.paths.filter(path => viewed.includes(path)).length;
+          const total = flow.methodFlow ? 1 : flow.paths.length;
           const accessibleTitle = flows.filter(item => item.label === flow.label).length > 1 ? displayTitle(flow) : flow.label;
           return <button key={flow.id} aria-label={`Review flow ${accessibleTitle}`} aria-pressed={activeFlow?.id === flow.id} onClick={() => onChoose(flow)}>
             <span className="review-flow-option-body"><b>{displayTitle(flow)}</b><small className="review-flow-route">{flow.subtitle || `${flow.paths.length} changed files`}</small>
-              <small className="review-flow-option-meta">{flow.paths.length} files{flow.sharedPaths.length ? ` + ${flow.sharedPaths.length} shared` : ''} · {flow.api ? 'API method flow' : flow.kind === 'flow' ? 'Linked code' : 'File group'}</small></span>
-            <span className="review-flow-option-progress">{completed === total ? <Check size={13}/> : null}{flow.api ? completed ? 'Reviewed' : 'To review' : `${completed}/${flow.paths.length}`}<small>{flow.api ? `${flow.ranges.length} methods` : 'viewed'}</small></span>
+              <small className="review-flow-option-meta">{flow.paths.length} files{flow.sharedPaths.length ? ` + ${flow.sharedPaths.length} shared` : ''} · {flow.methodFlow ? ({api:'API',kafka:'Kafka consumer',message:'Message handler',scheduled:'Scheduled job',job:'Queue job',core:'Core change'}[flow.kind] || 'Method flow') : flow.kind === 'flow' ? 'Linked code' : 'File group'}</small></span>
+            <span className="review-flow-option-progress">{completed === total ? <Check size={13}/> : null}{flow.methodFlow ? completed ? 'Reviewed' : 'To review' : `${completed}/${flow.paths.length}`}<small>{flow.methodFlow ? `${flow.ranges.length} methods` : 'viewed'}</small></span>
           </button>;
         })}
         {!matches.length && <p className="review-flow-empty">No matching scopes. Try a file or component name.</p>}
       </div>
-      <p className="review-flow-menu-note">{flows.some(flow => flow.api) ? 'API flows follow methods from request entry to handler return. Shared classes may appear in multiple flows; comments stay attached to their code.' : 'File groups follow source links and directory context. Shared files keep one canonical comment draft.'}</p>
+      <p className="review-flow-menu-note">{flows.some(flow => flow.methodFlow) ? 'Business flows follow one declared entry or changed core method to its completion. Shared classes may appear in multiple flows; comments stay attached to their code.' : 'File groups follow source links and directory context. Shared files keep one canonical comment draft.'}</p>
     </div>
   </details>;
 }

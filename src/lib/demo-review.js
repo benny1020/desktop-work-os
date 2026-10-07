@@ -1,3 +1,4 @@
+import { mixedDemoSnapshot } from './mixed-demo-review.js';
 import { parseDiff, buildGraph } from "./review-model.mjs";
 import { complexDemoSnapshot } from './complex-demo-review.js';
 import { apiDemoSnapshot } from './api-demo-review.js';
@@ -14,6 +15,7 @@ const payment = {
   "src/PaymentWorker.ts": `import { PaymentService } from './PaymentService';\n\nexport class PaymentWorker {\n  constructor(private readonly paymentService: PaymentService) {}\n  async process(job: RetryJob) {\n    if (job.attempt > 3) throw new RetryBudgetExceeded(job);\n    return this.paymentService.capture(job);\n  }\n}`,
 };
 export function demoSnapshot(mr) {
+  if (String(mr.id) === '464') return mixedDemoSnapshot(mr);
   if (String(mr.id) === '452') return apiDemoSnapshot(mr);
   if (String(mr.id) === '428') return complexDemoSnapshot(mr);
   const contents = String(mr.id) === "391" ? order : payment;

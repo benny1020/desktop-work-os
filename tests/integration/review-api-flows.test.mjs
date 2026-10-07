@@ -37,7 +37,7 @@ test('changed downstream method discovers an unchanged API entry point', async (
 test('literal NestJS decorator aliases resolve but untrusted lookalike annotations do not', async () => {
   const source = "import {Controller as C, Get as G} from '@nestjs/common'; @C('orders') export class Orders { @G(':id') read(id: string) { return id; } }";
   assert.equal((await analyzeApiFlows([file('Orders.ts', source)])).flows[0].title, 'GET /orders/:id');
-  assert.equal((await analyzeApiFlows([file('Orders.ts', source.replace('@nestjs/common', './fake'))])).flows.length, 0);
+  assert.equal((await analyzeApiFlows([file('Orders.ts', source.replace('@nestjs/common', './fake'))])).flows.filter(f => f.api).length, 0);
 });
 test('Java Spring APIs use imported types, separate shared methods, and ignore produces when choosing the route', async () => {
   const controller = file('p/PaymentController.java', `package p; import org.springframework.stereotype.Controller; import org.springframework.web.bind.annotation.*;
@@ -73,20 +73,21 @@ test('pure deletions retain conservative API impact while unrelated methods rema
   const s = file('Service.ts', 'export class Service { run() { return 1; } unrelated() { return 2; } }');
   s.rows = parseDiff('@@ -1,2 +1,1 @@\n-old();\n export class Service { run() { return 1; } unrelated() { return 2; } }');
   const r = await analyzeApiFlows([root('return this.service.run();'), s]);
-  assert.equal(r.flows.length, 1); assert.ok(!r.consumedPaths.includes('Service.ts'));
+  assert.equal(r.flows.length, 2); assert.ok(r.flows.some(f => f.kind === 'core' && f.ranges.some(r => r.name === 'unrelated'))); assert.ok(r.consumedPaths.includes('Service.ts'));
 });
 test('parser failures, dynamic routes and omitted context are surfaced without creating fake endpoints', async () => {
   const r = await analyzeApiFlows([file('bad.ts', 'export class {'), file('dynamic.ts', "import { Controller, Post } from '@nestjs/common'; @Controller(PREFIX) class C { @Post('run') run() { return 1; } }")], { coverage: { omittedFiles: 7 } });
-  assert.equal(r.flows.length, 0); assert.equal(r.failures.length, 1); assert.equal(r.coverage.omittedFiles, 7);
+  assert.equal(r.flows.filter(f => f.api).length, 0); assert.equal(r.flows[0].kind, 'core'); assert.equal(r.failures.length, 1); assert.equal(r.coverage.omittedFiles, 7);
 });
 test('a deletion inside one method is not lost when a different method also adds lines', async () => {
   const content = 'export class Service {\n run() {\n  return 1;\n }\n unrelated() {\n  return 2;\n }\n}';
   const s = file('Service.ts', content);
   s.rows = parseDiff('@@ -1,9 +1,8 @@\n export class Service {\n  run() {\n-  unsafe();\n   return 1;\n  }\n  unrelated() {\n-  return 1;\n+  return 2;\n  }\n }');
   const r = await analyzeApiFlows([root('return this.service.run();'), s]);
-  assert.equal(r.flows.length, 1);
+  assert.equal(r.flows.length, 2);
   assert.equal(r.flows[0].ranges.find(r => r.className === 'Service').changed, true);
-  assert.ok(!r.consumedPaths.includes('Service.ts'));
+  assert.ok(r.consumedPaths.includes('Service.ts'));
+  assert.ok(r.flows.some(f => f.kind === 'core' && f.ranges.some(r => r.name === 'unrelated')));
 });
 test('Java local variables shadowing injected fields stay unresolved instead of claiming a field call', async () => {
   const controller = file('p/C.java', 'package p; import org.springframework.web.bind.annotation.*; @RestController public class C { private S service; @GetMapping("run") public String run(S service) { return service.run(); } }');
@@ -110,7 +111,7 @@ test('colocated injected types without an import stay an explicit unresolved bou
 });
 test('Java route arrays stay in fallback and RequestMapping verbs cannot be forged by a string literal', async () => {
   const array = file('C.java', 'import org.springframework.web.bind.annotation.*; @RestController class C { @GetMapping({"/capture", "/refund"}) String run() { return "ok"; } }');
-  assert.equal((await analyzeApiFlows([array])).flows.length, 0);
+  assert.equal((await analyzeApiFlows([array])).flows.filter(f => f.api).length, 0);
   const literal = file('C.java', 'import org.springframework.web.bind.annotation.*; @RestController class C { @RequestMapping(value="/capture", produces="RequestMethod.DELETE", method=RequestMethod.POST) String run() { return "ok"; } }');
   assert.equal((await analyzeApiFlows([literal])).flows[0].title, 'POST /capture');
 });

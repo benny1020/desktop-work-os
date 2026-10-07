@@ -144,3 +144,10 @@ The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts:
 [Diagram readability review](DIAGRAM_DESIGN_REVIEW.md): **321/321 browser**, **159/159 adapter/model**, **11/11 existing native connected** and **6/6 API native connected** passed. Build, native profile/vault/module-worker and whitespace checks passed. Seven actual-app captures recorded zero page errors. Reference principles were implemented in the existing source-backed SVG renderer; company services and live Claude quality remain unverified.
 
 Cold-start regression: `npm run test:cold-review` uses a new empty Vite cache and an actual browser. Both checks pass with zero unexpected reloads and a preserved private draft. Parser dependencies are prepared at startup after reproducing the previous CI failure; the cold-start check is now mandatory in GitHub Actions.
+
+
+## Business flows and architectural conventions — 2026-10-07
+
+[Business-flow validation](BUSINESS_FLOW_REVIEW.md): 325/325 browser, 167/167 adapter/model/Git, 23/23 native connected checks (11 existing, 6 API, 6 mixed), production build/profile/vault/module-worker, cold-start 2/2 and whitespace checks passed. Nine affected UI checks revalidated the final data-contract label polish. Five isolated actual-app screenshots have zero page errors. Native fixtures use real immutable Git objects and synthetic service responses, with no remote code API reads or automatic external writes. The primary implementer performed this pass; live company services and live Claude quality remain unverified.
+
+Run `npm run test:business-flow-desktop` for the mixed native path and `node scripts/capture-business-flow-review.mjs` for its isolated UI captures.

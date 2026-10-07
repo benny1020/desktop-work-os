@@ -140,7 +140,7 @@ test('A dependency cycle across Service and Worker layers remains explained with
     file('src/PaymentWorker.ts', "import { PaymentService } from './PaymentService';\nexport class PaymentWorker { run() { return PaymentService.run(); } }")];
   await installArchitecture(page, files);
   await expect(node(page, 'PaymentService.ts')).toHaveAttribute('data-architecture-role', 'service');
-  await expect(node(page, 'PaymentWorker.ts')).toHaveAttribute('data-architecture-role', 'integration');
+  await expect(node(page, 'PaymentWorker.ts')).toHaveAttribute('data-architecture-role', 'job');
   await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).toContainText('Cyclic dependency');
   const edge = page.getByRole('button', { name: 'Inspect PaymentWorker.ts imports PaymentService.ts', exact: true });
   const hit = await edge.locator('.edge-hit-area').evaluate(path => {

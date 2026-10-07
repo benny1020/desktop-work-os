@@ -218,6 +218,7 @@ test('API source index reads immutable regular Git blobs offline, including unch
   const calls = f.state.transportCalls; f.state.offline = true;
   const result = await f.store.reviewSources({ projectId: 42, ref: head, baseSha: base });
   assert.equal(result.headSha, head); assert.equal(result.baseSha, base);
+  for (const file of result.files.filter(file => !file.contextOnly)) { const exact = await f.store.readDiff({projectId:42,headSha:head,baseSha:base,path:file.path}); assert.equal(file.diff, exact.diff); }
   assert.equal(result.files.find(file => file.path === 'ContextService.ts').contextOnly, true);
   assert.equal(result.files.find(file => file.path === 'EntryController.ts').contextOnly, false);
   assert.ok(!result.files.some(file => /LinkedSource|Binary/.test(file.path)));

@@ -32,9 +32,15 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 
 Try **!452** in the demo. [API flow behavior, screenshots, supported parsers and validation](docs/API_FLOW_REVIEW.md).
 
+**API, Kafka, scheduled jobs and core changes share the same business-flow review.** Try **!464** to follow a settlement event through application/domain logic, persistence and message dispatch, then switch to the API, reconciliation or standalone currency scope. Data contracts open beside the current code and remain separate from execution.
+
+![Mixed Kafka/API/job/core scopes → layered source review → sequence → core logic — synthetic fixture](docs/media/business-flow-review.gif)
+
+[Business-flow support, layer evidence, screenshots and verification](docs/BUSINESS_FLOW_REVIEW.md).
+
 Diagrams use rounded orthogonal rails, shared-dependency badges, source/inferred message styles and call-order navigation. [Diagram Design reference and verified UI improvements](docs/DIAGRAM_DESIGN_REVIEW.md).
 
-- Role-based architecture bands: Controller → Service → Repository, with UI, contracts, workers and tests separated when present. Switch to import-depth layout when useful; unknown roles stay explicit.
+- Role-based architecture bands: Controller/Consumer/Job → Service → Domain Service/Domain → Adapter/Persistence Adapter → Repository/Producer, with ports, DTOs, entities, models and mappers distinguished. Naming, package conventions and source evidence remain inspectable. Switch to import-depth layout when useful; unknown roles stay explicit.
 - Fallback file groups such as **Payment request handling** and **Order request handling**, with import reading paths and grouping evidence. Large file groups get numbered parts; a traced API stays one flow, and shared code keeps one draft. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
 - Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
 - Source-backed **transaction scopes** in sequence review: named TX regions, inside/outside indicators and exact start/end code links that preserve your draft. [Supported source patterns and validation](docs/TRANSACTION_REVIEW.md).
@@ -48,7 +54,7 @@ Diagrams use rounded orthogonal rails, shared-dependency badges, source/inferred
 - Mark checkpoints **Checked** or **Not relevant** locally, independently of file progress and MR approval.
 - Explicit review approval; Worklane does not merge the MR.
 
-Solid dependency edges represent resolved imports; dashed relationships and sequence flows are inferred. These are **not runtime traces or a complete repository analysis**.
+Solid dependency edges represent resolved source calls or imports. Dotted contract links show data structure; dashed messages indicate inferred/deferred interactions. These are **not runtime traces or a complete repository analysis**.
 
 ![Controller, service and repository beside actual code and human review](docs/media/review-architecture-desktop.png)
 

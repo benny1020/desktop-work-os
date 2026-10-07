@@ -144,3 +144,13 @@ Synthetic source and sample AI guide; not live company data.
 - [Large PR / shared dependencies](media/diagram-design-dependency.png)
 - [Declared transaction / dark review](media/diagram-design-transaction-dark.png)
 - [Updated API walkthrough](media/api-flow-review.gif)
+
+## API, Kafka, scheduled and core changes
+
+![Mixed business-flow review walkthrough — synthetic fixture](media/business-flow-review.gif)
+
+![Persistence Adapter, Repository, source and sample AI review](media/business-review-layers.png)
+
+![Kafka sequence with a source transaction declaration](media/business-review-sequence-dark.png)
+
+The !464 demo distinguishes application/domain logic, external and persistence adapters, repositories, ports and transfer/storage models. [Supported mechanisms, layer evidence and current verification](BUSINESS_FLOW_REVIEW.md).

@@ -273,9 +273,22 @@ function createLocalGitStore({ directory, getConfig, trustedTransport, trustedGi
             content: content.toString('utf8'), contextOnly: !changed.has(item.path), rows: [], diff: '' });
         }
       }
+      // The manifest already names exact base/head blobs. Avoid re-reading it
+      // (and re-checking both commits) once for every changed source file.
+      const byPath = new Map(changes.map(change => [change.newPath, change]));
+      const empty = await emptyBlob(c);
+      let patchBytes = 0, omittedPatches = 0;
+      for (const file of files) {
+        if (file.contextOnly) continue;
+        if (patchBytes >= MAX_DIFF) { file.deferred = true; omittedPatches++; continue; }
+        const patch = await filePatch(c, byPath.get(file.path), empty);
+        const bytes = Buffer.byteLength(patch.diff);
+        if (patchBytes + bytes > MAX_DIFF) { file.deferred = true; omittedPatches++; continue; }
+        Object.assign(file, patch); patchBytes += bytes;
+      }
       await assertCurrent(c);
       const result = { files, headSha: sha, baseSha: base, coverage: { sourceFiles: entries.length,
-        loadedFiles: files.length, omittedFiles: entries.length - files.length, source: 'local-git' } };
+        loadedFiles: files.length, omittedFiles: entries.length - files.length, omittedPatches, source: 'local-git' } };
       sourceIndexes.set(cacheKey, result);
       if (sourceIndexes.size > 3) sourceIndexes.delete(sourceIndexes.keys().next().value);
       return result;
