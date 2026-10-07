@@ -23,6 +23,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: npm run test:adapters
+      - run: npm run test:cold-review
       - run: npm test -- --workers=2
       - name: Preserve failure evidence
         if: failure()

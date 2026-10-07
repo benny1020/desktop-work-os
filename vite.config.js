@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ command }) => ({
   base: "./",
   worker: { format: "es" },
+  // Worker-only/dynamic parsers must be prepared before the first review opens.
+  // Late dependency discovery otherwise reloads the app during a private draft.
+  optimizeDeps: { include: ["@babel/parser", "java-parser"] },
   plugins: [
     react(),
     {

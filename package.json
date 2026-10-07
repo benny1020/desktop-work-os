@@ -13,7 +13,8 @@
     "test:connected-desktop": "npm run build && node scripts/test-connected-desktop.mjs",
     "screenshots:connected": "node scripts/capture-connected-workflows.mjs",
     "test:assistant-memory-desktop": "npm run build && node scripts/test-assistant-memory-desktop.mjs",
-    "test:api-flow-desktop": "npm run build && node scripts/test-api-flow-desktop.mjs"
+    "test:api-flow-desktop": "npm run build && node scripts/test-api-flow-desktop.mjs",
+    "test:cold-review": "node scripts/test-cold-review.mjs"
   },
   "dependencies": {
     "@babel/parser": "7.29.9",

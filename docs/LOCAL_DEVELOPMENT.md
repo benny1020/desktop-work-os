@@ -142,3 +142,5 @@ The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts:
 ## Diagram Design reference — 2026-10-07
 
 [Diagram readability review](DIAGRAM_DESIGN_REVIEW.md): **321/321 browser**, **159/159 adapter/model**, **11/11 existing native connected** and **6/6 API native connected** passed. Build, native profile/vault/module-worker and whitespace checks passed. Seven actual-app captures recorded zero page errors. Reference principles were implemented in the existing source-backed SVG renderer; company services and live Claude quality remain unverified.
+
+Cold-start regression: `npm run test:cold-review` uses a new empty Vite cache and an actual browser. Both checks pass with zero unexpected reloads and a preserved private draft. Parser dependencies are prepared at startup after reproducing the previous CI failure; the cold-start check is now mandatory in GitHub Actions.

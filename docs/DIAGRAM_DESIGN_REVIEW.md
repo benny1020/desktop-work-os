@@ -35,7 +35,10 @@ Source transaction 경계와 리뷰:
 - 전체 브라우저 **321/321**, adapter/model/Git **159/159**, 실제 Electron connected **11/11 + 6/6** 통과. Production build, native profile/vault/module-worker 검증과 whitespace 검사 통과.
 - 새 브라우저 5개는 1440×900·980×650의 light/dark에서 연결선이 다른 컴포넌트와 레이어 문자를 통과하지 않는지, 코드 행으로 이동하는지, 댓글이 유지되는지 확인합니다. 공유 부모 수와 source/inferred 선 구분도 검사합니다.
 - 새 로직 7개는 역방향·건너뛴 레이어·자기 참조·공유 접점·30개 컴포넌트/40개 연결, 호출 등장 순서, 문자 폭과 브리지를 검증합니다. 원본 그래프와 code position은 변하지 않습니다.
+- 빈 Vite 캐시로 시작하는 실제 브라우저 추가 검사 2개 통과: 최초 parser worker 실행 중 재로드 0, 흐름 전환 후 댓글 초안 유지.
 - UI 캡처 7장과 실제 Electron 검증에서 화면 오류 0. 회사 연동과 실제 Claude 답변 품질은 미검증입니다.
+
+CI에서 이전 API-flow 커밋의 최초 리뷰 2개가 실패한 trace를 확인했습니다. 빈 캐시로 재현하니 worker-only `@babel/parser`·동적 `java-parser`가 뒤늦게 최적화되면서 개발 서버가 전체 페이지를 다시 로드했습니다. `optimizeDeps.include`로 시작 시 준비하고, 별도 빈 캐시를 사용하는 `test:cold-review`를 CI에 추가했습니다. 실제 제품의 production build와 구별되는 개발 서버 문제이며, 테스트의 timeout을 늘려 숨기지 않았습니다.
 
 이 다이어그램은 정적 소스 분석을 읽는 도구입니다. 런타임 activation·응답 순서·commit/rollback을 새로 추정하지 않습니다. 원본에 없는 분기 조건이나 return 화살표를 만들지 않습니다. 기존 API 추적의 [지원 범위](API_FLOW_REVIEW.md)는 동일합니다.
 
@@ -46,6 +49,7 @@ Source transaction 경계와 리뷰:
 ```sh
 npm run build
 npm run test:adapters
+npm run test:cold-review
 npm test -- --workers=5
 npm run test:desktop
 npm run test:connected-desktop
