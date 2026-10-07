@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
+import "../review-diagram-design.css";
+import { dependencyRoutes, sequenceMessage, fitDiagramText } from "../lib/review-diagram-layout.mjs";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import ApiFlowContext from "./ApiFlowContext";
 import "../review-api-flows.css";
@@ -87,11 +89,11 @@ function dependencyLayout(graph) {
     layerOffsets.push(offset);
     layer.forEach((node, j) => positions.set(node.id, {
       x: (width - (Math.min(columns, layer.length - Math.floor(j / columns) * columns) * (nodeW + gap) - gap)) / 2 + (j % columns) * (nodeW + gap),
-      y: 36 + offset + Math.floor(j / columns) * 112,
+      y: 48 + offset + Math.floor(j / columns) * 112,
       layer: i,
       cyclic: groups[groupOf.get(node.id)].length > 1,
     }));
-    offset += Math.ceil(layer.length / columns) * 112 + 22;
+    offset += Math.ceil(layer.length / columns) * 112 + 32;
   });
   return { positions, layers, layerOffsets, nodeW, nodeH, width, height: Math.max(200, offset + 12) };
 }
@@ -106,19 +108,26 @@ function diagramKeys(event, onActivate) {
 }
 function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependencyPositions, viewed }) {
   const { positions, layers, layerOffsets, nodeW, nodeH, width: w, height: h } = layout;
+  const id = 'dependency-' + useId().replace(/:/g, '');
+  const routes = useMemo(() => dependencyRoutes(graph, layout), [graph, layout]);
+  const parents = new Map(graph.nodes.map(node => [node.id, new Set()]));
+  graph.dependencies.forEach(edge => parents.get(edge.to)?.add(edge.from));
   return (
     <div className="diagram-scroll">
       <svg
         role="img"
-        aria-label="Dependency flow diagram"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-description`}
         width={w * zoom}
         height={h * zoom}
         viewBox={`0 0 ${w} ${h}`}
         className="dependency-svg"
       >
+        <title id={`${id}-title`}>Dependency flow diagram</title>
+        <desc id={`${id}-description`}>Source components grouped by role or depth. Arrows link to code evidence. {graph.nodes.length} components and {graph.dependencies.length} relationships. Accent marks the selected component and its connections; badges count distinct incoming components.</desc>
         <defs>
           <marker
-            id="dep-arrow"
+            id={`${id}-arrow`}
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
@@ -126,9 +135,10 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--secondary)" />
           </marker>
         </defs>
+        <defs><marker id={`${id}-arrow-active`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" /></marker></defs>
         {layers.map((layer, index) => (
           <g key={index} className={`dependency-layer ${layout.semantic ? 'architecture-layer' : ''}`} data-role={layout.layerRoles?.[index]}>
             {layout.semantic && <rect className="architecture-band" x="10" y={layerOffsets[index] + 5} width={w - 20} height={(layerOffsets[index + 1] || h - 12) - layerOffsets[index] - 10} rx="6"/>}
@@ -137,32 +147,15 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
             <line x1="20" x2={w - 20} y1={34 + layerOffsets[index]} y2={34 + layerOffsets[index]} />
           </g>
         ))}
-        {graph.dependencies.map((e, i) => {
-          const a = positions.get(e.from),
-            b = positions.get(e.to);
-          if (!a || !b) return null;
-          const sameRow = a.layer === b.layer;
-          const passOtherNodes = b.layer > a.layer && (b.layer > a.layer + 1 ||
-            [...positions.values()].some(position => position.layer === a.layer && position.y > a.y));
-          const routeLeft = a.x + nodeW / 2 < w / 2;
-          const lane = routeLeft ? 12 : w - 12;
-          const startX = a.x + nodeW / 2,
-            startY = a.y + nodeH,
-            endX = b.x + nodeW / 2,
-            endY = b.y;
-          const d = b.layer < a.layer
-            ? `M ${a.x + nodeW} ${a.y + nodeH / 2} L ${w - 12} ${a.y + nodeH / 2} L ${w - 12} ${b.y + nodeH / 2} L ${b.x + nodeW} ${b.y + nodeH / 2}`
-            : sameRow && a.y !== b.y
-            ? `M ${a.x + nodeW} ${a.y + nodeH / 2} C ${w - 8} ${a.y + nodeH / 2}, ${w - 8} ${b.y + nodeH / 2}, ${b.x + nodeW} ${b.y + nodeH / 2}`
-            : passOtherNodes
-              ? `M ${routeLeft ? a.x : a.x + nodeW} ${a.y + nodeH / 2} L ${lane} ${a.y + nodeH / 2} L ${lane} ${endY - 18} L ${endX} ${endY - 18} L ${endX} ${endY}`
-            : sameRow
-            ? `M ${startX} ${startY} C ${startX} ${startY + 34}, ${endX} ${startY + 34}, ${endX} ${startY}`
-            : `M ${startX} ${startY} C ${startX} ${startY + 36}, ${endX} ${endY - 36}, ${endX} ${endY}`;
+        {routes.map(({ edge: e, index: i, d, unavailable }) => {
+          if (unavailable) return null;
+          const related = e.from === selected || e.to === selected;
           return (
             <g
               key={i}
-              className={`dependency-edge ${e.evidence}`}
+              className={`dependency-edge ${e.evidence} ${related ? "related" : ""}`}
+              data-source-from={e.from}
+              data-source-to={e.to}
               role="button"
               tabIndex={0}
               aria-label={`Inspect ${basename(e.from)} ${e.label} ${basename(e.to)}`}
@@ -170,13 +163,16 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
               onKeyDown={(event) => diagramKeys(event, () => onSelect(e.path, e.line))}
             >
               <path className="edge-hit-area" d={d} />
-              <path d={d} markerEnd="url(#dep-arrow)" />
+              <path className="edge-line" d={d} markerEnd={`url(#${id}-arrow${related ? "-active" : ""})`} />
               <title>{`${e.label} · ${e.path}:${e.line} · ${e.evidence}`}</title>
             </g>
           );
         })}
         {graph.nodes.map((n) => {
           const p = positions.get(n.id);
+          const fanIn = parents.get(n.id)?.size || 0;
+          const methodNames = n.methods?.map(method => method.name + '()').join(', ');
+          const meta = methodNames || (p.cyclic ? 'Cyclic dependency' : viewed?.includes(n.path) ? 'Viewed' : n.change === 'context' ? 'Unchanged source' : `${n.change} · ${n.lines} lines`);
           return (
             <g
               key={n.id}
@@ -201,19 +197,24 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
                 y="10"
               />
               <text className="node-label" x="15" y={layout.semantic ? 24 : 28}>
-                {n.label.length > 23 ? n.label.slice(0, 22) + "…" : n.label}
+                {fitDiagramText(n.label, nodeW - 30, layout.semantic ? 13 : 12)}
               </text>
               <text className="node-path" x="15" y={layout.semantic ? 40 : 47}>
                 {layout.semantic ? n.role === 'other' ? n.confidence === 'ambiguous' ? 'Role ambiguous' : 'Role unknown' : `${n.roleLabel}${n.confidence === 'code' ? ' · source evidence' : ' · convention'}` : basename(n.path).slice(0, 26)}
               </text>
               <text className="node-meta" x="15" y={layout.semantic ? 54 : 62}>
-                {n.methods?.length ? n.methods.map(method => method.name + "()").join(", ").slice(0, 28) : p.cyclic ? "Cyclic dependency" : viewed?.includes(n.path) ? "Viewed" : n.change} · {n.lines} changed lines
+                {meta.length > (fanIn > 1 ? 22 : 30) ? meta.slice(0, fanIn > 1 ? 21 : 29) + '…' : meta}
               </text>
-              <title>{n.path}{n.evidence?.length ? `\n${n.evidence.map(item => item.detail).join('\n')}` : ''}</title>
+              {fanIn > 1 && <g className="node-fan-in" aria-label={`${fanIn} incoming components`}>
+                <rect x={nodeW - 45} y={layout.semantic ? 44 : 52} width="36" height="16" rx="3" />
+                <text x={nodeW - 27} y={layout.semantic ? 55 : 63} textAnchor="middle">{fanIn} in</text>
+              </g>}
+              <title>{n.label} · {n.path}{methodNames ? `\nMethods: ${methodNames}` : ''}{p.cyclic ? '\nCyclic dependency' : ''}{n.evidence?.length ? `\n${n.evidence.map(item => item.detail).join('\n')}` : ''}</title>
             </g>
           );
         })}
       </svg>
+      {routes.some(route => route.unavailable) && <p className="diagram-empty-note">Some connections could not be placed. Use the sequence or code to inspect them.</p>}
       {!graph.dependencies.length && (
         <p className="diagram-empty-note">
           No file dependencies were resolved from this diff. Open a component
@@ -225,6 +226,7 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
 }
 const sequenceKey = step => JSON.stringify([step.from, step.to, step.path, step.line, ...(step.fromMethod ? [step.fromMethod, step.toMethod, step.offset] : [])]);
 function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compact = false, stepNumber = 1 }) {
+  const id = 'sequence-' + useId().replace(/:/g, '');
   const participants = new Set(graph.sequence.flatMap((e) => [e.from, e.to]));
   const active = graph.sequence.length
     ? graph.nodes.filter((n) => participants.has(n.id))
@@ -251,15 +253,18 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
     <div className="diagram-scroll">
       <svg
         role="img"
-        aria-label="Sequence diagram"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-description`}
         width={w * zoom}
         height={h * zoom}
         viewBox={`0 0 ${w} ${h}`}
         className="sequence-svg"
       >
+        <title id={`${id}-title`}>Sequence diagram</title>
+        <desc id={`${id}-description`}>Read from top to bottom. Solid arrows are resolved source calls; dashed arrows are inferred or deferred calls. Transaction frames show source declarations, not runtime commit or rollback. Select a message to inspect its original code.</desc>
         <defs>
           <marker
-            id="seq-arrow"
+            id={`${id}-arrow`}
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
@@ -267,7 +272,7 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
             markerHeight="6"
             orient="auto"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--secondary)" />
           </marker>
         </defs>
         {frames.filter(scope => !compact || scope.id === context.inside[0]?.id).map(scope => {
@@ -333,7 +338,7 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
                 y="49"
                 textAnchor="middle"
               >
-                {n.label.slice(0, 21)}
+                {fitDiagramText(n.label, 140, 12)}
               </text>
               <text
                 className="node-path"
@@ -349,10 +354,12 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
         {graph.sequence.map((e, i) => {
           const y = rowY[i];
           const number = compact ? stepNumber : i + 1;
+          const message = sequenceMessage(e, number, compact ? 44 : 30);
           return (
             <g
               key={i}
-              className="sequence-step"
+              className={`sequence-step ${message.kind}`}
+              data-call-evidence={message.evidence}
               role="button"
               tabIndex={0}
               aria-label={`Inspect sequence step ${number}: ${e.label}`}
@@ -366,14 +373,15 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
                 width={e.from === e.to ? 75 : Math.abs(x(e.to) - x(e.from)) + 30}
                 height="55"
               />
-              {e.from === e.to ? <path d={`M ${x(e.from)} ${y} h 45 v 12 h -45`} fill="none" markerEnd="url(#seq-arrow)"/> : <line x1={x(e.from)} x2={x(e.to)} y1={y} y2={y} markerEnd="url(#seq-arrow)"/>}
+              {e.from === e.to ? <path d={`M ${x(e.from)} ${y} h 45 v 12 h -45`} fill="none" markerEnd={`url(#${id}-arrow)`}/> : <line x1={x(e.from)} x2={x(e.to)} y1={y} y2={y} markerEnd={`url(#${id}-arrow)`}/>}
+              <rect className="sequence-label-mask" x={compact ? w / 2 - 164 : Math.min(x(e.from), x(e.to)) + 4} y={y - 26} width={compact ? 328 : 224} height="21" rx="3" />
               <text
                 x={compact ? w / 2 : Math.min(x(e.from), x(e.to)) + 8}
                 textAnchor={compact ? 'middle' : 'start'}
                 y={y - 10}
                 className="sequence-label"
               >
-                {number}. {e.label.slice(0, 48)}{e.label.length > 48 ? '…' : ''}
+                {fitDiagramText(message.label, compact ? 328 : 224, 12, true)}
               </text>
               <text
                 x={compact ? w / 2 : Math.min(x(e.from), x(e.to)) + 8}
@@ -381,9 +389,9 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
                 y={y + 17}
                 className="node-meta"
               >
-                {basename(e.path)}:{e.line} · inferred
+                {basename(e.path)}:{e.line} · {message.evidence}
               </text>
-              <title>{e.label}</title>
+              <title>{e.label} · {e.path}:{e.line} · {message.evidence}{e.deferred ? " · callback execution unverified" : ""}</title>
             </g>
           );
         })}
@@ -1322,7 +1330,7 @@ ${finding.reason}`;
                   <i className="removed" /> Removed
                 </span>
                 <small>
-                  {tab === 'Sequence' ? 'TX shading: declared source scope. Click its start/end to inspect. Calls are static evidence; runtime commit, rollback and propagation are not inferred.' : activeFlow.api ? 'Solid: resolved method call · possible source paths. Click arrows to inspect calls.' : 'Solid: resolved import · Dashed: inferred reference. Arrows navigate; Enter opens code.'}
+                  {tab === 'Sequence' ? 'Solid: source call · Dashed: inferred/deferred. TX shading: source declaration; click start/end. Runtime behavior is unverified.' : activeFlow.api ? 'Solid: resolved method call · possible source paths. Click arrows to inspect calls.' : 'Solid: resolved import · Dashed: inferred reference. Arrows navigate; Enter opens code.'}
                 </small>
               </div>
               {boundaryPaths.length > 0 && <div className="review-flow-boundaries"><small>Connected outside this flow</small>{boundaryPaths.slice(0, 8).map(path => <button key={path} className="linked-chip" onClick={() => select(path)} title={path}>{basename(path)} <ArrowRight size={10}/></button>)}{boundaryPaths.length > 8 && <details><summary>{boundaryPaths.length - 8} more connections</summary>{boundaryPaths.slice(8).map(path => <button key={path} className="linked-chip" onClick={() => select(path)} title={path}>{basename(path)} <ArrowRight size={10}/></button>)}</details>}</div>}

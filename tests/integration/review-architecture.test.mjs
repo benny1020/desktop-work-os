@@ -65,7 +65,7 @@ test('role bands keep controller/service/repository readable without inventing e
   assert.deepEqual(layout.layerRoles, ['controller', 'service', 'repository', 'other']);
   assert.equal(layout.width, 284);
   assert.equal(layout.nodeH, 64);
-  assert.equal(layout.height, 460);
+  assert.equal(layout.height, 492);
   assert.deepEqual(graph.dependencies, []);
   assert.ok(original.nodes.every(node => !node.role));
   for (const point of layout.positions.values()) {

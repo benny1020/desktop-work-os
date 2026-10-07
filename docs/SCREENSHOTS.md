@@ -135,3 +135,12 @@ Synthetic connected-service fixtures; no real company data or live Claude answer
 | Three review panes at 980×650 | [Narrow window](media/api-review-narrow-dark.png) |
 
 Synthetic source and sample AI guide; not live company data.
+
+
+## Diagram Design readability pass
+
+[Reference and validation](DIAGRAM_DESIGN_REVIEW.md). Synthetic source and sample AI guide.
+
+- [Large PR / shared dependencies](media/diagram-design-dependency.png)
+- [Declared transaction / dark review](media/diagram-design-transaction-dark.png)
+- [Updated API walkthrough](media/api-flow-review.gif)

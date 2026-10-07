@@ -82,7 +82,9 @@ export function annotateReviewGraph(graph = {}, files = []) {
 export function architectureLayout(graph = {}, { columns = 1 } = {}) {
   const nodes = graph.nodes || [];
   if (!nodes.some(node => node.role && node.role !== 'other')) return null;
-  const roleGroups = REVIEW_ROLES.map(role => ({ role, nodes: nodes.filter(node => (node.role || 'other') === role.id).sort((a, b) => compare(a.path || a.id, b.path || b.id)) })).filter(group => group.nodes.length);
+  const callOrder = new Map();
+  if (nodes.some(node => node.methods?.length)) for (const step of graph.sequence || []) for (const id of [step.from, step.to]) if (!callOrder.has(id)) callOrder.set(id, callOrder.size);
+  const roleGroups = REVIEW_ROLES.map(role => ({ role, nodes: nodes.filter(node => (node.role || 'other') === role.id).sort((a, b) => (callOrder.get(a.id) ?? Infinity) - (callOrder.get(b.id) ?? Infinity) || compare(a.path || a.id, b.path || b.id)) })).filter(group => group.nodes.length);
   const nodeW = 204, nodeH = 64, gap = 40;
   const width = Math.max(284, ...roleGroups.map(group => Math.min(columns, group.nodes.length) * (nodeW + gap) + gap));
   const positions = new Map(), layerOffsets = [], layers = [], layerLabels = [], layerRoles = [];
@@ -98,9 +100,9 @@ export function architectureLayout(graph = {}, { columns = 1 } = {}) {
     layerOffsets.push(offset); layers.push(layer); layerLabels.push(role.label); layerRoles.push(role.id);
     layer.forEach((node, column) => {
       const row = Math.floor(column / columns), rowCount = Math.min(columns, layer.length - row * columns);
-      positions.set(node.id, { x: (width - (rowCount * (nodeW + gap) - gap)) / 2 + (column % columns) * (nodeW + gap), y: 40 + offset + row * 88, layer: index, cyclic: cyclic(node.id) });
+      positions.set(node.id, { x: (width - (rowCount * (nodeW + gap) - gap)) / 2 + (column % columns) * (nodeW + gap), y: 48 + offset + row * 88, layer: index, cyclic: cyclic(node.id) });
     });
-    offset += Math.ceil(layer.length / columns) * 88 + 24;
+    offset += Math.ceil(layer.length / columns) * 88 + 32;
   });
   return { positions, layers, layerOffsets, layerLabels, layerRoles, nodeW, nodeH, width, height: Math.max(200, offset + 12), semantic: true };
 }

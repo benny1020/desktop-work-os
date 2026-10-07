@@ -32,6 +32,8 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 
 Try **!452** in the demo. [API flow behavior, screenshots, supported parsers and validation](docs/API_FLOW_REVIEW.md).
 
+Diagrams use rounded orthogonal rails, shared-dependency badges, source/inferred message styles and call-order navigation. [Diagram Design reference and verified UI improvements](docs/DIAGRAM_DESIGN_REVIEW.md).
+
 - Role-based architecture bands: Controller → Service → Repository, with UI, contracts, workers and tests separated when present. Switch to import-depth layout when useful; unknown roles stay explicit.
 - Fallback file groups such as **Payment request handling** and **Order request handling**, with import reading paths and grouping evidence. Large file groups get numbered parts; a traced API stays one flow, and shared code keeps one draft. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
 - Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
