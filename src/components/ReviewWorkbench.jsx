@@ -3,6 +3,8 @@ import "../review-polish.css";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import ReviewDraftNavigator from './ReviewDraftNavigator';
 import { listReviewDrafts } from '../lib/review-drafts.mjs';
+import { annotateTransactions, stepTransaction } from '../lib/review-transactions.mjs';
+import '../review-transactions.css';
 import { highlightCode, highlightDiff, codeLanguage } from '../lib/review-code.mjs';
 import { ReviewFlowPicker, ReviewFlowContext } from "./ReviewFlowNavigator";
 import "../review-collaboration.css";
@@ -220,14 +222,28 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
   );
 }
 const sequenceKey = step => JSON.stringify([step.from, step.to, step.path, step.line]);
-function SequenceDiagram({ graph, selected, onSelect, zoom, compact = false, stepNumber = 1 }) {
+function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compact = false, stepNumber = 1 }) {
   const participants = new Set(graph.sequence.flatMap((e) => [e.from, e.to]));
   const active = graph.sequence.length
     ? graph.nodes.filter((n) => participants.has(n.id))
     : graph.nodes;
+  const context = stepTransaction(graph, graph.sequence[0]);
+  const frames = (graph.transactions?.scopes || []).flatMap(scope => {
+    const indices = graph.sequence.flatMap((step, index) => stepTransaction(graph, step).inside.some(item => item.id === scope.id) ? [index] : []);
+    return indices.length ? [{ ...scope, first: indices[0], last: indices.at(-1) }] : [];
+  });
+  let extra = 0;
+  const rowY = graph.sequence.map((step, index) => {
+    if (compact) return 145;
+    extra += frames.filter(frame => frame.first === index).length * 32;
+    const y = 125 + index * 78 + extra;
+    extra += frames.filter(frame => frame.last === index).length * 22;
+    return y;
+  });
   const column = 190,
     w = Math.max(compact ? 420 : 620, active.length * column + (compact ? 40 : 60)),
-    h = Math.max(300, graph.sequence.length * 78 + 160);
+    h = Math.max(300, (rowY.at(-1) || 125) + 85 + (compact ? 0 : frames.filter(frame => frame.last === graph.sequence.length - 1).length * 22));
+  const openScope = (scope, end = false) => onScopeSelect(scope.path, end ? scope.endLine : scope.startLine);
   const x = (id) => 50 + active.findIndex((n) => n.id === id) * column + 70;
   return (
     <div className="diagram-scroll">
@@ -252,6 +268,44 @@ function SequenceDiagram({ graph, selected, onSelect, zoom, compact = false, ste
             <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
           </marker>
         </defs>
+        {frames.filter(scope => !compact || scope.id === context.inside[0]?.id).map(scope => {
+          const depth = compact ? 0 : frames.filter(parent => parent.id !== scope.id && parent.path === scope.path && parent.startOffset <= scope.startOffset && parent.endOffset >= scope.endOffset).length;
+          const children = frames.filter(child => child.id !== scope.id && child.path === scope.path && child.startOffset >= scope.startOffset && child.endOffset <= scope.endOffset);
+          const top = compact ? 88 : rowY[scope.first] - 57 - children.filter(child => child.first === scope.first).length * 32;
+          const bottom = compact ? 205 : rowY[scope.last] + 45 + children.filter(child => child.last === scope.last).length * 22;
+          const actors = graph.sequence.slice(scope.first, scope.last + 1).flatMap(step => [x(step.from), x(step.to)]);
+          const left = compact ? 12 : Math.min(...actors) - 98 + depth * 8;
+          const frameWidth = compact ? w - 24 : Math.max(...actors) + 98 - left - depth * 8;
+          return <g key={scope.id} className="sequence-transaction-frame" data-transaction={scope.id}>
+            <rect x={left} y={top} width={frameWidth} height={bottom - top} rx="4" />
+            <g role="button" tabIndex={0} aria-label={`Open transaction start ${basename(scope.path)}:${scope.startLine}`}
+              onClick={() => openScope(scope)} onKeyDown={event => diagramKeys(event, () => openScope(scope))}>
+              <rect className="transaction-label-hit" x={left + 8} y={top + 2} width={frameWidth - 16} height="22" />
+              <text className="transaction-caption" x={left + 12} y={top + 17}>
+                {compact ? `TX scope · inside${context.inside.length > 1 ? ' · nested' : ''}` : 'TX · ' + scope.label.slice(0, Math.max(12, Math.floor((frameWidth - 140) / 6.6)))} · L{scope.startLine}–{scope.endLine}
+              </text>
+              <title>{scope.label} · {scope.path}:{scope.startLine}–{scope.endLine} · source boundary</title>
+            </g>
+            <g role="button" tabIndex={0} aria-label={`Open transaction end ${basename(scope.path)}:${scope.endLine}`}
+              onClick={() => openScope(scope, true)} onKeyDown={event => diagramKeys(event, () => openScope(scope, true))}>
+              <rect className="transaction-label-hit" x={left + 8} y={bottom - 23} width={frameWidth - 16} height="21" />
+              <text className="transaction-caption transaction-end" x={left + 12} y={bottom - 9}>
+                {scope.kind === 'callback' ? 'Callback ends' : 'Method ends'} · L{scope.endLine} ↗
+              </text>
+            </g>
+          </g>;
+        })}
+        {compact && context.state !== 'inside' && <g className={`sequence-transaction-context ${context.state}`}>
+          <text x={w / 2} y="100" textAnchor="middle" className="transaction-caption">
+            {context.state === 'outside' ? 'Outside TX scope · source boundary' : context.state === 'boundary' ? 'TX boundary line · inspect source' : context.state === 'unavailable' ? 'Scope unavailable · open full source' : 'No boundary detected in source'}
+          </text>
+          {['outside', 'boundary'].includes(context.state) && <g role="button" tabIndex={0}
+            aria-label={`Open transaction start ${basename(context.scopes[0].path)}:${context.scopes[0].startLine}`}
+            onClick={() => openScope(context.scopes[0])} onKeyDown={event => diagramKeys(event, () => openScope(context.scopes[0]))}>
+            <rect className="transaction-label-hit" x="20" y="174" width={w - 40} height="25" />
+            <text x={w / 2} y="191" textAnchor="middle" className="transaction-caption">Declared scope · L{context.scopes[0].startLine}–{context.scopes[0].endLine} ↗</text>
+          </g>}
+        </g>}
         {active.map((n) => (
           <g key={n.id}>
             <line
@@ -291,7 +345,7 @@ function SequenceDiagram({ graph, selected, onSelect, zoom, compact = false, ste
           </g>
         ))}
         {graph.sequence.map((e, i) => {
-          const y = 125 + i * 78;
+          const y = rowY[i];
           const number = compact ? stepNumber : i + 1;
           return (
             <g
@@ -539,7 +593,11 @@ ${finding.reason}`;
     setGuideError("");
     setNotice("Diff base changed. Previous line drafts remain saved with their original version. Select a line to continue.");
   }, [diffVersion]);
-  const fullGraph = useMemo(() => annotateReviewGraph(buildGraph(files, guide), files), [files, guide]);
+  const transactionFiles = useMemo(() => files.map(item => {
+    const cached = source[JSON.stringify([mr.diff_refs.head_sha, item.path])];
+    return !item.deleted_file && typeof cached === 'string' ? { ...item, content: cached } : item;
+  }), [files, source, mr.diff_refs.head_sha]);
+  const fullGraph = useMemo(() => annotateTransactions(annotateReviewGraph(buildGraph(files, guide), files), transactionFiles), [files, guide, transactionFiles]);
   const graph = useMemo(() => scopeReviewGraph(fullGraph, activeFlow), [fullGraph, activeFlow]);
   const sequenceParticipants = new Set(graph.sequence.flatMap(step => [step.from, step.to]));
   const sequenceByStep = sequenceMode === 'step' || (sequenceMode === 'auto' && sequenceParticipants.size > 4);
@@ -1172,6 +1230,7 @@ ${finding.reason}`;
                   graph={sequenceGraph}
                   selected={selected}
                   onSelect={(path, targetLine) => { select(path, targetLine); if (sequenceByStep && currentInteraction) setSequenceStep(sequenceKey(currentInteraction)); }}
+                  onScopeSelect={(path, targetLine) => { select(path, targetLine); setCodeMode('Source'); if (currentInteraction) setSequenceStep(sequenceKey(currentInteraction)); }}
                   zoom={zoom}
                   compact={sequenceByStep}
                   stepNumber={sequenceIndex + 1}
@@ -1188,7 +1247,7 @@ ${finding.reason}`;
                   <i className="removed" /> Removed
                 </span>
                 <small>
-                  Solid: resolved import · Dashed: inferred reference. Arrows navigate; Enter opens code.
+                  {tab === 'Sequence' ? 'TX shading: declared source scope. Click its start/end to inspect. Calls are static evidence; runtime commit, rollback and propagation are not inferred.' : 'Solid: resolved import · Dashed: inferred reference. Arrows navigate; Enter opens code.'}
                 </small>
               </div>
               {boundaryPaths.length > 0 && <div className="review-flow-boundaries"><small>Connected outside this flow</small>{boundaryPaths.slice(0, 8).map(path => <button key={path} className="linked-chip" onClick={() => select(path)} title={path}>{basename(path)} <ArrowRight size={10}/></button>)}{boundaryPaths.length > 8 && <details><summary>{boundaryPaths.length - 8} more connections</summary>{boundaryPaths.slice(8).map(path => <button key={path} className="linked-chip" onClick={() => select(path)} title={path}>{basename(path)} <ArrowRight size={10}/></button>)}</details>}</div>}

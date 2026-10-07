@@ -1,0 +1,19 @@
+/* Transaction boundaries are named, clickable and distinct from change status. */
+.sequence-svg .sequence-transaction-frame > rect {
+  fill: var(--accent-soft);
+  fill-opacity: .65;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 5 3;
+}
+.sequence-svg .transaction-caption {
+  fill: var(--accent);
+  font: 11px "IBM Plex Mono", monospace;
+}
+.sequence-svg .transaction-label-hit { fill: transparent; stroke: none; }
+.sequence-transaction-frame [role="button"], .sequence-transaction-context [role="button"] { cursor: pointer; }
+.sequence-transaction-frame [role="button"]:hover .transaction-label-hit,
+.sequence-transaction-frame [role="button"]:focus .transaction-label-hit,
+.sequence-transaction-context [role="button"]:hover .transaction-label-hit,
+.sequence-transaction-context [role="button"]:focus .transaction-label-hit { fill: var(--accent-soft); stroke: var(--accent); }
+.sequence-svg .sequence-transaction-context > text { fill: var(--secondary); }

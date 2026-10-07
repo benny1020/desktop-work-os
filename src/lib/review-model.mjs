@@ -92,7 +92,7 @@ function evidenceRows(f) {
 // This is conservative navigation evidence, not a language parser or execution
 // trace. Mask literals/comments without changing offsets, then recognize actual
 // member calls and typed instance receivers. Unresolved dynamic calls stay out.
-function codeOnly(text) {
+export function codeOnly(text) {
   let result = '', quote = '', block = false, lineComment = false, regex = false, regexClass = false;
   for (let i = 0; i < text.length; i++) {
     const char = text[i], next = text[i + 1];

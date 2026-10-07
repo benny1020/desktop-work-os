@@ -29,6 +29,7 @@ Keep the **dependency or sequence diagram**, **code**, and **AI review** togethe
 - Role-based architecture bands: Controller → Service → Repository, with UI, contracts, workers and tests separated when present. Switch to import-depth layout when useful; unknown roles stay explicit.
 - Understandable review scopes such as **Payment request handling** and **Order request handling**, with an entry point, verified import reading path, grouping evidence and per-scope progress. Large scopes get numbered parts; shared files keep one draft and viewed state. [Architecture and source reference](docs/REVIEW_ARCHITECTURE.md).
 - Complete changed-file navigation, including files beyond the initial patch budget. Opening a deferred flow reads its diffs from local Git. [Grouping, coverage and validation](docs/REVIEW_FLOWS.md).
+- Source-backed **transaction scopes** in sequence review: named TX regions, inside/outside indicators and exact start/end code links that preserve your draft. [Supported source patterns and validation](docs/TRANSACTION_REVIEW.md).
 - Automatic diagram fit, keyboard navigation and layouts that adapt beside the assistant.
 - Code and diffs come from an app-managed local Git repository and isolated MR checkout. File browsing makes no GitLab code API requests. New revisions are fetched automatically and staged without replacing the code you are reviewing.
 - Old/new diff positions and commit SHA checks before posting comments or approving.

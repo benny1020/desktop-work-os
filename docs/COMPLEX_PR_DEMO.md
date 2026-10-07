@@ -20,6 +20,8 @@ Large sequences default to **Step by step**: two participants, one source-linked
 
 Use **Review drafts** to resume a private note at its file, line and old/new side. Earlier old-side revisions remain available for reference. Approval shows viewed-file and unposted-draft counts and never posts drafts. **Hide editor** gives more space to code while keeping its draft intact; existing discussions expand on demand.
 
+Sequence review also shows [declared transaction scopes](TRANSACTION_REVIEW.md): Capture save and Outbox sit inside L27–31, while the gateway request and lease release sit outside. Open the start/end directly without losing your current interaction or human review draft.
+
 Diff and Source also provide [language-aware syntax and rainbow bracket colors](CODE_READABILITY.md), with light/dark palettes that remain readable on changed and selected lines.
 
 ![Three principal review areas](media/complex-review-scopes.png)

@@ -127,3 +127,8 @@ The [latest team review](LAYERED_REVIEW_USABILITY.md) supersedes earlier counts:
 ## Syntax and rainbow brackets — 2026-10-07
 
 [Code readability](CODE_READABILITY.md): **42/42 affected browser checks**, **124/124 adapter/model checks** and **11/11 native connected workflows** passed, plus build and whitespace checks. Bundled Prism grammars replace the line-by-line keyword regex; exact source text, old/new diff coordinates and review drafts remain intact. Both themes' syntax/bracket palettes meet 4.5:1 against plain/added/removed/selected backgrounds. Eight captures have zero page errors. The complete browser suite was not rerun in this follow-up; the preceding complete run remains 301/301. Native checks use protocol fixtures and temporary Git repositories, not company credentials.
+
+
+## Sequence transaction scopes — 2026-10-07
+
+[Transaction review](TRANSACTION_REVIEW.md): **307/307 browser**, **133/133 adapter/model** and **11/11 native connected** checks passed, plus production build and whitespace checks. Full head-source declarations drive the named regions; exact start/end jumps preserve the current interaction and private line draft. Partial hunks, unresolved wrappers, and AI suggestions cannot create a transaction region. Three actual-app captures recorded zero page errors. Runtime transaction behavior and company services remain unverified.
