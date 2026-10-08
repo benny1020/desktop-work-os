@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { complexDemoSnapshot } from '../src/lib/complex-demo-review.js';
 import { buildGraph } from '../src/lib/review-model.mjs';
@@ -33,7 +34,7 @@ test('Every large-PR interaction reaches exact source evidence and keeps its pri
         }).map(label => label.textContent);
       });
       expect(clippedLabels).toEqual([]);
-      if (index === 0) await page.getByLabel('Diagram review comment').fill(`${label} review draft for the first interaction.`);
+      if (index === 0) { await openReviewComposer(page); await page.getByLabel('Diagram review comment').fill(`${label} review draft for the first interaction.`); }
     }
     await expect(page.getByLabel('Next interaction', { exact: true })).toBeDisabled();
     await picker.selectOption('0');

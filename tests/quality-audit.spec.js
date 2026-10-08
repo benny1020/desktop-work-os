@@ -19,7 +19,7 @@ test("Context assistant leaves the preview header close action usable at minimum
   await expect(page.getByLabel("Close context preview")).toBeInViewport();
   await page.getByLabel("Close context preview").click({ timeout: 5000 });
   await expect(page.locator(".object-panel")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "A clear start to your day", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your workday", exact: true })).toBeVisible();
 });
 
 test("Expanded code navigation keeps settings and sidebar collapse in view", async ({ page }) => {

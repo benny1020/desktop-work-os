@@ -2,13 +2,19 @@
 
 All screens below use synthetic data. The connected-mode images are rendered against test fixtures, not a live company environment.
 
-## Fresh design and interaction review
+## Flagship work cockpit
 
 ![Daily attention and a compact personal plan](media/release-home-light.png)
 
 ![Diagram, source code and a private human review beside the AI guide](media/release-review-together.png)
 
-[The independent release design review](RELEASE_DESIGN_REVIEW.md) includes narrow/light/dark views, provider forms and Jira draft comparisons, plus the exact validation boundary.
+[The flagship design review](FLAGSHIP_DESIGN_REVIEW.md) records measured before/after changes, independent review and the validation boundary. [The earlier release review](RELEASE_DESIGN_REVIEW.md) remains available as historical evidence.
+
+![Layered Kafka business flow beside code and an optional sample AI guide](media/release-business-review-together.png)
+
+![Readable single-interaction sequence in a complex review](media/release-complex-sequence.png)
+
+![Narrow review with the AI guide expanded locally](media/release-review-narrow-guide.png)
 
 ## Visual Jira filtering
 

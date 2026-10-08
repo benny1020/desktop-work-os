@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import { installConnected } from './fixtures/connected.mjs';
 test.beforeEach(async({page})=>{
   await page.clock.setFixedTime(new Date('2026-10-03T12:00:00+09:00'));
@@ -16,6 +17,7 @@ test('Today shows unfinished earlier tasks with their local dates, excluding pas
   await expect(carry).toContainText('2026-10-01');
   await expect(carry).not.toContainText('Past standup');
   await carry.getByRole('button',{name:'Bring to Today',exact:true}).click();
+  await revealPlanningActions(page, 'Review retry contract');
   await expect(page.getByLabel('Date for Review retry contract',{exact:true})).toHaveValue(today);
   await page.getByRole('button',{name:'Undo schedule move',exact:true}).click();
   await expect(carry).toContainText('Review retry contract');
@@ -47,6 +49,7 @@ test('End-of-day move keeps meetings in place, and undo never overwrites a newer
   await expect(page.locator('.plan-task')).toHaveCount(2);
   const stored=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('orbit.connected.plan.v1')).tasks);
   expect((await stored()).find(t=>t.title==='Daily standup').date).toBe(today);
+  await revealPlanningActions(page, 'Review retry logic');
   await page.getByLabel('Date for Review retry logic',{exact:true}).fill('2027-03-02');
   await page.getByRole('button',{name:'Undo schedule move',exact:true}).click();
   const tasks=await stored();

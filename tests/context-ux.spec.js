@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from "@playwright/test";
 import { installConnected } from "./fixtures/connected.mjs";
 
@@ -50,7 +51,7 @@ test("A narrow issue preview keeps the context header and Assistant control unob
   await page.locator(".object-panel-header").getByRole("button", { name: "Assistant", exact: true }).click();
   await expect(page.getByLabel("Ask Claude")).toBeVisible();
   await page.getByLabel("Close context preview").click();
-  await expect(page.getByRole("heading", { name: "A clear start to your day" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your workday" })).toBeVisible();
 });
 
 test("Wiki outline and issue references navigate directly while preserving the wiki view", async ({ page }) => {
@@ -140,6 +141,7 @@ test("MR source selection, sequence, guide and line draft survive a pipeline rou
   await page.getByRole("button", { name: "Open component RetryQueue.ts", exact: true }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Select source line 7", exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Retain the idempotency key check at this line.");
   await page.getByRole("button", { name: "Pipeline", exact: true }).click();
   await page.getByRole("button", { name: "#482 · success", exact: true }).click();
@@ -190,6 +192,7 @@ for (const outcome of ["success", "failure"]) test(`A pending GitLab comment can
       return invoke(action, args);
     };
   });
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Please verify exactly once.");
   await page.getByRole("button", { name: "Post to GitLab", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Posting review comment…" })).toBeVisible();
@@ -202,6 +205,7 @@ for (const outcome of ["success", "failure"]) test(`A pending GitLab comment can
   await expect(page.locator("[cmdk-root]")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByLabel("Diagram review comment")).toBeVisible();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("An additional thought while the review sends.");
   expect(await page.evaluate(() => window.__postAttempts)).toBe(1);
   if (outcome === "success") await page.evaluate(() => window.__finishReview());

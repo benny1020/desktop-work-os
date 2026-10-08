@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openComplexReview, chooseComplexFlow } from './fixtures/complex-demo.mjs';
 
@@ -11,6 +12,7 @@ test('Large PR resumes each flow and its AI evidence after switching tools and a
   await openComplexReview(page);
   await page.getByRole('button', { name: 'Preview AI guide', exact: true }).click();
   await page.getByRole('button', { name: 'Draft comment for pending 결제가 재시도 경로를 막나요?', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep the capture retry review at its exact code line.');
   await page.getByLabel('Your assessment of pending 결제가 재시도 경로를 막나요?').selectOption('checked');
   await page.getByLabel('Mark src/capture/PaymentCaptureService.ts as viewed').check();
@@ -21,10 +23,12 @@ test('Large PR resumes each flow and its AI evidence after switching tools and a
   await page.getByRole('button', { name: 'Open component PaymentWebhookController.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 11', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Verify the webhook signature error response.');
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await page.getByRole('button', { name: /Review changes/ }).click();
   await expect(page.getByRole('heading', { name: 'Fix order status mapping', exact: true })).toBeVisible();
+  await openReviewComposer(page);
   await expect(page.getByLabel('Diagram review comment')).toHaveValue('');
 
   await reopen(page);
@@ -65,6 +69,7 @@ test('A posted complex-PR comment keeps its code position after reopen and reloa
   await openComplexReview(page);
   await page.getByRole('button', { name: 'Open component PaymentCaptureService.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Select new line 21', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep pending retries separate from completed captures.');
   await page.getByRole('button', { name: 'Add demo comment', exact: true }).click();
   await expect(page.getByLabel('Diagram review comment')).toHaveValue('');
@@ -75,6 +80,7 @@ test('A posted complex-PR comment keeps its code position after reopen and reloa
   await page.reload();
   await openComplexReview(page);
   await page.getByRole('button', { name: 'Open component PaymentCaptureService.ts', exact: true }).click();
+  await openReviewComposer(page);
   await expect(posted).toHaveCount(1);
   await expect(posted).toContainText('Line 21');
   await page.getByRole('button', { name: 'Select new line 21', exact: true }).click();

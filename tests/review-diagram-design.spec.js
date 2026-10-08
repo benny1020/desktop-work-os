@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openApiReview } from './fixtures/api-demo.mjs';
 import { openComplexReview } from './fixtures/complex-demo.mjs';
@@ -46,7 +47,8 @@ for (const theme of ['light', 'dark']) for (const size of [{ width: 1440, height
     const first = diagram.locator('.dependency-edge').first();
     await first.press('Enter');
     await expect(page.locator('.code-provenance')).toContainText('Selected new line 10');
-    await page.getByLabel('Diagram review comment').fill('Verify the capture request boundary.');
+    await openReviewComposer(page);
+  await page.getByLabel('Diagram review comment').fill('Verify the capture request boundary.');
     await page.getByRole('tab', { name: 'Sequence', exact: true }).click();
     const step = page.locator('.sequence-step').first();
     await expect(step).toHaveAttribute('data-call-evidence', 'source call');

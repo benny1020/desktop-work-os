@@ -171,8 +171,8 @@ hr {
   background: var(--bg);
 }
 .sidebar {
-  width: 222px;
-  min-width: 222px;
+  width: 200px;
+  min-width: 200px;
   background: var(--sidebar);
   border-right: 1px solid var(--line);
   display: flex;

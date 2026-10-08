@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openApiReview, chooseApi } from './fixtures/api-demo.mjs';
 const component = (page, name) => page.getByRole('button', { name: `Open component ${name}.ts`, exact: true });
@@ -22,6 +23,7 @@ test('canonical shared-method drafts survive API switching and flow completion s
   await page.getByLabel('Mark API flow reviewed').check();
   await component(page, 'PaymentAuditService').click();
   await page.getByRole('button', { name: 'Select source line 7', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('What happens if the audit write fails after commit?');
   await expect(page.getByLabel('Methods in this API flow')).toContainText('Unchanged context');
   await expect(page.getByRole('button', { name: 'Diff', exact: true })).toBeDisabled();
@@ -76,7 +78,8 @@ for (const layout of [{ width: 1440, height: 900 }, { width: 980, height: 650 }]
     await page.getByLabel('Flow details',{exact:true}).click();
     await page.locator('.api-flow-boundaries summary').click();
     await expect(page.getByRole('button', { name: 'Zoom in diagram', exact: true })).toBeInViewport();
-    await page.getByLabel('Diagram review comment').fill('Inspect atomic persistence and replay behavior.');
+    await openReviewComposer(page);
+  await page.getByLabel('Diagram review comment').fill('Inspect atomic persistence and replay behavior.');
     await expect(page.getByRole('button', { name: 'Add demo comment', exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   });
@@ -85,6 +88,7 @@ test('returning from Home restores unchanged-context code, source line, flow and
   await openApiReview(page); await chooseApi(page, 'POST /payments/refund');
   await component(page, 'PaymentAuditService').click();
   await page.getByRole('button', { name: 'Select source line 7', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Retain this exact shared code context.');
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await page.getByRole('button', { name: 'Code', exact: true }).click();

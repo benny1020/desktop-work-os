@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { initialMRs } from '../src/data.js';
 import { openComplexReview, chooseComplexFlow } from './fixtures/complex-demo.mjs';
@@ -8,6 +9,7 @@ test('Complex PR keeps diagram, AI checkpoints, source and private review togeth
   await expect(page.getByRole('progressbar', { name: 'Files viewed' })).toHaveAttribute('max', '30');
   await page.getByRole('button', { name: 'Preview AI guide', exact: true }).click();
   await page.getByRole('button', { name: 'Draft comment for pending 결제가 재시도 경로를 막나요?', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('pending 상태는 Worker 재진입 시 gateway를 호출하도록 분리해 주세요.');
   await chooseComplexFlow(page, 'webhooks');
   await page.getByRole('button', { name: 'Preview AI guide', exact: true }).click();
@@ -18,6 +20,7 @@ test('Complex PR keeps diagram, AI checkpoints, source and private review togeth
   await page.getByRole('button', { name: 'Open component PaymentWebhookController.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 11', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('서명 검증 실패 응답도 확인해 주세요.');
   await chooseComplexFlow(page, 'capture');
   await expect(page.getByLabel('Diagram review comment')).toHaveValue('pending 상태는 Worker 재진입 시 gateway를 호출하도록 분리해 주세요.');

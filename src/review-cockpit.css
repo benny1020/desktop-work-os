@@ -1,0 +1,155 @@
+/* Source and its flow own the reading area. Metadata opens on demand. */
+.visual-review.review-workbench.review-cockpit { --review-progress-height:0px; min-height:0; height:100%; }
+.visual-review.review-cockpit .visual-review-heading { padding:10px 16px 0; flex:none; padding-top:6px; }
+.visual-review.review-cockpit .visual-review-heading > .inline { min-height:20px; gap:8px; }
+.visual-review.review-cockpit .api-review-mode > span { max-width:260px; font-size:10px; }
+.visual-review.review-cockpit .visual-review-title { gap:12px; margin-top:2px; }
+.visual-review.review-cockpit .visual-review-title h1 { font-size:18px; line-height:1.35; font-weight:650; }
+.visual-review.review-cockpit .review-branch-context { gap:8px; }
+.visual-review.review-cockpit .review-branch-context p { font-size:10px; line-height:1.5; }
+.visual-review.review-cockpit .review-reading-path { position:relative; display:flex; flex-wrap:wrap; padding:5px 0 3px; gap:4px 8px; margin-top:3px; padding-top:3px; padding-bottom:2px; }
+.visual-review.review-cockpit .review-change-summary { padding-right:9px; gap:6px; font-size:10px; }
+.visual-review.review-cockpit .review-file-progress { position:static; flex:0 0 auto; display:flex; height:auto; min-height:0; padding:0 8px 0 0; background:none; border:0; border-right:1px solid var(--line); gap:8px; min-width:0; }
+.visual-review.review-cockpit .review-file-progress strong { font-size:10px; display:block; white-space:nowrap; }
+.visual-review.review-cockpit .review-file-progress progress { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.visual-review.review-cockpit .review-file-progress small { display:none; }
+.visual-review.review-cockpit .review-file-progress .btn { padding:4px 6px; font-size:10px; }
+.visual-review.review-cockpit .reading-path-label { display:none; }
+.visual-review.review-cockpit .reading-path-files { flex:0 0 100%; gap:3px; padding-top:0; min-height:21px; }
+.visual-review.review-cockpit .reading-path-files button { padding:3px 6px; font-size:10px; padding-block:2px; }
+.visual-review.review-cockpit .review-focus-controls { margin-left:auto; display:flex; gap:2px; font-size:10px; }
+.review-focus-controls button { padding:5px 7px; border-radius:4px; white-space:nowrap; color:var(--secondary); }
+.review-focus-controls button[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent); }
+.review-all-files { position:relative; font-size:10px; flex:none; }
+.review-all-files > summary { display:flex; align-items:center; gap:5px; padding:5px 7px; border:1px solid var(--line); border-radius:4px; cursor:pointer; list-style:none; }
+.review-all-files > summary::-webkit-details-marker { display:none; }
+.review-all-files > summary > span { color:var(--secondary); }
+.review-all-file-menu { position:absolute; top:calc(100% + 6px); right:0; z-index:40; width:min(460px,calc(100vw - 64px)); max-height:min(450px,55vh); padding:10px; overflow:auto; background:var(--surface); border:1px solid var(--line-strong); border-radius:6px; box-shadow:var(--shadow); }
+.review-all-file-menu > input { width:100%; }
+.review-all-file-menu > small,.review-all-file-menu > p { display:block; font-size:10px; line-height:1.6; color:var(--secondary); margin:8px 0; }
+.review-all-file-menu > button { display:flex; align-items:flex-start; gap:8px; width:100%; padding:8px 5px; text-align:left; border-bottom:1px solid var(--line); font-size:11px; }
+.review-all-file-menu > button > svg { flex:none; margin-top:2px; }
+.review-all-file-menu > button > span { min-width:0; overflow-wrap:anywhere; }
+.review-all-file-menu > button small { display:block; margin-top:3px; font-size:10px; color:var(--secondary); }
+.review-all-file-menu > button[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent); }
+.visual-review.review-cockpit .visual-review-grid { position:relative; min-height:0; display:grid; grid-template-columns:minmax(290px, .85fr) minmax(380px,1.25fr) minmax(245px,.65fr); grid-template-areas:"map code ai"; grid-template-rows:minmax(0,1fr); overflow:hidden; }
+.visual-review.review-cockpit.ai-folded .visual-review-grid { grid-template-columns:minmax(280px, .4fr) minmax(350px,.6fr); grid-template-areas:"map code" "ai ai"; grid-template-rows:minmax(0,1fr) 34px; }
+.visual-review.review-cockpit .visual-map-panel { min-height:0; overflow:visible; display:flex; flex-direction:column; border-right:1px solid var(--line-strong); }
+.visual-review.review-cockpit .review-flow-context { position:relative; flex:none; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 8px; padding:7px 10px; }
+.visual-review.review-cockpit .review-flow-context-heading { grid-column:1; grid-row:1; min-width:0; }
+.visual-review.review-cockpit .review-flow-context-heading strong { font-size:12px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.visual-review.review-cockpit .review-flow-import-path,.visual-review.review-cockpit .review-flow-context-route { grid-column:1 / -1; margin:0; }
+.visual-review.review-cockpit .review-flow-import-path > div { flex-wrap:nowrap; overflow:auto; }
+.visual-review.review-cockpit .review-flow-import-path button { white-space:nowrap; font-size:10px; }
+.visual-review.review-cockpit .review-flow-context-meta { min-width:0; gap:6px; font-size:9px; overflow:hidden; grid-column:2; grid-row:1; }
+.visual-review.review-cockpit .review-flow-explanation { margin:0; align-self:center; font-size:10px; grid-column:2; grid-row:2; }
+.visual-review.review-cockpit .review-flow-explanation > p,.visual-review.review-cockpit .review-flow-explanation > ul { position:absolute; top:100%; left:8px; right:8px; z-index:20; background:var(--surface); border:1px solid var(--line); padding:9px; margin:0; }
+.visual-review.review-cockpit .review-flow-explanation > ul { top:calc(100% + 56px); max-height:180px; overflow:auto; }
+.visual-review.review-cockpit .review-diagram-controls { position:relative; top:auto; z-index:10; flex:none; display:grid; grid-template-columns:minmax(0,1fr) auto; }
+.visual-review.review-cockpit .review-diagram-controls .visual-tabs { position:static; min-height:30px; padding-inline:10px; gap:10px; grid-column:1; grid-row:1; }
+.visual-review.review-cockpit .review-diagram-controls .visual-tabs button { padding:7px 0; font-size:11px; }
+.visual-review.review-cockpit .review-diagram-controls .diagram-toolbar { padding:3px 7px; gap:3px; flex-wrap:nowrap; grid-column:2; grid-row:1; }
+.visual-review.review-cockpit .diagram-evidence-count { display:block; font-size:9px; margin:2px 0 0; }
+.visual-review.review-cockpit .diagram-toolbar .quiet-button { font-size:10px; white-space:nowrap; }
+.visual-review.review-cockpit .review-diagram-controls .review-map-mode { display:inline-flex; padding:2px 9px 5px; grid-column:1 / -1; }
+.visual-review.review-cockpit .review-map-mode small { display:none; }
+.visual-review.review-cockpit .diagram-scroll { flex:1 1 0; min-height:0; max-height:none; overflow:auto; padding:12px 0; background:var(--surface); }
+.visual-review.review-cockpit .diagram-node .node-label { font-size:13px; }
+.visual-review.review-cockpit .diagram-legend { flex:none; padding:5px 10px; gap:8px; border-top:1px solid var(--line); font-size:9px; }
+.visual-review.review-cockpit .diagram-legend small { display:none; }
+.visual-review.review-cockpit .review-flow-boundaries { flex:none; flex-wrap:nowrap; overflow:auto; max-height:30px; padding:4px 9px; gap:5px; }
+.visual-review.review-cockpit .review-flow-boundaries > small { width:auto; white-space:nowrap; font-size:9px; }
+.visual-review.review-cockpit .review-flow-boundaries .linked-chip { flex:none; }
+.visual-review.review-cockpit .api-source-files { flex:none; padding:5px 10px; font-size:10px; }
+.visual-review.review-cockpit .visual-code-panel { min-width:0; min-height:0; overflow:hidden; }
+.visual-review.review-cockpit .visual-code-heading { padding:8px 12px; font-size:11px; flex-wrap:nowrap; padding-block:5px; min-height:34px; }
+.visual-review.review-cockpit .visual-code-heading strong { min-width:0; }
+.visual-review.review-cockpit .visual-code-line { font-size:13px; line-height:20px; min-height:24px; }
+.visual-review.review-cockpit .code-provenance { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:5px 12px; position:relative; padding-block:3px; min-height:22px; }
+.visual-review.review-cockpit .visual-code-scroll { flex:1 1 0; min-height:0; }
+.visual-review.review-cockpit .visual-comment-panel { flex:none; padding:8px 12px; }
+.visual-review.review-cockpit .visual-comment-panel textarea { min-height:64px; height:64px; max-height:120px; font-size:12px; }
+.visual-review.review-cockpit .visual-comment-panel .your-review-label { margin:7px 0 5px; }
+.visual-review.review-cockpit .visual-comment-actions { margin-top:6px; }
+.visual-review.review-cockpit .visual-review-approval { padding:7px 12px; flex:none; }
+.visual-review.review-cockpit .ai-rail-heading { padding:10px 12px; min-height:40px; }
+.visual-review.review-cockpit.ai-folded .ai-rail-heading { min-height:34px; height:34px; padding:6px 12px; border-bottom:0; }
+.visual-review.review-cockpit.ai-folded .ai-rail-heading h2 { font-size:11px; }
+.visual-review.review-cockpit.ai-folded .ai-rail-heading .pill { margin-left:8px; }
+.visual-review.review-cockpit.ai-folded .ai-rail-heading > .icon-button { margin-left:auto; }
+.visual-review.review-cockpit .ai-review-rail { border-left:1px solid var(--line); }
+.visual-review.review-cockpit.ai-folded .ai-review-rail { border-left:0; border-top:1px solid var(--line); }
+.visual-review.review-cockpit .ai-review-guide { padding:10px 12px; }
+.visual-review.review-cockpit .ai-review-intro { font-size:10px; margin-bottom:6px; }
+.visual-review.review-cockpit .guideline-settings { margin:6px 0 10px; }
+.visual-review.review-cockpit .guideline-settings > summary,.visual-review.review-cockpit .ai-summary > summary { min-height:24px; padding-block:5px; }
+.visual-review.review-cockpit .visual-code-line.selected .code-number { color:var(--text); }
+.visual-review.review-cockpit .ai-checkpoint { border:0; border-top:1px solid var(--line); border-radius:0; background:transparent; margin-bottom:5px; }
+.visual-review.review-cockpit .ai-checkpoint.active { box-shadow:inset 2px 0 var(--accent); background:var(--accent-soft); }
+.visual-review.review-cockpit .ai-checkpoint .guide-finding { padding:10px 6px; }
+.visual-review.review-cockpit .checkpoint-actions { padding:6px; background:var(--bg); }
+.visual-review.review-cockpit .guide-empty { padding:9px 0; }
+.visual-review.review-cockpit .guide-empty h3 { font-size:12px; margin-bottom:6px; }
+.visual-review.review-cockpit .guide-empty p { font-size:11px; line-height:1.6; }
+.visual-review.review-cockpit .guide-coverage { font-size:9px; margin-bottom:7px; padding:6px 0; }
+.visual-review.review-cockpit .checkpoint-boundary { margin-block:6px; }
+.visual-review.review-cockpit.focus-diagram .visual-review-grid { grid-template-columns:1fr; grid-template-areas:"map" "ai"; grid-template-rows:minmax(0,1fr) 34px; }
+.visual-review.review-cockpit.focus-diagram .visual-code-panel { display:none; }
+.visual-review.review-cockpit.focus-code .visual-review-grid { grid-template-columns:minmax(0,1fr) minmax(245px,.4fr); grid-template-areas:"code ai"; grid-template-rows:minmax(0,1fr); }
+.visual-review.review-cockpit.focus-code.ai-folded .visual-review-grid { grid-template-columns:1fr; grid-template-areas:"code" "ai"; grid-template-rows:minmax(0,1fr) 34px; }
+.visual-review.review-cockpit.focus-code .visual-map-panel { display:none; }
+.visual-review.review-cockpit .review-flow-context-meta > span,.visual-review.review-cockpit .review-flow-context-meta .quiet-button { white-space:nowrap; }
+.visual-review.review-cockpit .review-flow-endpoint { white-space:nowrap; margin:0; font-size:9px; }
+.visual-review.review-cockpit .review-evidence-info { position:relative; margin-left:auto; }
+.visual-review.review-cockpit .review-evidence-info > summary { cursor:pointer; font-size:10px; color:var(--secondary); }
+.visual-review.review-cockpit .review-evidence-info > div { position:absolute; bottom:calc(100% + 8px); right:0; z-index:25; width:min(310px,70vw); padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:5px; font-size:10px; line-height:1.6; box-shadow:var(--shadow); }
+.visual-review.review-cockpit .review-evidence-info > div > strong,.visual-review.review-cockpit .review-evidence-info > div > small { display:block; }
+.visual-review.review-cockpit .review-evidence-info .diagram-evidence-count { display:block; margin:5px 0; }
+.visual-review.review-cockpit .review-flow-picker > summary { padding:4px 7px; max-width:240px; }
+.visual-review.review-cockpit .review-flow-trigger-text b { max-width:190px; }
+.visual-review.review-cockpit .review-flow-trigger-text small { display:none; }
+.visual-review.review-cockpit .review-reading-path .review-change-summary { flex:none; }
+.visual-review.review-cockpit .review-flow-context-meta > span { display:none; }
+.visual-review.review-cockpit .review-flow-import-path { grid-column:1; grid-row:2; min-width:0; }
+.visual-review.review-cockpit .review-flow-context-route { grid-column:1; grid-row:2; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.visual-review.review-cockpit .review-layer-context { border:0; padding:0; font-size:10px; gap:6px; }
+.visual-review.review-cockpit .review-layer-context > span { display:none; }
+.visual-review.review-cockpit .review-layer-context details[open] { position:absolute; top:100%; right:10px; z-index:20; padding:10px; max-width:300px; background:var(--surface); border:1px solid var(--line); border-radius:5px; box-shadow:var(--shadow); }
+.visual-review.review-cockpit.focus-diagram:not(.ai-folded) .ai-review-rail { position:absolute; inset:0 0 0 auto; width:min(330px,85%); z-index:30; background:var(--surface); box-shadow:var(--shadow); }
+.visual-review.review-cockpit .visual-hunk { padding:5px 12px; padding-block:1px; line-height:21px; }
+.visual-review.review-cockpit .review-diagram-controls .sequence-scope-controls { grid-column:1 / -1; grid-row:2; }
+.visual-review.review-cockpit .review-diagram-controls .sequence-step-navigation { grid-column:1 / -1; grid-row:3; }
+.visual-review.review-cockpit .api-flow-context { z-index:20; }
+.visual-review.review-cockpit .sequence-step .node-meta { font-size:12px; }
+.visual-review.review-cockpit .api-flow-title > label { display:inline-flex; align-items:center; min-width:24px; min-height:24px; padding:3px 4px; line-height:16px; }
+@container (max-width:1050px) {
+ .review-all-files { position:static; }
+ .visual-review.review-cockpit .api-review-mode > span { display:none; }
+ .visual-review.review-cockpit .visual-review-heading { padding-inline:12px; }
+ .visual-review.review-cockpit .visual-review-title h1 { font-size:17px; }
+ .visual-review.review-cockpit .review-change-summary { font-size:9px; gap:4px; }
+ .visual-review.review-cockpit .review-file-progress { gap:5px; }
+ .visual-review.review-cockpit .review-file-progress .btn { font-size:9px; }
+ .visual-review.review-cockpit .review-focus-controls { margin-left:0; font-size:9px; }
+ .visual-review.review-cockpit .review-focus-controls button { padding:4px; }
+ .visual-review.review-cockpit .visual-review-grid,.visual-review.review-cockpit.ai-folded .visual-review-grid { grid-template-columns:minmax(240px,.42fr) minmax(300px,.58fr); grid-template-areas:"map code" "ai ai"; grid-template-rows:minmax(0,1fr) 34px; }
+ .visual-review.review-cockpit:not(.ai-folded) .ai-review-rail { position:absolute; top:0; bottom:0; right:0; width:min(330px,85%); z-index:30; border-left:1px solid var(--line-strong); box-shadow:var(--shadow); height:auto; grid-area:auto; min-height:0; background:var(--surface); }
+ .visual-review.review-cockpit:not(.ai-folded) .ai-rail-heading { min-height:40px; }
+ .visual-review.review-cockpit .diagram-evidence-count { display:block; }
+ .visual-review.review-cockpit.focus-diagram .visual-review-grid { grid-template-columns:1fr; grid-template-areas:"map" "ai"; }
+ .visual-review.review-cockpit.focus-code .visual-review-grid { grid-template-columns:1fr; grid-template-areas:"code" "ai"; grid-template-rows:minmax(0,1fr) 34px; }
+ .visual-review.review-cockpit .review-flow-context-heading strong { font-size:11px; }
+ .visual-review.review-cockpit .review-code-directory { display:none; }
+ .visual-review.review-cockpit .visual-review-title > .inline { flex-wrap:nowrap; gap:6px; }
+ .visual-review.review-cockpit .visual-review-title .btn { padding:5px 7px; font-size:10px; }
+ .visual-review.review-cockpit .review-diagram-controls .visual-tabs button { font-size:10px; }
+ .visual-review.review-cockpit .diagram-toolbar .quiet-button { font-size:9px; padding-inline:3px; }
+ .visual-review.review-cockpit .diagram-toolbar .icon-button { width:23px; min-width:23px; }
+}
+@container (max-width:650px) {
+ .visual-review.review-cockpit .review-reading-path { gap:5px 7px; }
+ .visual-review.review-cockpit .review-focus-controls { margin-left:0; }
+ .visual-review.review-cockpit .visual-review-grid,.visual-review.review-cockpit.ai-folded .visual-review-grid { grid-template-columns:minmax(190px,.4fr) minmax(250px,.6fr); }
+ .visual-review.review-cockpit .visual-review-title .inline { gap:5px; }
+ .visual-review.review-cockpit .visual-review-title .btn { padding:5px 7px; font-size:10px; }
+}

@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openComplexReview } from './fixtures/complex-demo.mjs';
 import { complexDemoSnapshot } from '../src/lib/complex-demo-review.js';
@@ -15,10 +16,13 @@ for (const theme of ['light', 'dark']) test(`IDE syntax and bracket colors keep 
   for (const kind of ['keyword', 'class-name', 'function', 'string', 'bracket-0', 'bracket-1', 'bracket-2']) expect(kinds).toContain(kind);
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   const expected = complexDemoSnapshot().files.find(file => file.path === 'src/capture/PaymentCaptureService.ts').content;
-  const lines = await page.locator('.visual-code-line code').allTextContents();
-  expect(lines.map(line => line === ' ' ? '' : line).join('\n')).toBe(expected);
+  await expect.poll(async()=>{
+    const lines = await page.locator('.visual-code-line code').allTextContents();
+    return lines.map(line => line === ' ' ? '' : line).join('\n');
+  }).toBe(expected);
   await page.getByRole('button', { name: 'Select source line 21', exact: true }).click();
   await expect(page.locator('.visual-code-line.selected code')).toHaveText('    if (existing) return existing;');
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Rainbow colors keep my inline comment on line 21.');
   await page.getByRole('button', { name: 'Diff', exact: true }).click();
   await expect(page.locator('.visual-code-line.selected')).toHaveAttribute('data-code-line', 'new-21');

@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 const open = async page => {
   await page.goto('/');
@@ -30,6 +31,7 @@ test('Flow details disclose source contracts without consuming the diagram or lo
   await expect.poll(async () => (await geometry(page)).visible).toBeGreaterThanOrEqual(300);
   await page.getByRole('button',{name:'Open component SettlementPersistenceAdapter.ts',exact:true}).click();
   await page.getByRole('button',{name:'Select source line 6',exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep this storage-read review note.');
   const before = await geometry(page);
   await showContracts(page);
@@ -54,6 +56,7 @@ test('Class links disclose both storage operations at their exact source lines w
   await calls.getByRole('button',{name:/Inspect call .*SettlementPersistenceAdapter.save\(\)/}).click();
   await expect(page.getByRole('tab',{name:'Dependency flow',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.getByLabel('Component code').locator('.visual-code-line.selected')).toContainText('this.storage.save');
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Verify this save shares the idempotency constraint.');
   await page.getByRole('tab',{name:'Sequence',exact:true}).click();
   await expect(page.locator('.sequence-label')).toContainText('save()');
@@ -64,6 +67,7 @@ test('A selected call site remains readable when the review window shrinks', asy
   await page.getByRole('button',{name:'Open component SettlementService.ts',exact:true}).click();
   await page.getByLabel('Calls for selected component',{exact:true}).click();
   await page.getByLabel('Source calls for selected component',{exact:true}).getByRole('button',{name:/Inspect call .*SettlementPersistenceAdapter.save\(\)/}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Check this storage write.');
   await page.setViewportSize({width:980,height:650});
   await expect.poll(() => page.getByLabel('Component code').evaluate(canvas => {

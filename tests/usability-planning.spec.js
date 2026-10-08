@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import { installConnected } from "./fixtures/connected.mjs";
 
 test.beforeEach(async ({ page }) => installConnected(page));
@@ -13,12 +14,14 @@ test("Keyboard completion and same-time reorder retain focus and visible order",
   await page.getByLabel("Complete Retry implementation", { exact: true }).focus();
   await page.keyboard.press("Space");
   await expect(page.getByLabel("Reopen Retry implementation", { exact: true })).toBeFocused();
+  await revealPlanningActions(page, 'Check idempotency');
   const move = page.getByLabel("Move up Check idempotency", { exact: true });
   await move.focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".plan-task-main > button")).toHaveText(["Check idempotency", "Retry implementation"]);
   await expect(move).toBeFocused();
   await expect(move).toBeDisabled();
+  await revealPlanningActions(page, 'Check idempotency');
   await page.getByLabel("Move down Check idempotency", { exact: true }).click();
   await expect(page.locator(".plan-task-main > button")).toHaveText(["Retry implementation", "Check idempotency"]);
 });
@@ -26,12 +29,15 @@ test("Keyboard completion and same-time reorder retain focus and visible order",
 test("Editing a time preserves the active input while chronological order updates", async ({ page }) => {
   await add(page, "Review retry 2pm");
   await add(page, "Daily standup 9am");
+  await revealPlanningActions(page, 'Review retry');
   const input = page.getByLabel("Time for Review retry", { exact: true });
   await input.focus();
   await input.fill("08:30");
   await expect(input).toBeFocused();
-  await expect(page.locator(".plan-task-main > button").first()).toHaveText("08:30Review retry");
+  await expect(page.locator(".plan-task-main > button").first()).toHaveText("Review retry");
+  await expect(page.locator(".plan-task").first().locator(".plan-task-compact-meta time")).toHaveText("08:30");
   // Events with different times cannot be misleadingly moved out of chronological order.
+  await revealPlanningActions(page, 'Daily standup');
   await expect(page.getByLabel("Move up Daily standup", { exact: true })).toBeDisabled();
 });
 

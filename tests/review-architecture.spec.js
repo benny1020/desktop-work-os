@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { installConnected, snapshot } from './fixtures/connected.mjs';
 import { parseDiff } from '../src/lib/review-model.mjs';
@@ -31,6 +32,7 @@ async function installArchitecture(page, files, { findings = [] } = {}) {
     };
   }, { files, findings, refs: snapshot.mr.diff_refs });
   await page.locator('.attention-row').getByRole('button', { name: /Payment retry review/ }).click();
+  await openReviewComposer(page);
   await expect(page.getByLabel('Diagram review comment')).toBeVisible();
 }
 async function choose(page, search) {
@@ -95,8 +97,10 @@ test('Layer selection, actual source, AI checkpoint and human comment stay toget
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await expect(page.getByLabel('Component code')).toContainText('Receipt save(String idempotencyKey);');
   await page.getByRole('button', { name: 'Select source line 4', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Verify this operation is idempotent.');
   await choose(page, 'Order request handling');
+  await openReviewComposer(page);
   await expect(page.getByLabel('Diagram review comment')).toHaveValue('');
   await choose(page, 'Payment request handling');
   await expect(page.getByRole('button', { name: 'Source', exact: true })).toHaveClass(/active/);

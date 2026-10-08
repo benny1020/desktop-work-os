@@ -14,11 +14,21 @@ An Electron workspace for developers. Follow an issue across tools, understand a
 
 </div>
 
-![Worklane dependency review — follow the structure into actual code](docs/media/visual-review.png)
+![Worklane review cockpit — source, architecture and a private human review beside AI evidence](docs/media/release-review-together.png)
 
 Worklane connects daily planning, Jira issues, Confluence documents, GitLab reviews and a contextual Claude assistant. Open related work in an inspector, follow its context, and return to the same list.
 
 > **Early preview.** Includes a fully clickable demo and an Electron connected mode. All images and GIFs use synthetic sample data. Connected-mode recordings use test service responses, including the AI guide — they do not demonstrate a live company connection.
+
+## Start with your next decision
+
+Home places review requests and approaching Jira deadlines beside your personal agenda. My Work gives the timeline priority. Both use the same plan; you can open related work, schedule it locally, and return to the exact context.
+
+![A compact work queue beside personal tasks, events and a quiet assistant brief — local service fixtures](docs/media/release-home-light.png)
+
+Search stays in the toolbar even when the workspace rail is hidden. In review, an empty assistant folds away, leaving 60% of the working width to code. Choose Split, Diagram or Code focus; restore the same view after following a linked pipeline. Single-step sequences retain readable participants and exact call evidence.
+
+[Design direction, measured changes and independent verification](docs/FLAGSHIP_DESIGN_REVIEW.md).
 
 ## Review the change, not just the files
 
@@ -62,7 +72,7 @@ Solid dependency edges represent resolved source calls or imports. Dotted contra
 
 Try **Demo workspace → Code → !428 → Review** for a larger example: 30 changed files spanning capture retries, webhook ordering and settlement reconciliation, with shared infrastructure and code-linked sample review questions. Large sequences offer readable step-by-step navigation; a PR-wide draft menu resumes exact code positions, and the composer folds for more reading space. [Complex PR walkthrough and screenshots](docs/COMPLEX_PR_DEMO.md).
 
-Diff and Source use [IDE-style syntax and rainbow bracket colors](docs/CODE_READABILITY.md), with language-aware highlighting, 12px code typography and contrasting light/dark palettes.
+Diff and Source use [IDE-style syntax and rainbow bracket colors](docs/CODE_READABILITY.md), with language-aware highlighting, 13px code typography, 20px line height and contrasting light/dark palettes.
 
 ## Follow the work across tools
 
@@ -231,7 +241,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Latest validation: **377 browser tests**, **171 adapter/model/Git tests**, **11 native connected workflow checks** and **2 cold-start checks** passed in the [independent design and interaction release review](docs/RELEASE_DESIGN_REVIEW.md). Ten rendered screen/theme/width states had zero automated accessibility violations. Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Live organization access, manual assistive-technology testing, packaging and signing remain separate release requirements. Earlier validation is recorded in [development history](docs/LOCAL_DEVELOPMENT.md).
+Latest validation: **393 browser tests**, **171 adapter/model/Git tests**, **11 native connected workflow checks** and **2 cold-start checks** passed in the [flagship design review](docs/FLAGSHIP_DESIGN_REVIEW.md). Twenty-three rendered screen/theme/width states had zero automated accessibility violations. Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Live organization access, manual assistive-technology testing, packaging and signing remain separate release requirements. Earlier validation is recorded in [development history](docs/LOCAL_DEVELOPMENT.md).
 
 The subsequent [code readability follow-up](docs/CODE_READABILITY.md) passed **42 affected browser checks**, **124 adapter/model checks** and **11 native connected workflows**, plus production build. It did not rerun the complete browser suite.
 

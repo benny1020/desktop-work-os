@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import { installConnected } from './fixtures/connected.mjs';
 
 test.beforeEach(async ({page}) => installConnected(page));
@@ -51,6 +52,7 @@ test('Assistant rejects a stale schedule proposal after the task is moved manual
   await page.getByLabel('Ask Claude').fill('Move Review retries tomorrow');
   await page.getByRole('button',{name:'Send to Claude',exact:true}).click();
   await expect(page.getByRole('button',{name:'Confirm schedule'})).toBeVisible();
+  await revealPlanningActions(page, 'Review retries');
   await page.getByLabel('Date for Review retries',{exact:true}).fill('2027-01-19');
   await page.getByRole('button',{name:'Confirm schedule'}).click();
   await expect(page.getByRole('alert')).toContainText('changed since the suggestion');

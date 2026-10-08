@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { installConnected } from './fixtures/connected.mjs';
 
@@ -56,6 +57,7 @@ test('Failed source request retries in place and retains the review comment draf
   await installConnected(page);
   await page.evaluate(()=>window.__fixture.setFailure('gitlab.code'));
   await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Verify retry invariants.');
   await page.getByRole('button',{name:'Source',exact:true}).click();
   await expect(page.getByRole('button',{name:'Retry source',exact:true})).toBeVisible();
@@ -75,8 +77,10 @@ test('Late comment success does not discard new text typed during the request, a
     };
   });
   await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('First comment.');
   await page.getByRole('button',{name:'Post to GitLab',exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Next comment draft.');
   await page.evaluate(()=>window.completeComment());
   await expect(page.locator('.component-comment')).toContainText('First comment.');
@@ -114,6 +118,8 @@ test('Graph keyboard traversal and source review remain usable on narrow light a
     await nodes.first().focus();await page.keyboard.press('End');
     await expect(nodes.last()).toBeFocused();
     await page.keyboard.press('Enter');
+    await expect(page.locator('.diagram-node.selected')).toHaveAttribute('aria-label',await nodes.last().getAttribute('aria-label'));
+    await openReviewComposer(page);
     await expect(page.getByLabel('Diagram review comment')).toBeVisible();
     await page.getByRole('tab',{name:'Dependency flow',exact:true}).focus();
     await page.keyboard.press('ArrowRight');
@@ -121,7 +127,8 @@ test('Graph keyboard traversal and source review remain usable on narrow light a
     await expect(page.getByRole('tab',{name:'Sequence',exact:true})).toHaveAttribute('aria-selected','true');
     await page.getByRole('button',{name:'Source',exact:true}).click();
     await expect(page.getByLabel('Component code')).not.toContainText('Loading source');
-    await page.getByLabel('Diagram review comment').fill(`Draft in ${theme}`);
+    await openReviewComposer(page);
+  await page.getByLabel('Diagram review comment').fill(`Draft in ${theme}`);
     await page.getByLabel('Diagram review comment').scrollIntoViewIfNeeded();
     await expect(page.getByLabel('Diagram review comment')).toBeInViewport();
     await page.getByRole('button',{name:'Post to GitLab',exact:true}).scrollIntoViewIfNeeded();

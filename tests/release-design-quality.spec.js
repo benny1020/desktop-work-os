@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { installConnected } from './fixtures/connected.mjs';
 
@@ -25,6 +26,7 @@ for (const theme of ['light', 'dark']) test(`Fit stays stable after settling, AI
   expect(Math.abs(settled.height-first.height)).toBeLessThan(2);
   await page.getByRole('button',{name:'Source',exact:true}).click();
   await page.getByLabel('Select source line 5',{exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('My private review before asking AI.');
   await page.getByRole('button',{name:'Generate AI guide',exact:true}).click();
   await expect(page.locator('.ai-review-guide .ai-summary')).toBeVisible();

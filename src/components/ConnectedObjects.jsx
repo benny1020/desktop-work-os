@@ -461,11 +461,17 @@ export default function ConnectedObjects({
       <Dialog.Portal>
         <Dialog.Overlay className="object-overlay" />
         <Dialog.Content
-          className={`object-panel ${current.type === "mr" || assistant ? "wide" : ""}`}
+          className={`object-panel ${current.type === "mr" || assistant ? "wide" : ""} ${current.type === "mr" ? "mr-context-preview" : ""}`}
           onEscapeKeyDown={(event) => {
             const localDetails = event.target?.closest?.('.review-local-checkout[open], .review-flow-picker[open], .review-draft-navigator[open], .review-workbench details[open]');
             if (localDetails) { event.preventDefault(); localDetails.open = false; localDetails.querySelector('summary')?.focus(); return; }
             if (reviewPending) { event.preventDefault(); return; }
+            const expandedReviewGuide = event.target instanceof Element && event.target.closest('.ai-review-rail')?.querySelector('.ai-rail-heading button[aria-expanded="true"]');
+            if (expandedReviewGuide) {
+              // Let the guide handle Escape locally before the containing preview.
+              event.preventDefault();
+              return;
+            }
             if (assistant) {
               event.preventDefault();
               setAssistant(false);
@@ -497,7 +503,8 @@ export default function ConnectedObjects({
             >
               <ChevronLeft size={16} />
             </button>
-            <Dialog.Title>{current.title || current.key}</Dialog.Title>
+            <Dialog.Title className={current.type === "mr" ? "sr-only" : undefined}>{current.title || current.key}</Dialog.Title>
+            {current.type === "mr" && <span className="review-context-identity"><code>!{current.iid}</code> Review context</span>}
             <span>
               {stack.length > 1 ? `${stack.length} contexts` : "Quick preview"}
             </span>

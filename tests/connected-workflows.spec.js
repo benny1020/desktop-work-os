@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import { installConnected } from "./fixtures/connected.mjs";
 const nav = (p, n) => p.locator(`nav .nav-item[aria-label="${n}"]`).click();
 const shortcut = (p, key) => p.keyboard.press(`Meta+${key}`);
@@ -7,7 +8,7 @@ test("Morning: actual review requests preview without leaving the daily command 
   page,
 }) => {
   await expect(
-    page.getByRole("heading", { name: "A clear start to your day" }),
+    page.getByRole("heading", { name: "Your workday" }),
   ).toBeVisible();
   await page
     .locator(".attention-row")
@@ -18,7 +19,7 @@ test("Morning: actual review requests preview without leaving the daily command 
   ).toBeVisible();
   await page.getByLabel("Close context preview").click();
   await expect(
-    page.getByRole("heading", { name: "A clear start to your day" }),
+    page.getByRole("heading", { name: "Your workday" }),
   ).toBeVisible();
   expect(
     await page.evaluate(() =>
@@ -35,6 +36,7 @@ test("One task dataset: natural language, calendar scheduling, completion, and r
   await page.getByRole("button", { name: "Add to plan", exact: true }).click();
   await page.getByLabel("Next planning period").click();
   await expect(page.locator(".plan-task")).toContainText("Prepare deployment");
+  await revealPlanningActions(page, 'Prepare deployment');
   await expect(page.getByLabel("Time for Prepare deployment")).toHaveValue(
     "14:00",
   );
@@ -98,10 +100,10 @@ test("End of day moves only unfinished tasks and shows next day", async ({
   await page
     .getByRole("button", { name: "Move unfinished to next day" })
     .click();
-  await expect(page.locator(".daily-columns>section")).toContainText(
+  await expect(page.getByRole("region", { name: "Personal agenda" })).toContainText(
     "Unfinished work",
   );
-  await expect(page.locator(".daily-columns>section")).not.toContainText(
+  await expect(page.getByRole("region", { name: "Personal agenda" })).not.toContainText(
     "Completed work",
   );
   await page.getByLabel("Previous planning period").click();
@@ -124,7 +126,7 @@ test("Global search keyboard opens real result and preserves original view", asy
   );
   await page.getByLabel("Close context preview").click();
   await expect(
-    page.getByRole("heading", { name: "A clear start to your day" }),
+    page.getByRole("heading", { name: "Your workday" }),
   ).toBeVisible();
 });
 test("Development: issue → wiki → back → MR → pipeline in a retained context stack", async ({

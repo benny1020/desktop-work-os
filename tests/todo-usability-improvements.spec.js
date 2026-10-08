@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import { installConnected } from "./fixtures/connected.mjs";
 
 test.beforeEach(async ({ page }) => {
@@ -74,6 +75,7 @@ test("Already planned linked work has explicit reschedule actions and retains it
   const title = "PAY-382 Payment retry implementation";
   await inbox.getByRole("button", { name: "Add to Today", exact: true }).click();
   await expect(inbox.getByRole("button", { name: "In Today", exact: true })).toBeDisabled();
+  await revealPlanningActions(page, `${title}`);
   await page.getByLabel(`Date for ${title}`, { exact: true }).fill("2026-10-09");
   await expect(inbox).toContainText("Planned 2026-10-09");
   await inbox.getByRole("button", { name: "Move to Today", exact: true }).click();
@@ -112,6 +114,7 @@ test("Schedule undo preserves a task edited after its move while restoring uncha
   await add(page, "Prepare deployment checklist");
   await page.getByRole("button", { name: "Move unfinished to next day", exact: true }).click();
   const movedDate = await page.getByLabel("Planning date").inputValue();
+  await revealPlanningActions(page, 'Review retry logic');
   await page.getByLabel("Time for Review retry logic", { exact: true }).fill("14:30");
   await page.getByRole("button", { name: "Undo schedule move", exact: true }).click();
   const stored = await tasks(page);

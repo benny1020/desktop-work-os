@@ -31,7 +31,7 @@ for (const theme of ["light", "dark"]) {
     if (theme === "dark") await page.getByLabel("Toggle theme").click();
     const plan = await page.locator(".daily-plan").boundingBox();
     const attention = await page.locator(".daily-brief").boundingBox();
-    expect(plan.x + plan.width).toBeLessThan(attention.x);
+    expect(attention.x + attention.width).toBeLessThan(plan.x);
     await expectOperableInFirstFold(page.getByRole("button", { name: "Review changes", exact: true }));
     await page.getByRole("button", { name: "Plan your first item", exact: true }).click();
     await expect(page.getByLabel("Quick add personal work")).toBeFocused();
@@ -40,7 +40,7 @@ for (const theme of ["light", "dark"]) {
 test("Disabled attention categories keep available work and saved planning intact", async ({ page }) => {
   await setup(page, { reviews: false, deadlines: false, digest: false });
   await expect(page.locator(".daily-brief .attention-row")).toHaveCount(0);
-  await expect(page.locator(".daily-brief h2 .pill")).toHaveText("0");
+  await expect(page.locator(".daily-brief .attention-content h2 .pill")).toHaveText("0");
   await expect(page.getByRole("region", { name: "Assistant brief", exact: true })).toHaveCount(0);
   await expect(page.locator(".daily-day-summary")).not.toContainText("review requested");
   await expect(page.locator(".live-inbox")).toContainText("PAY-382 Payment retry review");
@@ -60,7 +60,7 @@ test("Disabled attention categories keep available work and saved planning intac
 });
 test("Review alerts off still surface the next deadline and keep My Reviews available", async ({ page }) => {
   await setup(page, { reviews: false, deadlines: true, digest: true });
-  await expect(page.locator(".daily-brief h2 .pill")).toHaveText("1");
+  await expect(page.locator(".daily-brief .attention-content h2 .pill")).toHaveText("1");
   await expect(page.locator(".daily-brief .attention-row")).toHaveCount(1);
   await expect(page.locator(".daily-brief .attention-recommended")).toContainText("Payment retry implementation");
   await expect(page.getByRole("region", { name: "Assistant brief", exact: true })).toBeVisible();

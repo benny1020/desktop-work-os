@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import {test,expect} from '@playwright/test';
 import {installConnected} from './fixtures/connected.mjs';
 
@@ -6,6 +7,7 @@ for (const fail of [false,true]) test(`Standalone review keeps one submitted req
   await page.locator('nav .nav-item[aria-label="Code"]').click();
   await page.locator('.connected-content button').filter({hasText:'PAY-382 Payment retry review'}).click();
   await page.getByRole('button',{name:'Select new line 2',exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Only one review request may be in flight.');
   await page.evaluate(fail=>{const original=window.orbit.invoke;window.__attempts=0;window.orbit.invoke=async(action,args)=>{
     if(action==='gitlab.comment'){window.__attempts++;await new Promise(resolve=>window.finishComment=resolve);if(fail)throw Error('Temporary posting failure');}

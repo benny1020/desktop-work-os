@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from "@playwright/test";
 import { installConnected, snapshot } from "./fixtures/connected.mjs";
 
@@ -78,6 +79,7 @@ test("Typing while a review comment is posting preserves the new draft", async (
       });
     };
   });
+  await openReviewComposer(page);
   const draft = page.getByRole("textbox", { name: "Diagram review comment" });
   await draft.fill("Please cover timeout retries.");
   await page.getByRole("button", { name: "Post to GitLab", exact: true }).click();

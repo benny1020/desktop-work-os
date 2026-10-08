@@ -34,7 +34,7 @@ async function scene(name, actions) {
   const page = await browser.newPage({ baseURL: 'http://127.0.0.1:5178', viewport: { width: 1440, height: 900 } });
   page.on('pageerror', error => manifest.errors.push(error.message));
   await installConnected(page);
-  await expect(page.locator('.inbox-work')).toBeVisible();
+  await expect(page.locator('.inbox-work').first()).toBeVisible();
   let done = false, count = 0;
   const start = Date.now(), times = [];
   const record = (async () => {
@@ -115,7 +115,7 @@ await scene('daily-planning', async p => {
 });
 const dark = await browser.newPage({baseURL:'http://127.0.0.1:5178',viewport:{width:1440,height:900}});
 await installConnected(dark);
-await expect(dark.locator('.inbox-work')).toBeVisible();
+await expect(dark.locator('.inbox-work').first()).toBeVisible();
 await dark.getByLabel('Quick add personal work').fill('Prepare deployment review today 10am');
 await dark.getByRole('button',{name:'Add to plan',exact:true}).click();
 await dark.getByRole('button',{name:'Toggle theme'}).click();

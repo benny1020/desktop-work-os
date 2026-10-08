@@ -85,14 +85,14 @@ function PlanTask({ task, tasks, today, act, onOpen, onEdit, onMove, onComplete,
           <Check size={13} />
         ) : null}
       </button>
-      {compact && <div className="plan-task-compact-meta">{task.kind === "event" && <span className="plan-event-marker" title="Personal event" aria-hidden="true"><CalendarDays size={12} /></span>}{task.time ? <time>{task.time}</time> : <span>Any time</span>}</div>}
+      {compact && <div className="plan-task-compact-meta">{task.kind === "event" && <button className="plan-event-marker" title="Edit personal event" aria-label={`Edit event ${task.title}`} onClick={() => onEdit({ ...task })}><CalendarDays size={12} /></button>}{task.time ? <time>{task.time}</time> : <span>Any time</span>}</div>}
       <div className="plan-task-main">
         <button
           onClick={() =>
             task.object ? onOpen(task.object) : onEdit({ ...task })
           }
         >
-          {!compact && task.kind === "event" && <span className="plan-event-marker" title="Personal event" aria-hidden="true"><CalendarDays size={12} /></span>}
+          {!compact && task.kind === "event" && <button className="plan-event-marker" title="Edit personal event" aria-label={`Edit event ${task.title}`} onClick={() => onEdit({ ...task })}><CalendarDays size={12} /></button>}
           {!compact && task.time && <time>{task.time}</time>}
           {task.title}
         </button>
@@ -434,7 +434,7 @@ function PlanningWorkspace({
     </div>;
   }
   const taskDue = (task) => task.object?.type === "issue" && task.object.origin === configs.jira?.url ? feed.issues.find((issue) => issue.key === task.object.key)?.fields.duedate : null;
-  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={editTask} onMove={movePlanTask} onComplete={completePlanTask} due={taskDue(task)} compact={(view === "This Week" || view === "Calendar" && mode === "Week") && Boolean(task.date)} />;
+  const taskRow = (task) => <PlanTask key={task.id} task={task} tasks={plan.tasks} today={today} act={act} onOpen={onOpen} onEdit={editTask} onMove={movePlanTask} onComplete={completePlanTask} due={taskDue(task)} compact={(home || view === "This Week" || view === "Calendar" && mode === "Week") && Boolean(task.date)} />;
   function completePlanTask(task) {
     act(() => {
       const after = { ...task, done: !task.done };
@@ -508,28 +508,92 @@ function PlanningWorkspace({
     <time dateTime={task.date}>{task.date}</time>
     <button className="btn" onClick={() => act(() => scheduleTasks([task], today, `Brought ${task.title} to Today.`))}>Bring to Today</button>
   </div>;
+  const quickEntry = (<>
+      <form className="plan-quick" onSubmit={add}>
+        <Plus size={15} />
+        <input
+          ref={quickInput}
+          aria-describedby="plan-quick-target"
+          aria-label="Quick add personal work"
+          placeholder="Prepare retry review tomorrow 2pm"
+          value={quick}
+          onChange={(e) => setQuick(e.target.value)}
+        />
+        <select
+          aria-label="Personal item type"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+        >
+          <option value="task">Task</option>
+          <option value="event">Event</option>
+        </select>
+        <button className="btn" disabled={!quick.trim()}>
+          Add to plan
+        </button>
+      </form>
+      <div id="plan-quick-target" className={`plan-quick-target ${quickError ? "has-error" : ""}`} aria-live="polite">
+        {quickError || (quickPreview ? <>{quickPreview.linked ? "Linked Jira task" : kind === "event" ? "Personal event" : "Personal task"} · <b>{quickPreview.title}</b> · {quickPreview.existingDate ? `Move existing plan from ${quickPreview.existingDate} to ` : ""}{quickPreview.date || "Backlog"}{quickPreview.time && ` at ${quickPreview.time}`}</> : <>Adding to {view === "Backlog" ? "Backlog" : quickDate || date} · try “tomorrow 2pm” or a YYYY-MM-DD date</>)}
+      </div>
+      <details className="plan-boundary">
+        <summary><Link2 size={11} /> Personal plan · saved on this device</summary>
+        <p>Completing or scheduling items here does not change Jira status or due dates. Linked items open their original work context. Dooray calendars are not connected.</p>
+      </details>
+  </>);
+  const availableWork = (
+      <section className="live-inbox">
+        <h2>
+          Available work{" "}
+          <span className="muted">
+            {loading
+              ? "Loading…"
+              : `${feed.issues.length} ${feed.issues.length === 1 ? "issue" : "issues"} · ${feed.mrs.length} ${feed.mrs.length === 1 ? "review" : "reviews"}`}
+          </span>
+        </h2>
+        {weekly && <p className="form-note available-plan-date">Plan work for <b>{feedPlanDate}</b> · choose a date above or “Plan here” in a day.</p>}
+        {feed.issues.map((i) => (
+          <div className="inbox-work" key={i.key} data-linked-work={i.key}>
+            <button onClick={() => onOpen(issueObject(i))}>
+              <code>{i.key}</code> {i.fields.summary}
+            </button>
+            <span className="pill">{i.fields.status?.name}</span>
+            {i.fields.duedate && <span className="plan-due-badge">Jira due {i.fields.duedate}</span>}
+            {linkedPlan(issueObject(i))?.date > i.fields.duedate && i.fields.duedate && <span className="plan-deadline-warning">Planned after deadline</span>}
+            {planningAction(issueObject(i), false, feedPlanDate)}
+            {availableBacklogAction(issueObject(i))}
+          </div>
+        ))}
+        {feed.mrs.map((mr) => <div className="inbox-work available-review" key={`${mr.project_id}:${mr.iid}`} data-linked-work={`mr:${mr.project_id}:${mr.iid}`}>
+          <button onClick={() => onOpen(mrObject(mr))}><GitPullRequest size={13} /><code>!{mr.iid}</code> {mr.title}</button>
+          <span className="pill">Review requested</span>
+          {planningAction(mrObject(mr), false, feedPlanDate)}
+          {availableBacklogAction(mrObject(mr))}
+        </div>)}
+        {!configs.jira?.tokenConfigured && (
+          <button className="btn" onClick={onSettings}>
+            Connect Jira to see assigned issues
+          </button>
+        )}
+        <details className="plan-boundary available-work-details"><summary>About this work feed</summary><p>Shows up to 50 items per service. Search Projects and My Reviews for all work. Attention items use service data; no AI request runs automatically.</p></details>
+      </section>
+  );
   return (
-    <div ref={rootRef} className={`page daily-connected ${home ? "daily-command-center" : ""}`}>
+    <div ref={rootRef} className={`page daily-connected ${home ? "daily-command-center" : ""} ${attentionScope ? "daily-cockpit" : ""} ${home ? "home-cockpit" : view === "Today" ? "today-cockpit" : ""}`}>
 
       <header className="page-heading">
         <div>
           <span className="eyebrow">
-            {home ? "Daily command center" : "My work"}
+            {home ? "Workspace" : "My work"}
           </span>
-          <h1>{home ? "A clear start to your day" : view}</h1>
+          <h1>{home ? "Your workday" : view}</h1>
           <p>
             {new Date(date + "T12:00:00").toLocaleDateString(undefined, {
               weekday: "long",
               month: "long",
               day: "numeric",
             })}{" "}
-            · {date === today ? "Make room for what matters." : "Plan ahead with a clear view."}
+            {attentionScope ? "" : date === today ? " · Personal planning" : " · Planning ahead"}
           </p>
-          {home && <div className="daily-day-summary" aria-label="Daily summary">
-            <span><span className="summary-dot" />{remaining.length} planned {remaining.length === 1 ? "item" : "items"}</span>
-            {notificationPreferences.reviews !== false && <span><GitPullRequest size={12} />{!configs.gitlab?.tokenConfigured ? "GitLab not connected" : loading ? "Checking reviews…" : `${attentionReviews.length} ${attentionReviews.length === 1 ? "review" : "reviews"} requested`}</span>}
-            <span><CheckCircle2 size={12} />{completed.length} completed locally</span>
-          </div>}
+
 
         </div>
         <div className="inline">
@@ -601,35 +665,7 @@ function PlanningWorkspace({
           </select>
         )}
       </div>
-      <form className="plan-quick" onSubmit={add}>
-        <Plus size={15} />
-        <input
-          ref={quickInput}
-          aria-describedby="plan-quick-target"
-          aria-label="Quick add personal work"
-          placeholder="Prepare retry review tomorrow 2pm"
-          value={quick}
-          onChange={(e) => setQuick(e.target.value)}
-        />
-        <select
-          aria-label="Personal item type"
-          value={kind}
-          onChange={(e) => setKind(e.target.value)}
-        >
-          <option value="task">Task</option>
-          <option value="event">Event</option>
-        </select>
-        <button className="btn" disabled={!quick.trim()}>
-          Add to plan
-        </button>
-      </form>
-      <div id="plan-quick-target" className={`plan-quick-target ${quickError ? "has-error" : ""}`} aria-live="polite">
-        {quickError || (quickPreview ? <>{quickPreview.linked ? "Linked Jira task" : kind === "event" ? "Personal event" : "Personal task"} · <b>{quickPreview.title}</b> · {quickPreview.existingDate ? `Move existing plan from ${quickPreview.existingDate} to ` : ""}{quickPreview.date || "Backlog"}{quickPreview.time && ` at ${quickPreview.time}`}</> : <>Adding to {view === "Backlog" ? "Backlog" : quickDate || date} · try “tomorrow 2pm” or a YYYY-MM-DD date</>)}
-      </div>
-      <details className="plan-boundary">
-        <summary><Link2 size={11} /> Personal plan · saved on this device</summary>
-        <p>Completing or scheduling items here does not change Jira status or due dates. Linked items open their original work context. Dooray calendars are not connected.</p>
-      </details>
+      {!attentionScope && quickEntry}
       {error && !editing && (
         <div role="alert" className="connection-error">
           {error}
@@ -762,34 +798,30 @@ function PlanningWorkspace({
         </>
       ) : (
         <div className={`daily-columns ${showDigest ? "has-daily-digest" : ""}`}>
-          <aside className="daily-brief">
+          <aside className="daily-brief" aria-label="Work queue">
+            <div className="attention-content">
             <h2>
-              Needs your attention{" "}
+              {attentionScope ? "Work queue" : "Needs your attention"}{" "}
               <span className="pill">{attentionReviews.length + attentionDue.length}</span>
             </h2>
-            <p className="form-note">{showReviewAttention && showDeadlineAttention ? "Reviews waiting on you and deadlines coming up." : showReviewAttention ? "Reviews waiting on you." : showDeadlineAttention ? "Deadlines coming up." : "Attention notifications are off. Your available work stays below."}</p>
+            <p className="form-note queue-description">{showReviewAttention && showDeadlineAttention ? "Reviews waiting on you and deadlines coming up." : showReviewAttention ? "Reviews waiting on you." : showDeadlineAttention ? "Deadlines coming up." : "Attention notifications are off. Your available work stays below."}</p>
             {attentionReviews.slice(0, expandedAttention ? undefined : 5).map((m) => (
-              <div key={m.id} className={`attention-row ${home && m === nextReview ? "attention-recommended" : ""}`}>
-                {home && m === nextReview && <span className="attention-kicker">A good place to start <ArrowUpRight size={12} /></span>}
-                <GitPullRequest size={16} />
-                <button onClick={() => onOpen(mrObject(m))}>
-                  <b>
-                    !{m.iid} {m.title}
-                  </b>
-                  <small>Review requested · {m.author?.name || "GitLab"}</small>
+              <div key={m.id} className={`attention-row review-queue-row ${attentionScope && m === nextReview ? "attention-recommended" : ""}`}>
+                <span className="queue-source review-source" role="img" aria-label="GitLab"><GitPullRequest size={15} /></span>
+                <button className="queue-work-title" onClick={() => onOpen(mrObject(m))}>
+                  <span className="queue-identity"><code>!{m.iid}</code><b>{m.title}</b></span>
+                  <small><span className="queue-status">Review requested</span><span>{m.author?.name || "GitLab"}</span></small>
                 </button>
-                {home && m === nextReview && <button className="btn primary attention-review" onClick={() => onOpen(mrObject(m))}>Review changes <ArrowUpRight size={12} /></button>}
+                {attentionScope && m === nextReview && <button className="btn primary attention-review" onClick={() => onOpen(mrObject(m))}>Review changes <ArrowUpRight size={12} /></button>}
                 {planningAction(mrObject(m), true)}
               </div>
             ))}
             {attentionDue.slice(0, expandedAttention ? undefined : 5).map((i) => (
-              <div key={i.key} className={`attention-row ${home && i === nextIssue ? "attention-recommended" : ""}`}>
-                {home && i === nextIssue && <span className="attention-kicker">Coming up next <ArrowUpRight size={12} /></span>}
-                <button onClick={() => onOpen(issueObject(i))}>
-                  <b>
-                    {i.key} {i.fields.summary}
-                  </b>
-                  <small>{i.fields.duedate < today ? "Overdue" : "Jira due"} {i.fields.duedate}</small>
+              <div key={i.key} className={`attention-row deadline-queue-row ${i.fields.duedate < today ? "is-overdue" : ""} ${attentionScope && i === nextIssue ? "attention-recommended" : ""}`}>
+                <span className="queue-source issue-source" role="img" aria-label="Jira"><CalendarDays size={15} /></span>
+                <button className="queue-work-title" onClick={() => onOpen(issueObject(i))}>
+                  <span className="queue-identity"><code>{i.key}</code><b>{i.fields.summary}</b></span>
+                  <small><span className="queue-status">{i.fields.duedate < today ? "Overdue" : "Jira due"} {i.fields.duedate}</span><span>{i.fields.status?.name || "Jira issue"}</span></small>
                 </button>
                 {planningAction(issueObject(i), true)}
               </div>
@@ -802,10 +834,13 @@ function PlanningWorkspace({
                 <p>{connected ? showReviewAttention || showDeadlineAttention ? "No urgent items in enabled attention categories. Your plan is ready when you are." : "Find issues and reviews in Available work, Projects and My Reviews." : "Connect your tools to surface review requests and upcoming deadlines here."}</p>
               </div>
             )}
+            </div>
+            {home && availableWork}
           </aside>
           <section className="daily-plan">
+            <div className="agenda-content" role="region" aria-label="Personal agenda">
             <h2>
-              {home
+              {attentionScope ? "Personal agenda" : home
                 ? date === today
                   ? "Today"
                   : date
@@ -816,6 +851,11 @@ function PlanningWorkspace({
                 {tasks.filter((t) => !t.done).length} remaining
               </span>
             </h2>
+          {attentionScope && <div className="daily-day-summary" aria-label="Daily summary">
+            <span><span className="summary-dot" />{remaining.length} planned {remaining.length === 1 ? "item" : "items"}</span>
+            <span><CheckCircle2 size={12} />{completed.length} completed locally</span>
+          </div>}
+            {attentionScope && quickEntry}
             {view === "Backlog" && <div className="backlog-toolbar">
               <input type="search" aria-label="Search backlog" placeholder="Find a task or issue…" value={backlogQuery} onChange={(event) => setBacklogQuery(event.target.value)} />
               <label className="backlog-completed"><input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} />Show completed{backlogCompleted > 0 && ` (${backlogCompleted})`}</label>
@@ -826,12 +866,12 @@ function PlanningWorkspace({
             ) : (
               <div className="plan-empty">
                 <div className="plan-empty-icon"><CalendarDays size={22} strokeWidth={1.5} /></div>
-                <h3>{view === "Backlog" && backlogQuery.trim() ? "No matching unscheduled work" : view === "Backlog" ? "A place for your next ideas" : "Start with one thing"}</h3>
-                <p>{view === "Backlog" && backlogQuery.trim() ? "Try another title or issue key, or clear your search to see the rest of your backlog." : connected ? "Bring an issue or review into your day, or make space for work of your own." : "Add a task now. Connect Jira and GitLab when you’re ready to bring issues and reviews into the same view."}</p>
+                <h3>{view === "Backlog" && backlogQuery.trim() ? "No matching unscheduled work" : view === "Backlog" ? "A place for your next ideas" : attentionScope ? "No items planned" : "Start with one thing"}</h3>
+                <p>{view === "Backlog" && backlogQuery.trim() ? "Try another title or issue key, or clear your search to see the rest of your backlog." : connected ? "Add your own work, or plan an issue or review from the queue." : "Add a task now. Connect Jira and GitLab when you’re ready to bring issues and reviews into the same view."}</p>
                 {view === "Backlog" && backlogQuery.trim() && <button className="btn" onClick={() => setBacklogQuery("")}>Clear backlog search</button>}
                 <button className="btn primary" onClick={() => quickInput.current?.focus()}><Plus size={13} /> Plan your first item</button>
                 {!connected && <button className="quiet-button" onClick={onSettings}>Connect your tools <ArrowUpRight size={12} /></button>}
-                <small>Try “Review retry policy tomorrow 2pm”</small>
+                {!attentionScope && <small>Try “Review retry policy tomorrow 2pm”</small>}
               </div>
             )}
             {view !== "Backlog" && tasks.some((t) => !t.done && t.kind !== "event") && (
@@ -844,45 +884,13 @@ function PlanningWorkspace({
                 <small>Unfinished tasks only · events keep their date</small>
               </div>
             )}
+            </div>
+            {attentionScope && !home && availableWork}
+            {showDigest && <div className="daily-digest"><AssistantBrief onOpen={onOpen} onNavigate={onNavigate} configVersion={configVersion} /></div>}
           </section>
-          {showDigest && <div className="daily-digest"><AssistantBrief onOpen={onOpen} onNavigate={onNavigate} configVersion={configVersion} /></div>}
         </div>
       )}
-      <section className="live-inbox">
-        <h2>
-          Available work{" "}
-          <span className="muted">
-            {loading
-              ? "Loading…"
-              : `${feed.issues.length} issues · ${feed.mrs.length} reviews`}
-          </span>
-        </h2>
-        {weekly && <p className="form-note available-plan-date">Plan work for <b>{feedPlanDate}</b> · choose a date above or “Plan here” in a day.</p>}
-        {feed.issues.map((i) => (
-          <div className="inbox-work" key={i.key} data-linked-work={i.key}>
-            <button onClick={() => onOpen(issueObject(i))}>
-              <code>{i.key}</code> {i.fields.summary}
-            </button>
-            <span className="pill">{i.fields.status?.name}</span>
-            {i.fields.duedate && <span className="plan-due-badge">Jira due {i.fields.duedate}</span>}
-            {linkedPlan(issueObject(i))?.date > i.fields.duedate && i.fields.duedate && <span className="plan-deadline-warning">Planned after deadline</span>}
-            {planningAction(issueObject(i), false, feedPlanDate)}
-            {availableBacklogAction(issueObject(i))}
-          </div>
-        ))}
-        {feed.mrs.map((mr) => <div className="inbox-work available-review" key={`${mr.project_id}:${mr.iid}`} data-linked-work={`mr:${mr.project_id}:${mr.iid}`}>
-          <button onClick={() => onOpen(mrObject(mr))}><GitPullRequest size={13} /><code>!{mr.iid}</code> {mr.title}</button>
-          <span className="pill">Review requested</span>
-          {planningAction(mrObject(mr), false, feedPlanDate)}
-          {availableBacklogAction(mrObject(mr))}
-        </div>)}
-        {!configs.jira?.tokenConfigured && (
-          <button className="btn" onClick={onSettings}>
-            Connect Jira to see assigned issues
-          </button>
-        )}
-        <details className="plan-boundary available-work-details"><summary>About this work feed</summary><p>Shows up to 50 items per service. Search Projects and My Reviews for all work. Attention items use service data; no AI request runs automatically.</p></details>
-      </section>
+      {!attentionScope && availableWork}
       {editing && (
         <Dialog.Root open onOpenChange={(v) => !v && closeEditor()}>
           <Dialog.Portal>

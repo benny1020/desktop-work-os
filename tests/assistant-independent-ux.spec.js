@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import {installConnected} from './fixtures/connected.mjs';
 const send=page=>page.getByRole('button',{name:'Send to Claude',exact:true}).click();
 
@@ -25,12 +26,14 @@ test('Replacing a token on the same endpoint isolates prior assistant conversati
 test('Stored proposal cannot move a task completed while assistant is closed',async({page})=>{
  await installConnected(page);
  await page.getByLabel('Quick add personal work').fill('Verify deployment');await page.getByRole('button',{name:'Add to plan',exact:true}).click();
+ await revealPlanningActions(page, 'Verify deployment');
  const date=await page.getByLabel('Date for Verify deployment',{exact:true}).inputValue();
  await page.keyboard.press('Meta+j');await page.getByLabel('Ask Claude').fill('Move Verify deployment tomorrow');await send(page);
  await expect(page.getByRole('button',{name:'Confirm schedule'})).toBeVisible();await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Complete Verify deployment',exact:true}).click();
  await page.keyboard.press('Meta+j');await page.getByRole('button',{name:'Confirm schedule'}).click();
  await expect(page.getByRole('alert')).toContainText('changed since the suggestion');
+ await revealPlanningActions(page, 'Verify deployment');
  await expect(page.getByLabel('Date for Verify deployment',{exact:true})).toHaveValue(date);
  expect(await page.evaluate(()=>window.__fixture.calls.filter(c=>c.action==='claude.chat').length)).toBe(0);
 });

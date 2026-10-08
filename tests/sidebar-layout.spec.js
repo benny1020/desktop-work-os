@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { installConnected } from './fixtures/connected.mjs';
 
@@ -24,9 +25,9 @@ test('Sidebar minimizes, hides, restores the last visible layout and remembers i
   await page.getByLabel('Show sidebar',{exact:true}).click();
   await expect(page.locator('.sidebar')).toHaveCSS('width','66px');
   await choose(page,'Expanded');
-  await expect(page.locator('.sidebar')).toHaveCSS('width','222px');
+  await expect(page.locator('.sidebar')).toHaveCSS('width','200px');
   await page.reload();
-  await expect(page.locator('.sidebar')).toHaveCSS('width','222px');
+  await expect(page.locator('.sidebar')).toHaveCSS('width','200px');
 });
 
 test('Sidebar options dismiss by keyboard; a narrow dark hidden shell keeps recovery and search usable', async ({page}) => {
@@ -55,6 +56,7 @@ test('Hiding navigation from a review preview preserves selected code, focus and
   await installConnected(page);
   await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();
   await page.getByRole('button',{name:'Open component PaymentService.ts',exact:true}).click();
+  await openReviewComposer(page);
   const input=page.getByLabel('Diagram review comment');
   await input.fill('Keep my review while I focus on the code.');
   await page.keyboard.press('Meta+Backslash');

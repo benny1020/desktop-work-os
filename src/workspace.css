@@ -431,6 +431,26 @@
   color: var(--secondary);
   font-size: 10px;
 }
+.mr-context-preview .object-panel-header {
+  min-height: 38px;
+  padding: 4px 12px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.mr-context-preview .object-panel-header > .review-context-identity {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.mr-context-preview .object-panel-header > span { font-size: 11px; }
+.mr-context-preview .object-panel-header .icon-button { width: 28px; height: 28px; }
+.mr-context-preview .object-panel-header .btn { min-height: 26px; padding: 4px 8px; font-size: 11px; }
+.context-mr > .mr-linked-context { padding: 4px 12px; gap: 6px; min-height: 30px; font-size: 11px; flex-shrink: 0; }
+.context-mr > .mr-linked-context .linked-chip { padding: 3px 8px; line-height: 16px; font-size: 11px; min-height: 24px; }
+.context-mr > .mr-linked-context .plan-object-action .btn { min-height: 24px; font-size: 11px; padding: 2px 8px; }
+.context-mr > .mr-linked-context .plan-object-action > .quiet-button { min-height: 24px; }
 .object-panel .live-inspector {
   width: 100%;
   flex: 1;

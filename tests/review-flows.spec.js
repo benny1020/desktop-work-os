@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { installConnected, snapshot } from './fixtures/connected.mjs';
 import { parseDiff } from '../src/lib/review-model.mjs';
@@ -36,6 +37,7 @@ async function installFlows(page, files, { guide } = {}) {
     };
   }, { files, guide });
   await page.locator('.attention-row').getByRole('button', { name: /Payment retry review/ }).click();
+  await openReviewComposer(page);
   await expect(page.getByLabel('Diagram review comment')).toBeVisible();
 }
 async function choose(page, query) {
@@ -93,6 +95,7 @@ test('Shared files keep one canonical draft and viewed count while flow selectio
   await choose(page, 'orders'); await selectFile(page, sharedPath);
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 2', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('One shared-file observation.');
   await page.getByLabel(`Mark ${sharedPath} as viewed`).check();
   await choose(page, 'payments'); await selectFile(page, sharedPath);
@@ -114,6 +117,7 @@ test('A validated checkpoint from a retained guide reveals another flow and appe
   await installFlows(page, groupedFiles(), { guide });
   await choose(page, 'payments'); await selectFile(page, target);
   await page.getByRole('button', { name: 'Select new line 3', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('My existing note.');
   await choose(page, 'orders');
   await page.getByRole('button', { name: 'All checks', exact: true }).click();
@@ -136,6 +140,7 @@ test('The 125th changed file remains searchable and deferred local diff failure 
   await choose(page, 'Change124.ts'); await selectFile(page, target);
   await expect(page.getByRole('progressbar', { name: 'Files viewed' })).toHaveAttribute('max', '125');
   await expect(page.getByRole('button', { name: 'Retry flow code', exact: true })).toBeVisible();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep this note during local diff recovery.');
   await page.evaluate(() => { window.__flowDiffFailure = ''; });
   await page.getByRole('button', { name: 'Retry flow code', exact: true }).click();
@@ -246,6 +251,7 @@ test('A delayed local diff from an old base cannot overwrite the refreshed same-
     newPatch: file(target, 'export const currentRevision = true;\n') });
   await choose(page, 'payments'); await selectFile(page, target);
   await page.waitForFunction(() => Boolean(window.finishOldFlowDiff));
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep the canonical file note.');
   await page.evaluate(() => { window.flowNewRevision = true; });
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();

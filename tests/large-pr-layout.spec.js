@@ -10,7 +10,7 @@ const layouts = [
 async function mapGeometry(page) {
   return page.locator('.visual-map-panel').evaluate(panel => {
     const box = element => { const r = element.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
-    return { panel: box(panel), progress: box(panel.querySelector('.review-file-progress')),
+    return { panel: box(panel), progress: box(document.querySelector('.review-file-progress')),
       controls: box(panel.querySelector('.review-diagram-controls')), selected: box(panel.querySelector('.diagram-node.selected')) };
   });
 }
@@ -28,7 +28,10 @@ for (const layout of layouts) {
       const scale = label.getScreenCTM().a;
       return parseFloat(getComputedStyle(label).fontSize) * scale;
     });
-    expect(renderedFont).toBeGreaterThanOrEqual(7);
+    expect(renderedFont).toBeGreaterThanOrEqual(12);
+    const callFont = await page.locator('.sequence-svg .sequence-step .node-meta').first().evaluate(label => parseFloat(getComputedStyle(label).fontSize) * label.getScreenCTM().a);
+    expect(callFont).toBeGreaterThanOrEqual(12);
+    await expect(page.locator('.sequence-svg .node-label').first()).toContainText('PaymentWebhookController');
     await expect(page.locator('.sequence-svg .sequence-step')).toBeInViewport();
     await page.getByLabel('Next interaction', { exact: true }).click();
     await expect(page.getByLabel('Sequence interaction', { exact: true })).toHaveValue('1');
@@ -58,7 +61,8 @@ for (const layout of layouts) for (const theme of ['light', 'dark']) {
       return geometry.selected.top >= geometry.controls.bottom - 2 && geometry.selected.bottom <= geometry.panel.bottom + 2;
     }).toBe(true);
     const beforeZoom = await mapGeometry(page);
-    expect(beforeZoom.progress.top).toBeGreaterThanOrEqual(beforeZoom.panel.top - 1);
+    expect(beforeZoom.progress.bottom).toBeLessThanOrEqual(beforeZoom.panel.top + 1);
+    await expect(page.getByRole('button', { name: 'Next unreviewed', exact: true })).toBeInViewport();
     expect(beforeZoom.controls.top).toBeGreaterThanOrEqual(beforeZoom.progress.bottom - 1);
     await page.getByLabel('Zoom in diagram', { exact: true }).click();
     await expect(page.getByLabel('Zoom out diagram', { exact: true })).toBeInViewport();

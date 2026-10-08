@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
 import { X, Search, Plus } from "lucide-react";
@@ -46,6 +46,7 @@ export default function ConnectedCommands({
   const version = useRef(0),
     create = mode !== "search";
   const commandPanel = useRef(null), titleInput = useRef(null), searches = useRef([]);
+  const restoredScope = useRef(null);
   const launchPoint = useRef(document.activeElement);
   const scope = draftScope(kind, configs);
   function editDraft(changes) {
@@ -53,11 +54,14 @@ export default function ConnectedCommands({
     createDrafts.set(scope, next);
     setTitle(next.title); setBody(next.body); setSuccess("");
   }
-  useEffect(() => {
+  useLayoutEffect(() => {
     if ((!configured && kind !== "task") || !create) return;
+    if (restoredScope.current === scope) return;
+    restoredScope.current = scope;
     const saved = createDrafts.get(scope);
     setTitle(saved?.title || ""); setBody(saved?.body || "");
-    requestAnimationFrame(() => titleInput.current?.focus());
+    // Restore before the fields can be used. A deferred focus can steal body typing.
+    titleInput.current?.focus();
   }, [scope, configured, create]);
   async function searchSource(source, ticket) {
     const [label, fetch, convert] = source;

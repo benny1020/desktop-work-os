@@ -20,6 +20,7 @@ test("Morning: schedule, tasks, brief, and one-click review", async ({
   await expect(
     page.getByRole("heading", { name: "Fix order status mapping" }),
   ).toBeVisible();
+  await page.locator('.review-evidence-info > summary').click();
   await expect(
     page.getByText("Architecture layers", { exact: true }),
   ).toBeVisible();

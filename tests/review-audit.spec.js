@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from "@playwright/test";
 import { installConnected, snapshot } from "./fixtures/connected.mjs";
 
@@ -14,11 +15,13 @@ test("Switching a removed diff line to head source cannot post against the old l
   });
   await openReview(page);
   await page.getByRole("button", { name: "Select old line 5", exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("This applies to the deleted implementation.");
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await expect(page.locator(".code-provenance")).not.toContainText("Selected old line");
   await expect(page.getByLabel("Diagram review comment")).toHaveValue("");
   await page.getByRole("button", { name: "Select source line 5", exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Check the current implementation.");
   await page.getByRole("button", { name: "Post to GitLab", exact: true }).click();
   const call = await page.evaluate(() => window.__fixture.calls.find((c) => c.action === "gitlab.comment"));
@@ -34,6 +37,7 @@ test("Invalid persisted draft shape cannot crash an MR preview", async ({ page }
     localStorage.setItem(`orbit-visual-drafts:live:${mr.web_url}:${mr.iid}:${mr.diff_refs.head_sha}`, "null");
   }, snapshot);
   await openReview(page);
+  await openReviewComposer(page);
   await expect(page.getByLabel("Diagram review comment")).toBeVisible();
 });
 
@@ -47,6 +51,7 @@ test("Full local storage keeps the review usable and reports an unsaved draft", 
     };
   });
   await openReview(page);
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Keep this draft visible.");
   await expect(page.getByLabel("Diagram review comment")).toHaveValue("Keep this draft visible.");
   await expect(page.getByRole("alert")).toContainText("Draft could not be saved");
@@ -56,6 +61,7 @@ test("Short narrow review keeps comment, failed approval, and retry reachable", 
   await page.setViewportSize({ width: 1000, height: 650 });
   await installConnected(page); await openReview(page);
   await page.getByRole("button", { name: "Open component PaymentService.ts", exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Check retry bounds.");
   await page.getByRole("button", { name: "Post to GitLab", exact: true }).click();
   await page.evaluate(() => window.__fixture.setFailure("gitlab.approve"));
@@ -87,6 +93,7 @@ test("Changing the base revision isolates old-line drafts and returning restores
   await page.getByRole("button", { name: /PAY-382 Payment retry review/ }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Select source line 2", exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("This applies only to base-one.");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByLabel("Diagram review comment")).toHaveValue("This applies only to base-one.");
@@ -101,6 +108,7 @@ test("Changing the base revision isolates old-line drafts and returning restores
   await expect(page.getByRole("status").filter({ hasText: "Diff base changed" })).toBeVisible();
   await page.getByRole("button", { name: "Select source line 2", exact: true }).click();
   await expect(page.getByLabel("Diagram review comment")).toHaveValue("");
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("This applies only to base-two.");
   await page.evaluate(() => window.__baseRevision = "base-one");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();

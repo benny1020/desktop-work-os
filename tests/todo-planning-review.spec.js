@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { revealPlanningActions } from "./fixtures/planning-controls.mjs";
 import { installConnected } from "./fixtures/connected.mjs";
 
 test.beforeEach(async ({ page }) => {
@@ -62,6 +63,7 @@ test("Undo deletion keeps a replacement linked task instead of creating an unfin
   await page.getByLabel("Edit plan for PAY-382 Payment retry implementation", { exact: true }).click();
   await page.getByRole("button", { name: "Delete personal work", exact: true }).click();
   await issueRow(page).getByRole("button", { name: "Add to Today", exact: true }).click();
+  await revealPlanningActions(page, 'PAY-382 Payment retry implementation');
   await page.getByLabel("Time for PAY-382 Payment retry implementation", { exact: true }).fill("14:30");
   const replacement = (await stored(page))[0];
   await page.getByRole("button", { name: "Undo removal", exact: true }).click();
@@ -122,13 +124,16 @@ test("Calendar Plan here targets a specific adjacent month day for available iss
 test("Row Tomorrow provides guarded undo and keeps edits made after the move", async ({ page }) => {
   const today = await page.getByLabel("Planning date").inputValue();
   await add(page, "Review retry semantics");
+  await revealPlanningActions(page, 'Review retry semantics');
   await page.getByLabel("Tomorrow Review retry semantics", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Undo schedule move", exact: true })).toBeVisible();
   await expect(page.locator(".plan-notice")).toContainText("Moved Review retry semantics");
   await page.getByRole("button", { name: "Undo schedule move", exact: true }).click();
   expect((await stored(page))[0].date).toBe(today);
+  await revealPlanningActions(page, 'Review retry semantics');
   await page.getByLabel("Tomorrow Review retry semantics", { exact: true }).click();
   await page.getByLabel("Next planning period").click();
+  await revealPlanningActions(page, 'Review retry semantics');
   await page.getByLabel("Time for Review retry semantics", { exact: true }).fill("14:30");
   const changed = (await stored(page))[0];
   await page.getByRole("button", { name: "Undo schedule move", exact: true }).click();
@@ -142,7 +147,8 @@ test("Chronological drag explains why differently timed tasks cannot be reordere
   await page.locator(".plan-task").filter({ hasText: "Untimed release checklist" }).dragTo(page.locator(".plan-task").filter({ hasText: "Morning retry review" }));
   expect(await stored(page)).toEqual(before);
   await expect(page.locator(".plan-notice")).toContainText("Timed items stay in chronological order");
-  await expect(page.locator(".plan-task-main > button")).toHaveText(["09:00Morning retry review", "Untimed release checklist"]);
+  await expect(page.locator(".plan-task-main > button")).toHaveText(["Morning retry review", "Untimed release checklist"]);
+  await expect(page.locator(".plan-task").first().locator(".plan-task-compact-meta time")).toHaveText("09:00");
 });
 
 test("An exact loaded Jira key quick entry creates one linked task and reschedules it with guarded undo", async ({ page }) => {

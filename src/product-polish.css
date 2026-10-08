@@ -9,8 +9,13 @@ button:not(:disabled) { transition:background-color 120ms ease, border-color 120
 .sidebar > nav { overflow-y:auto; min-height:80px; flex:1 1 auto; scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent; }
 .sidebar > :not(nav) { flex-shrink:0; }
 .brand-mark { width:32px; height:34px; border-radius:8px; background:#235f55; }
-.workspace-switcher { padding-bottom:17px; }
-.workspace-switcher b { font-size:23px; letter-spacing:-1px; font-weight:680; }
+.workspace-switcher { padding-bottom:20px; }
+.workspace-switcher b { font-size:21px; letter-spacing:-.8px; font-weight:680; }
+.workspace-switcher small { font-size:11px; margin-top:3px; }
+.sidebar-label { padding-bottom:10px; }
+.sidebar .connections-status { margin:0 5px 10px; padding-bottom:12px; }
+.sidebar .connections-status > button { font-size:11px; min-height:28px; }
+.sidebar-bottom { padding-top:18px; }
 .nav-item { position:relative; }
 .nav-item.active::before { content:""; position:absolute; left:0; height:16px; width:2px; background:var(--accent); border-radius:2px; }
 .topbar { box-shadow:0 1px 0 var(--line); border-bottom:0; }
@@ -18,6 +23,14 @@ button:not(:disabled) { transition:background-color 120ms ease, border-color 120
 .topbar .breadcrumb > b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .topbar .breadcrumb > svg,.topbar .breadcrumb > span { flex-shrink:0; }
 .topbar-right { flex-shrink:0; }
+.global-command-entry { display:flex; align-items:center; gap:9px; min-height:30px; width:228px; padding:0 10px; border:1px solid var(--line-strong); border-radius:5px; background:var(--surface); color:var(--secondary); text-align:left; font-size:11px; }
+.global-command-entry > span { flex:1; }
+.global-command-entry > kbd { border:0; padding:0; }
+.global-command-entry:hover { border-color:var(--secondary); background:var(--hover); }
+@media(max-width:1280px) {
+  .global-command-entry { width:30px; min-width:30px; padding:0; justify-content:center; border-color:transparent; background:transparent; }
+  .global-command-entry > span,.global-command-entry > kbd { display:none; }
+}
 .sidebar-controls { display:flex; align-items:center; position:relative; flex-shrink:0; gap:1px; }
 .sidebar-controls .sidebar-options-trigger { width:28px; min-width:28px; }
 .sidebar-options { position:absolute; top:35px; left:0; width:210px; padding:8px; border:1px solid var(--line-strong); border-radius:6px; background:var(--bg); box-shadow:var(--shadow); z-index:20; }
@@ -57,6 +70,62 @@ button:not(:disabled) { transition:background-color 120ms ease, border-color 120
 .statusbar { font-size:10px; height:29px; }
 .statusbar button { font-size:10px; color:var(--secondary); }
 .statusbar button:hover { color:var(--accent); }
+
+/* The sample front door shares the work queue / agenda hierarchy of connected Home. */
+.demo-cockpit { padding:24px; }
+.demo-cockpit .home-greeting { margin-bottom:22px; gap:16px; }
+.demo-cockpit .home-greeting h1 { font-size:23px; line-height:1.25; }
+.demo-cockpit .home-greeting .date-label { margin-bottom:5px; font-size:11px; }
+.demo-cockpit .home-grid { grid-template-columns:minmax(0,1fr) 370px; gap:28px; align-items:start; }
+.demo-cockpit .context-column { grid-column:1; grid-row:1; min-width:0; display:block; }
+.demo-cockpit .daily-column { grid-column:2; grid-row:1; min-width:0; border-left:1px solid var(--line); padding-left:24px; }
+.demo-cockpit .home-work-queue { border:0; background:transparent; padding:0; }
+.demo-cockpit .home-work-queue .brief-header { padding:0 0 12px; gap:9px; border-bottom:1px solid var(--line); }
+.demo-cockpit .home-work-queue .brief-header .spark-icon { display:none; }
+.demo-cockpit .home-work-queue .brief-header strong { font-size:14px; font-weight:650; }
+.demo-cockpit .home-work-queue .new-label { font-size:11px; background:transparent; color:var(--secondary); }
+.demo-cockpit .home-work-queue .brief-item { margin:0; padding:17px 0; gap:12px; }
+.demo-cockpit .home-work-queue .brief-item-icon { width:24px; height:28px; background:none; }
+.demo-cockpit .home-work-queue .brief-item > div { flex:1; min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"title actions" "meta actions"; gap:5px 16px; align-items:center; }
+.demo-cockpit .home-work-queue .brief-item .text-link { grid-area:title; font-size:13px; font-weight:550; text-align:left; justify-self:start; }
+.demo-cockpit .home-work-queue .brief-item p { grid-area:meta; margin:0; font-size:11px; line-height:1.6; color:var(--secondary); }
+.demo-cockpit .home-work-queue .brief-actions { grid-area:actions; margin:0; display:flex; gap:6px; flex-direction:column; align-items:stretch; }
+.demo-cockpit .home-work-queue .brief-actions .btn { min-height:28px; font-size:11px; white-space:nowrap; }
+.demo-cockpit .home-work-queue .brief-actions > button:not(.btn) { font-size:11px; min-height:24px; }
+.demo-cockpit .work-thread { display:block; margin:26px 0 0; padding:17px 0; border:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
+.demo-cockpit .work-thread-intro > small { font-size:11px; margin-bottom:9px; }
+.demo-cockpit .work-thread-title { font-size:14px; line-height:1.5; }
+.demo-cockpit .work-thread-title > span { font-size:11px; }
+.demo-cockpit .work-trail { gap:6px; margin-top:12px; flex-wrap:wrap; }
+.demo-cockpit .work-trail button { min-height:30px; padding:5px 9px; }
+.demo-cockpit .section-title { margin-bottom:12px; }
+.demo-cockpit .section-title h2 { font-size:14px; }
+.demo-cockpit .task-row { min-height:60px; padding-block:10px; gap:6px; }
+.demo-cockpit .task-line { display:block; }
+.demo-cockpit .task-title { display:block; font-size:13px; line-height:1.5; margin-top:3px; }
+.demo-cockpit .task-meta { font-size:11px; flex-wrap:wrap; gap:4px; margin-top:5px; }
+.demo-cockpit .event-row { padding-block:12px; }
+.demo-cockpit .event-text strong { font-size:13px; }
+.demo-cockpit .event-attendees { display:none; }
+.demo-cockpit .event-text > span,.demo-cockpit .agenda-label { font-size:11px; }
+.demo-cockpit .focus-block { margin-block:10px; padding:10px; }
+.demo-cockpit .recent-heading { margin-top:24px; }
+.demo-cockpit .recent-links button { padding-block:12px; }
+.demo-cockpit .home-quiet-brief { margin-top:24px; padding-top:15px; border-top:1px solid var(--line); }
+.demo-cockpit .home-quiet-brief > div { display:flex; align-items:center; gap:8px; }
+.demo-cockpit .home-quiet-brief h2 { font-size:13px; }
+.demo-cockpit .home-quiet-brief p { font-size:11px; line-height:1.7; color:var(--secondary); margin:9px 0; }
+@media(max-width:1150px) {
+  .demo-cockpit .home-grid { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .demo-cockpit .home-grid .context-column { display:contents; }
+  .demo-cockpit .home-work-queue { grid-column:1; grid-row:1; }
+  .demo-cockpit .daily-column { grid-column:1; grid-row:2; padding:0; border-left:0; }
+  .demo-cockpit .work-thread { grid-column:1; grid-row:3; margin-top:0; }
+  .demo-cockpit .recent-heading { grid-column:1; grid-row:4; margin:0; }
+  .demo-cockpit .recent-links { grid-column:1; grid-row:5; }
+  .demo-cockpit .home-quiet-brief { grid-column:1; grid-row:6; margin-top:0; }
+  .demo-cockpit .home-work-queue .brief-item > div { column-gap:10px; }
+}
 .object-content-grid > .live-assistant { position:relative; inset:auto; box-shadow:none; min-width:0; height:100%; }
 .guide-overlay { position:fixed; inset:0; z-index:120; background:#101d2859; backdrop-filter:blur(3px); }
 .product-guide { position:fixed; z-index:121; top:50%; left:50%; transform:translate(-50%,-50%); width:min(580px,calc(100vw - 40px)); max-height:calc(100dvh - 48px); overflow:auto; background:var(--bg); border:1px solid var(--line-strong); border-radius:12px; padding:23px; box-shadow:0 22px 90px #10252a40; }

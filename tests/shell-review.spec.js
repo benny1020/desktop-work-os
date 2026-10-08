@@ -13,7 +13,7 @@ test('Utility popovers focus their content, dismiss outside and restore trigger 
   await expect(trigger).toHaveAttribute('aria-expanded','false');
   await page.getByLabel('Recently viewed',{exact:true}).click();
   await expect(page.locator('.recent-popover')).toBeFocused();
-  await page.getByRole('heading',{name:'Good morning, Alex.'}).click();
+  await page.getByRole('heading',{name:'Your day',exact:false}).click();
   await expect(page.locator('.recent-popover')).toHaveCount(0);
   await page.getByLabel('Workspace switcher').click();
   await expect(page.getByRole('button',{name:'Workspace settings',exact:true})).toBeFocused();

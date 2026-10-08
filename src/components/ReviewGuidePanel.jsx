@@ -6,8 +6,9 @@ export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guid
   const [scope,setScope]=useState(flowPaths ? 'flow' : 'all');
   useEffect(() => { if (!flowPaths && scope === 'flow') setScope('all'); }, [flowPaths, scope]);
   const body = useRef(null);
+  const railToggle = useRef(null);
   useEffect(() => {
-    if (!activeFinding || !body.current) return;
+    if (collapsed || !activeFinding || !body.current) return;
     const panel = body.current;
     const reveal = () => {
       const item = panel.querySelector('.ai-checkpoint.active');
@@ -20,12 +21,16 @@ export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guid
     const observer = new ResizeObserver(reveal);
     observer.observe(panel);
     return () => observer.disconnect();
-  }, [activeFinding, scope]);
+  }, [activeFinding, scope, collapsed]);
   const findings=guide?.findings || [];
   const visible=findings.filter(f=>scope==='all'||(scope==='flow' ? flowPaths?.includes(f.path) : f.path===selectedPath));
   const reviewed=findings.filter(f=>['checked','dismissed'].includes(decisions[findingKey(f)])).length;
-  return <aside className="ai-review-rail" aria-label="AI review alongside code">
-    <div className="ai-rail-heading"><Sparkles size={16}/><h2>AI review</h2><span className="pill">{busy ? "Analyzing…" : "Suggestions"}</span>{canCollapse && <button className="icon-button" aria-label={collapsed ? "Expand AI review" : "Collapse AI review"} aria-expanded={!collapsed} onClick={onToggle}>{collapsed ? <ChevronDown size={15}/> : <ChevronUp size={15}/>}</button>}</div>
+  return <aside className="ai-review-rail" aria-label="AI review alongside code" onKeyDown={event => {
+    if (event.key === 'Escape' && canCollapse && !collapsed) {
+      event.preventDefault(); event.stopPropagation(); onToggle?.(); railToggle.current?.focus();
+    }
+  }}>
+    <div className="ai-rail-heading"><Sparkles size={16}/><h2>AI review</h2><span className="pill">{busy ? "Analyzing…" : guide ? `${findings.length} checks` : "Optional guide"}</span>{canCollapse && <button ref={railToggle} className="icon-button" aria-label={collapsed ? "Expand AI review" : "Collapse AI review"} aria-expanded={!collapsed} onClick={onToggle}>{collapsed ? <ChevronDown size={15}/> : <ChevronUp size={15}/>}</button>}</div>
     <div className="ai-review-guide" hidden={collapsed} ref={body}>
       <p className="ai-review-intro">Inspect the evidence. Make your own call.</p>
       <details className="guideline-settings"><summary>Guidelines & shared context</summary>

@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 const open = async page => {
   await page.goto('/');
@@ -32,6 +33,7 @@ test('Kafka dependency graph separates domain, adapters, persistence and data co
   for (const role of ['consumer','service','domainservice','domain','persistenceadapter','repository','producer','port','dto','entity','model']) await expect(page.locator(`.architecture-layer[data-role="${role}"]`)).toHaveCount(1);
   await page.getByRole('button', { name: 'Open component SettlementPersistenceAdapter.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 6', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('멱등성 조회와 insert 사이의 경쟁 조건을 확인해 주세요.');
   await choose(page, 'Scheduled · ReconciliationJob.reconcile()');
   await page.getByRole('button', { name: 'Open component SettlementPersistenceAdapter.ts', exact: true }).click();
@@ -81,6 +83,7 @@ test('Kafka review restores unchanged domain context, selected source line and p
   await open(page);
   await page.getByRole('button', {name:'Open component SettlementDomain.ts',exact:true}).click();
   await page.getByRole('button', {name:'Select source line 4',exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep the unchanged settlement fee invariant in review context.');
   await expect(page.getByRole('button', {name:'Diff',exact:true})).toBeDisabled();
   await page.getByRole('button', {name:'Home',exact:true}).click();
@@ -99,6 +102,7 @@ test('Calls-first diagram reveals type references on demand while code and draft
   await expect(page.getByRole('group', {name:'Diagram relationships'})).toContainText('6 type links hidden');
   await page.getByRole('button', {name:'Open component SettlementPersistenceAdapter.ts',exact:true}).click();
   await page.getByRole('button', {name:'Select source line 9',exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep this source-line draft while revealing contracts.');
   await page.getByRole('button', {name:'Calls + types',exact:true}).click();
   await expect(page.locator('.dependency-edge')).toHaveCount(12);

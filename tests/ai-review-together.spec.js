@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { installConnected, snapshot } from './fixtures/connected.mjs';
 
@@ -16,12 +17,14 @@ test('AI evidence and own draft share one flow without automatic posting', async
   await expect(page.locator('.visual-code-heading')).toContainText(first.path);
   await expect(page.locator('.code-provenance')).toContainText(`Selected new line ${first.line}`);
   await expect(page.getByRole('button',{name:`Open component ${first.path.split('/').at(-1)}`,exact:true})).toHaveAttribute('aria-pressed','true');
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('My independent observation.');
   await checkpoint(page,second.title).locator('.guide-finding').click();
   await page.getByRole('button',{name:`Draft comment for ${first.title}`,exact:true}).click();
   await expect(page.getByLabel('Diagram review comment')).toHaveValue(`My independent observation.\n\n${first.title}\n${first.reason}`);
   await expect(page.getByLabel('Diagram review comment')).toBeFocused();
   expect(await page.evaluate(()=>window.__fixture.calls.filter(c=>['gitlab.comment','gitlab.approve'].includes(c.action)).length)).toBe(0);
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('My verified review after checking the evidence.');
   await page.getByRole('button',{name:'Post to GitLab',exact:true}).click();
   const posted = await page.evaluate(()=>window.__fixture.calls.find(c=>c.action==='gitlab.comment'));
@@ -72,6 +75,7 @@ test('Pending and failed AI leave code usable; a checkpoint recovers from failed
   await generate(page);
   await expect(page.getByText('Reviewing this diff… Keep exploring the code.')).toBeVisible();
   await page.getByRole('button',{name:'Open component PaymentService.ts',exact:true}).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Draft while AI runs.');
   await page.evaluate(()=>window.finishGuide());
   await expect(checkpoint(page,first.title)).toBeVisible();
@@ -88,15 +92,19 @@ test('Pending and failed AI leave code usable; a checkpoint recovers from failed
   await expect(page.locator('.visual-code-line.selected')).toHaveCount(1);
 });
 
-for(const width of [1440,980]) test(`Diagram, code and AI remain accessible together at ${width}px`, async ({page}) => {
+for(const width of [1440,980]) test(`Diagram, code and AI remain reachable at ${width}px`, async ({page}) => {
   await page.setViewportSize({width,height:width===980?650:900});
   await installConnected(page); await open(page); await generate(page);
   const boxes=await Promise.all(['.visual-map-panel','.visual-code-panel','.ai-review-rail'].map(s=>page.locator(s).boundingBox()));
   for(const box of boxes){expect(box.width).toBeGreaterThan(180);expect(box.height).toBeGreaterThan(120);expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width+1);}
   const [map,code,ai]=boxes;
   expect(code.x).toBeGreaterThanOrEqual(map.x+map.width-1);
-  expect(ai.x).toBeGreaterThanOrEqual(code.x+code.width-1);
-  expect(Math.abs(ai.y-map.y)).toBeLessThan(2);
+  if(width===1440) {
+    expect(ai.x).toBeGreaterThanOrEqual(code.x+code.width-1);
+    expect(Math.abs(ai.y-map.y)).toBeLessThan(2);
+  } else {
+    await expect(page.locator(".ai-review-guide .ai-summary")).toBeInViewport();
+  }
   await page.getByRole('button',{name:`Draft comment for ${first.title}`,exact:true}).click();
   await expect(page.getByLabel('Diagram review comment')).toBeFocused();
   await expect.poll(async()=>page.evaluate(()=>{
@@ -108,6 +116,7 @@ for(const width of [1440,980]) test(`Diagram, code and AI remain accessible toge
   const codeHeading=await page.locator('.visual-code-heading').boundingBox();
   expect(codeHeading.y).toBeGreaterThanOrEqual(header.y+header.height-1);
   expect(codeHeading.y+codeHeading.height).toBeLessThanOrEqual(width===980?650:900);
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Review remains reachable.');
   await page.getByRole('button',{name:'Post to GitLab',exact:true}).click();
   await expect(page.locator('.component-comment')).toContainText('Review remains reachable.');
@@ -123,6 +132,7 @@ test('Resizing a drafted desktop checkpoint keeps its diagram and AI evidence vi
     ['.visual-map-panel','.diagram-node.selected'],
     ['.ai-review-guide','.ai-checkpoint.active'],
   ]) {
+    if(panelSelector==='.ai-review-guide' && await page.getByLabel('Expand AI review',{exact:true}).isVisible()) await page.getByLabel('Expand AI review',{exact:true}).click();
     await expect.poll(()=>page.evaluate(([panelSelector,itemSelector])=>{
       const panel=document.querySelector(panelSelector).getBoundingClientRect();
       const item=document.querySelector(itemSelector).getBoundingClientRect();

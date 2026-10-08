@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openComplexReview, chooseComplexFlow } from './fixtures/complex-demo.mjs';
 import { installConnected, snapshot } from './fixtures/connected.mjs';
@@ -8,11 +9,13 @@ test('Large PR draft navigation resumes the exact flow and line, opens a folded 
   await page.getByLabel('Your assessment of pending 결제가 재시도 경로를 막나요?').selectOption('checked');
   await expect(page.getByLabel('Review drafts', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Draft comment for pending 결제가 재시도 경로를 막나요?', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Capture retry needs a pending-state integration test.');
   await chooseComplexFlow(page, 'webhooks');
   await page.getByRole('button', { name: 'Open component PaymentWebhookController.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 11', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Verify signature rejection is returned consistently.');
   await page.getByRole('button', { name: 'Collapse review composer', exact: true }).click();
 
@@ -72,6 +75,7 @@ test('Draft navigation restores the old side only for the exact diff, and earlie
 test('Escape dismisses the private draft menu while keeping its connected MR and review context open', async ({ page }) => {
   await installConnected(page);
   await page.locator('.attention-row').getByRole('button', { name: /Payment retry review/ }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep this private draft with its connected MR.');
   await page.getByLabel('Review drafts', { exact: true }).click();
   await page.getByRole('button', { name: /^Resume draft / }).focus();

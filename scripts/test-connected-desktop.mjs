@@ -186,7 +186,9 @@ try {
   await expect(p.locator(".plan-task")).toContainText("Review runbook");
   await p.reload();
   await p.getByLabel("Next planning period").click();
+  await p.getByLabel("More planning actions for Review runbook", { exact: true }).click();
   await expect(p.getByLabel("Time for Review runbook")).toHaveValue("14:00");
+  await p.getByLabel("Time for Review runbook").press("Escape");
   evidence.checks.push("Local plan retained across Electron reload");
   await p
     .locator(".live-inbox")
@@ -240,6 +242,7 @@ try {
     snapshots: global.__localGitCalls.filter(call => call.name === 'snapshot').length,
     writes: global.__fixtureCalls.filter(call => call.method === 'POST').length,
   }));
+  await p.getByRole('button', { name: 'Expand review composer', exact: true }).click();
   await p.getByLabel('Diagram review comment').fill('Keep my review draft while metadata syncs.');
   await app.evaluate(() => { global.__fixtureSnapshot.mr.title = 'PAY-382 Payment retry review · synchronized'; });
   await p.clock.fastForward(61000);

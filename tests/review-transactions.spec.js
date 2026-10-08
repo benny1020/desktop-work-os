@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openComplexReview, chooseComplexFlow } from './fixtures/complex-demo.mjs';
 import { complexDemoSnapshot } from '../src/lib/complex-demo-review.js';
@@ -30,7 +31,8 @@ for (const theme of ['light', 'dark']) test(`Transaction scopes preserve exact s
     const index = await chooseLine(page, item.path, item.inside);
     await expect(page.locator('.sequence-transaction-frame')).toHaveCount(1);
     await expect(page.locator('.transaction-caption').first()).toContainText(`TX scope · inside · L${scope.startLine}–${scope.endLine}`);
-    await page.getByLabel('Diagram review comment').fill(`Check ${item.flow} transaction atomicity.`);
+    await openReviewComposer(page);
+  await page.getByLabel('Diagram review comment').fill(`Check ${item.flow} transaction atomicity.`);
     await page.getByRole('button', { name: `Open transaction start ${item.path.split('/').at(-1)}:${scope.startLine}`, exact: true }).press('Enter');
     await expect(page.locator('.code-provenance')).toContainText(`Selected new line ${scope.startLine}`);
     await expect(page.getByLabel('Sequence interaction', { exact: true })).toHaveValue(String(index));

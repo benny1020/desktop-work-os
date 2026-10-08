@@ -1,6 +1,6 @@
 # IDE-style code readability — 2026-10-07
 
-The MR review's Diff and Source views now use language-aware syntax colors and six repeating colors for nested bracket pairs. The font is 12px IBM Plex Mono with the existing 25px line spacing. Keyword, function, type, string, number and comment colors differ, and light/dark palettes retain the existing added, removed and selected-line backgrounds.
+The MR review's Diff and Source views use language-aware syntax colors and six repeating colors for nested bracket pairs. The current review cockpit uses 13px IBM Plex Mono with 20px line spacing; the earlier captures below used 12px / 25px. Keyword, function, type, string, number and comment colors differ, and light/dark palettes retain the added, removed and selected-line backgrounds. Selected line numbers now use the primary text color to preserve contrast.
 
 Syntax uses the token stream from [Prism 1.30.0](https://prismjs.com/extending) (MIT). Grammars are bundled locally for JavaScript/TypeScript/JSX/TSX, Java, Kotlin, Python, JSON, YAML, SQL, Shell, CSS, HTML/XML/SVG, Go and C#. There is no CDN request. Worklane's wrapper renders token text through React, rather than rendering generated HTML.
 

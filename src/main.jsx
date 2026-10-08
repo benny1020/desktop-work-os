@@ -909,18 +909,18 @@ function App() {
       <I name="ChevronRight" size={14} />
     </button>
   );
-  function Brief({ full = false }) {
-    if (prefs.digest === false) return null;
+  function Brief({ full = false, asQueue = false }) {
+    if (prefs.digest === false && !asQueue) return null;
     return (
-      <section className={cx("brief", full && "full")}>
+      <section className={cx("brief", full && "full", asQueue && "home-work-queue")} aria-label={asQueue ? "Work needing attention" : "Assistant updates"}>
         <div className="brief-header">
           <span className="spark-icon">
-            <I name="Sparkles" size={17} />
+            <I name={asQueue ? "Inbox" : "Sparkles"} size={17} />
           </span>
-          <strong>Assistant brief</strong>
+          <strong>{asQueue ? "Needs your attention" : "Assistant brief"}</strong>
           <span className="new-label">{1 + (prefs.reviews !== false ? 1 : 0) + (prefs.deadlines !== false ? 1 : 0)} updates</span>
         </div>
-        <p className="brief-intro">A little context for your day.</p>
+        {!asQueue && <p className="brief-intro">A little context for your day.</p>}
         {prefs.reviews !== false && <>
         <div className="brief-item">
           <span className="brief-item-icon purple">
@@ -928,11 +928,10 @@ function App() {
           </span>
           <div>
             <button className="text-link" onClick={() => preview("mr", "391")}>
-              A review is waiting on you
+              {asQueue ? "Fix order status mapping" : "A review is waiting on you"}
             </button>
             <p>
-              Daniel requested your review on <b>!391</b>.<br />
-              Order status mapping · 18h ago
+              {asQueue ? <><b>!391</b> order-api · Daniel Lee · Review requested 18h ago</> : <>Daniel requested your review on <b>!391</b>.<br />Order status mapping · 18h ago</>}
             </p>
             <div className="brief-actions">
               <Btn onClick={() => review("391")}>
@@ -975,12 +974,10 @@ function App() {
               className="text-link"
               onClick={() => preview("issue", "PAY-291")}
             >
-              One deadline to keep in mind
+              {asQueue ? "Validate webhook signature handling" : "One deadline to keep in mind"}
             </button>
             <p>
-              <b>PAY-291</b> is due tomorrow.
-              <br />
-              Webhook signature handling
+              {asQueue ? <><b>PAY-291</b> Payments · Due tomorrow</> : <><b>PAY-291</b> is due tomorrow.<br />Webhook signature handling</>}
             </p>
             <div className="brief-actions">
               <Btn onClick={() => preview("issue", "PAY-291")}>Open issue</Btn>
@@ -1000,11 +997,10 @@ function App() {
               className="text-link"
               onClick={() => preview("alert", "alert-1")}
             >
-              Payment errors are elevated
+              {asQueue ? "payment-api error rate increased" : "Payment errors are elevated"}
             </button>
             <p>
-              Error rate increased after the <b>08:32 deploy</b>. Sarah is
-              investigating.
+              {asQueue ? <>Production · After <b>08:32 deploy</b> · Sarah is investigating</> : <>Error rate increased after the <b>08:32 deploy</b>. Sarah is investigating.</>}
             </p>
             <div className="brief-actions">
               <Btn
@@ -1019,10 +1015,10 @@ function App() {
             </div>
           </div>
         </div>
-        <div className="brief-footer">
+        {!asQueue && <div className="brief-footer">
           <I name="ShieldCheck" size={13} /> You’re in control. No actions
           taken.
-        </div>
+        </div>}
       </section>
     );
   }
@@ -1034,7 +1030,7 @@ function App() {
         x.status !== "Done",
     );
     return (
-      <div className="home-page">
+      <div className="home-page demo-cockpit">
         <div className="greeting home-greeting">
           <div><div className="date-label">
             <span className="sun-mark">
@@ -1045,26 +1041,12 @@ function App() {
           <h1>
             Good morning, Alex<span>.</span>
           </h1>
-          <p>
-            You have {tasks.length} tasks and 3 meetings today. Let’s make room
-            for the important work.
-          </p></div>
+          </div>
           <div className="home-entry-actions">
             <Btn onClick={() => setShowGuide(true)} aria-label="Explore workflows"><I name="MousePointer2" size={14}/> Explore workflows</Btn>
             <Btn onClick={() => navigate("Settings", "Integrations")}><I name="Link2" size={14}/> Connect tools</Btn>
           </div>
         </div>
-        <section className="work-thread" aria-label="Connected work trail">
-          <div className="work-thread-intro"><small>In focus · Payment reliability</small>
-            <button className="work-thread-title" aria-label="Resume payment retry context" onClick={() => preview("issue", "PAY-382")}><span>PAY-382</span> Payment retry implementation <I name="ArrowUpRight" size={13}/></button>
-          </div>
-          <div className="work-trail">
-            <button aria-label="Open PAY-382 context" onClick={() => preview("issue", "PAY-382")}><I name="CircleDot" size={14}/> Issue</button><I name="ChevronRight" size={12}/>
-            <button aria-label="Open linked MR !381" onClick={() => preview("mr", "381")}><I name="GitPullRequest" size={14}/> !381</button><I name="ChevronRight" size={12}/>
-            <button aria-label="Open linked pipeline #482" onClick={() => preview("pipeline", "482")}><I name="GitBranch" size={14}/> Pipeline</button><I name="ChevronRight" size={12}/>
-            <button aria-label="Open linked payment policy" onClick={() => preview("doc", "retry-policy")}><I name="BookOpen" size={14}/> Wiki</button>
-          </div>
-        </section>
         <div className="home-grid">
           <div className="daily-column">
             <div className="section-title">
@@ -1152,6 +1134,20 @@ function App() {
                 </div>
               </div>
             </div>
+          </div>
+          <div className="context-column">
+            <Brief asQueue />
+        <section className="work-thread" aria-label="Connected work trail">
+          <div className="work-thread-intro"><small>In focus · Payment reliability</small>
+            <button className="work-thread-title" aria-label="Resume payment retry context" onClick={() => preview("issue", "PAY-382")}><span>PAY-382</span> Payment retry implementation <I name="ArrowUpRight" size={13}/></button>
+          </div>
+          <div className="work-trail">
+            <button aria-label="Open PAY-382 context" onClick={() => preview("issue", "PAY-382")}><I name="CircleDot" size={14}/> Issue</button><I name="ChevronRight" size={12}/>
+            <button aria-label="Open linked MR !381" onClick={() => preview("mr", "381")}><I name="GitPullRequest" size={14}/> !381</button><I name="ChevronRight" size={12}/>
+            <button aria-label="Open linked pipeline #482" onClick={() => preview("pipeline", "482")}><I name="GitBranch" size={14}/> Pipeline</button><I name="ChevronRight" size={12}/>
+            <button aria-label="Open linked payment policy" onClick={() => preview("doc", "retry-policy")}><I name="BookOpen" size={14}/> Wiki</button>
+          </div>
+        </section>
             <div className="section-title recent-heading">
               <h2>Pick up where you left off</h2>
               <I name="History" size={15} />
@@ -1178,9 +1174,7 @@ function App() {
                 <I name="ChevronRight" size={14} />
               </button>
             </div>
-          </div>
-          <div className="context-column">
-            <Brief />
+            {prefs.digest !== false && <section className="home-quiet-brief" aria-label="Assistant brief"><div><AssistantAvatar size={20}/><h2>Assistant brief</h2></div><p>{needsReview.length} review requests. Payment reliability is the active sprint focus.</p><button className="quiet-button" onClick={() => setAssistant(true)}>Ask about today <I name="ArrowUpRight" size={12}/></button></section>}
           </div>
         </div>
       </div>
@@ -4297,19 +4291,6 @@ function App() {
             </Btn>
           </div>
         )}
-        <button
-          className="sidebar-search"
-          onClick={() => openPalette("search")}
-          aria-label="Global search"
-        >
-          <I name="Search" size={16} />
-          {!collapsed && (
-            <>
-              <span>Search anything</span>
-              <kbd>⌘ K</kbd>
-            </>
-          )}
-        </button>
         <div className="sidebar-label">{!collapsed ? "Workspace" : "—"}</div>
         <nav>
           {navigation
@@ -4423,17 +4404,6 @@ function App() {
         <div className="sidebar-bottom">
           {!collapsed && (
             <div className="connections-status">
-              <div className="connection-icons">
-                <span>J</span>
-                <span>C</span>
-                <span>D</span>
-                <span>
-                  <I name="Gitlab" size={13} />
-                </span>
-                <span>
-                  <I name="Search" size={13} />
-                </span>
-              </div>
               <button onClick={() => navigate("Settings", "Integrations")}>
                 <I name="Plug" size={11} />
                 Integration settings
@@ -4535,6 +4505,9 @@ function App() {
           </div>
           <div className="topbar-right">
             {pendingReview && <span className="form-note" role="status">Submitting review…</span>}
+            <button className="global-command-entry" aria-label="Global search" title="Find work or run a command · ⌘ / Ctrl K" onClick={() => openPalette("search")}>
+              <I name="Search" size={15}/><span>Find work or a command</span><kbd>⌘ K</kbd>
+            </button>
             <select
               className="workspace-mode"
               aria-label="Workspace data mode"

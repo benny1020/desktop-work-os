@@ -5,7 +5,7 @@ const folder=new URL('../artifacts/connected-workflows/',import.meta.url).pathna
 const b=await chromium.launch();const p=await b.newPage({baseURL:'http://127.0.0.1:5178',viewport:{width:1440,height:900}});const errors=[],screens=[];p.on('pageerror',e=>errors.push(e.message));
 const shot=async(id,title)=>{await p.screenshot({path:folder+id+'.png'});screens.push({id,title,file:'../connected-workflows/'+id+'.png',group:'Connected workflow validation · fixtures'});};
 const nav=n=>p.locator(`nav .nav-item[aria-label="${n}"]`).click();
-await installConnected(p);await expect(p.locator('.inbox-work')).toBeVisible();
+await installConnected(p);await expect(p.locator('.inbox-work').first()).toBeVisible();
 for(const title of ['Prepare deployment review today 10am','Read retry runbook today 3pm']){await p.getByLabel('Quick add personal work').fill(title);await p.getByRole('button',{name:'Add to plan',exact:true}).click();}
 await p.getByRole('button',{name:'Add to Today',exact:true}).click();await shot('01-connected-today','Connected · Daily plan & attention');
 await p.getByRole('button',{name:'This Week',exact:true}).first().click();await shot('02-connected-week','Connected · Weekly planning');

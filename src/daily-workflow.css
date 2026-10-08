@@ -72,3 +72,140 @@
  .daily-command-center .attention-recommended { padding:10px 12px; gap:7px; margin-top:9px; }
  .daily-command-center .attention-row:not(.attention-recommended) { padding-block:9px; }
 }
+
+/* Home prioritizes the service queue; Today gives the personal schedule the lead. */
+.daily-connected.daily-connected.daily-cockpit { --cockpit-gap:24px; }
+.daily-connected.daily-cockpit .page-heading { align-items:flex-start; margin-bottom:12px; }
+.daily-connected.daily-cockpit .page-heading .eyebrow { display:none; }
+.daily-connected.daily-cockpit .page-heading h1 { font-size:24px; line-height:1.2; letter-spacing:-.6px; margin:0 0 8px; }
+.daily-connected.daily-cockpit .page-heading p { margin:0; font-size:12px; color:var(--secondary); }
+.daily-connected.daily-cockpit .view-toolbar { margin:0 0 16px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.daily-connected.daily-cockpit .daily-columns,.daily-connected.daily-cockpit .daily-columns.has-daily-digest { gap:24px var(--cockpit-gap); margin-top:0; grid-template-rows:auto auto; align-items:start; }
+.daily-connected.home-cockpit .daily-columns,.daily-connected.home-cockpit .daily-columns.has-daily-digest { grid-template-columns:minmax(0,1.65fr) minmax(320px,1fr); grid-template-areas:"attention plan" "available brief"; }
+.daily-connected.today-cockpit .daily-columns { grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr); grid-template-areas:"plan attention" "available attention"; }
+.daily-connected.daily-cockpit .daily-plan,.daily-connected.daily-cockpit .daily-brief { padding:0; border:0; }
+.daily-connected.daily-cockpit .daily-plan>h2,.daily-connected.daily-cockpit .daily-brief>h2,.daily-connected.daily-cockpit .live-inbox>h2 { display:flex; align-items:center; gap:8px; font-size:14px; margin:0 0 12px; line-height:1.4; }
+.daily-connected.daily-cockpit h2 .muted { margin-left:auto; font-size:11px; }
+.daily-connected.daily-cockpit .daily-brief>h2 .pill { margin-left:auto; background:none; min-width:24px; text-align:center; }
+.daily-connected.daily-cockpit .queue-description { font-size:11px; margin:0 0 14px; line-height:1.5; }
+.daily-connected.daily-cockpit .daily-brief .attention-row { display:grid; grid-template-columns:24px minmax(0,1fr) auto auto; align-items:center; gap:8px 12px; margin:0; padding:14px 0; border:0; border-bottom:1px solid var(--line); border-radius:0; background:none; }
+.daily-connected.daily-cockpit .attention-row .queue-source { grid-column:1; grid-row:1; display:grid; place-items:center; width:24px; height:28px; color:var(--secondary); }
+.daily-connected.daily-cockpit .attention-row.review-queue-row .queue-source { color:var(--accent); }
+.daily-connected.daily-cockpit .attention-row.is-overdue .queue-source { color:var(--red); }
+.daily-connected.daily-cockpit .attention-row>.queue-work-title { grid-column:2; grid-row:1; min-width:0; text-align:left; color:var(--text); font-size:13px; padding:0; line-height:1.5; }
+.daily-connected.daily-cockpit .queue-identity { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.daily-connected.daily-cockpit .queue-identity code { font-size:10px; font-weight:500; color:var(--secondary); white-space:nowrap; }
+.daily-connected.daily-cockpit .queue-identity b { font-size:13px; font-weight:600; color:var(--text); overflow-wrap:anywhere; }
+.daily-connected.daily-cockpit .queue-work-title small { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--secondary); line-height:1.5; margin-top:3px; }
+.daily-connected.daily-cockpit .is-overdue .queue-status { color:var(--red); }
+.daily-connected.daily-cockpit .attention-row>.attention-review { grid-column:3; grid-row:1; margin:0; min-height:30px; padding:6px 9px; font-size:11px; white-space:nowrap; }
+.daily-connected.daily-cockpit .attention-row>.linked-plan-action { grid-column:4; grid-row:1; align-items:flex-end; }
+.daily-connected.daily-cockpit .deadline-queue-row>.queue-work-title { grid-column:2 / 4; }
+.daily-connected.daily-cockpit .linked-plan-action>.btn { min-height:30px; font-size:11px; padding:6px 9px; }
+.daily-connected.daily-cockpit .attention-coverage { font-size:11px; margin:12px 0 0; line-height:1.5; max-width:65ch; }
+.daily-connected.daily-cockpit .daily-day-summary { display:flex; gap:14px; margin:0 0 14px; font-size:11px; flex-wrap:wrap; }
+.daily-connected.daily-cockpit .daily-day-summary .summary-dot { display:none; }
+.daily-connected.daily-cockpit .plan-quick { margin:0; display:grid; grid-template-columns:16px minmax(0,1fr) auto; gap:8px; padding:10px; background:var(--surface); border:1px solid var(--line-strong); border-radius:5px; }
+.daily-connected.daily-cockpit .plan-quick>svg { grid-column:1; grid-row:1; color:var(--secondary); }
+.daily-connected.daily-cockpit .plan-quick>input { grid-column:2 / 4; grid-row:1; font-size:13px; min-height:28px; padding:0; width:100%; }
+.daily-connected.daily-cockpit .plan-quick>select { grid-column:2; grid-row:2; justify-self:end; max-width:90px; min-height:28px; font-size:11px; }
+.daily-connected.daily-cockpit .plan-quick>.btn { grid-column:3; grid-row:2; min-height:28px; font-size:11px; }
+.daily-connected.daily-cockpit .plan-quick-target { font-size:11px; line-height:1.6; }
+.daily-connected.daily-cockpit .plan-boundary { margin:8px 0 16px; font-size:11px; }
+.daily-connected.daily-cockpit .plan-empty { display:block; padding:14px 0 0; border:0; border-top:1px solid var(--line); background:none; border-radius:0; }
+.daily-connected.daily-cockpit .plan-empty-icon { display:none; }
+.daily-connected.daily-cockpit .plan-empty h3 { font-size:13px; font-weight:500; margin:0 0 5px; }
+.daily-connected.daily-cockpit .plan-empty p { font-size:11px; line-height:1.6; margin:0 0 10px; max-width:48ch; }
+.daily-connected.daily-cockpit .plan-empty>.btn.primary { background:none; color:var(--accent); border-color:var(--line-strong); font-size:11px; min-height:28px; padding:5px 8px; }
+.daily-connected.daily-cockpit .plan-task { min-height:58px; gap:9px; }
+.daily-connected.daily-cockpit .plan-task-main>button { font-size:13px; line-height:1.5; color:var(--text); }
+.daily-connected.daily-cockpit .plan-task-main small { font-size:11px; margin-top:3px; line-height:1.5; }
+.daily-connected.daily-cockpit .plan-task-compact-meta { font-size:11px; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.daily-connected.daily-cockpit .plan-task-compact-controls>button { width:28px; height:28px; }
+.daily-connected.daily-cockpit .daily-columns>.live-inbox { grid-area:available; margin:0; padding:16px 0 0; border-top:1px solid var(--line); }
+.daily-connected.daily-cockpit .live-inbox .inbox-work { gap:8px; min-height:48px; padding:10px 0; }
+.daily-connected.daily-cockpit .live-inbox .inbox-work>button:first-child { flex:1; font-size:13px; line-height:1.5; color:var(--text); }
+.daily-connected.daily-cockpit .live-inbox .inbox-work code { font-size:10px; }
+.daily-connected.daily-cockpit .live-inbox .pill,.daily-connected.daily-cockpit .live-inbox .plan-due-badge { font-size:11px; border:0; padding:0; }
+.daily-connected.daily-cockpit .live-inbox .quiet-button { font-size:11px; min-height:28px; }
+.daily-connected.daily-cockpit .daily-digest { border:0; padding:16px 0 0; border-top:1px solid var(--line); }
+.daily-connected.daily-cockpit .daily-digest .assistant-brief { padding:0; border:0; border-radius:0; background:none; }
+.daily-connected.daily-cockpit .attention-clear { margin:16px 0; }
+.daily-connected.daily-cockpit .attention-clear p { font-size:11px; }
+.daily-connected.today-cockpit .daily-brief { border-left:1px solid var(--line); padding-left:24px; }
+.daily-connected.today-cockpit .daily-brief .attention-row { grid-template-columns:24px minmax(0,1fr) auto; }
+.daily-connected.today-cockpit .attention-row>.queue-work-title,.daily-connected.today-cockpit .deadline-queue-row>.queue-work-title { grid-column:2 / 4; }
+.daily-connected.today-cockpit .attention-row>.attention-review { grid-column:2; grid-row:2; justify-self:start; }
+.daily-connected.today-cockpit .attention-row>.linked-plan-action { grid-column:3; grid-row:2; }
+@media(max-width:1150px) {
+ .daily-connected.daily-cockpit .daily-columns,.daily-connected.daily-cockpit .daily-columns.has-daily-digest { grid-template-columns:minmax(0,1fr); gap:24px; }
+ .daily-connected.home-cockpit .daily-columns,.daily-connected.home-cockpit .daily-columns.has-daily-digest { grid-template-areas:"attention" "plan" "available" "brief"; }
+ .daily-connected.today-cockpit .daily-columns { grid-template-areas:"plan" "attention" "available"; }
+ .daily-connected.daily-cockpit .page-heading { margin-bottom:12px; }
+ .daily-connected.daily-cockpit .view-toolbar { margin-bottom:16px; gap:8px; }
+ .daily-connected.daily-cockpit .daily-brief { padding:0; border:0; }
+ .daily-connected.daily-cockpit .live-inbox .inbox-work>button:first-child { flex-basis:auto; min-width:220px; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick { grid-template-columns:16px minmax(0,1fr) auto auto; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick>input { grid-column:2; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick>select { grid-column:3; grid-row:1; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick>.btn { grid-column:4; grid-row:1; }
+ .daily-connected.today-cockpit .daily-brief .attention-row { grid-template-columns:24px minmax(0,1fr) auto auto; }
+ .daily-connected.today-cockpit .attention-row>.queue-work-title { grid-column:2; }
+ .daily-connected.today-cockpit .deadline-queue-row>.queue-work-title { grid-column:2 / 4; }
+ .daily-connected.today-cockpit .attention-row>.attention-review { grid-column:3; grid-row:1; }
+ .daily-connected.today-cockpit .attention-row>.linked-plan-action { grid-column:4; grid-row:1; }
+}
+@media(max-width:800px) {
+ .daily-connected.daily-cockpit .attention-row>.queue-work-title,.daily-connected.daily-cockpit .deadline-queue-row>.queue-work-title { grid-column:2 / 5; }
+ .daily-connected.daily-cockpit .attention-row>.attention-review { grid-column:2 / 4; grid-row:2; justify-self:start; }
+ .daily-connected.daily-cockpit .attention-row>.linked-plan-action { grid-column:4; grid-row:2; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick>input { grid-column:2 / 5; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick>select { grid-column:3; grid-row:2; }
+ .daily-connected.daily-cockpit .daily-plan .plan-quick>.btn { grid-column:4; grid-row:2; }
+}
+
+.daily-connected.daily-cockpit .queue-description { display:none; }
+.daily-connected.today-cockpit .plan-quick { grid-template-columns:16px minmax(0,1fr) auto auto; }
+.daily-connected.today-cockpit .plan-quick>input { grid-column:2; }
+.daily-connected.today-cockpit .plan-quick>select { grid-column:3; grid-row:1; }
+.daily-connected.today-cockpit .plan-quick>.btn { grid-column:4; grid-row:1; }
+.daily-connected.daily-cockpit .daily-plan .plan-task { display:grid; grid-template-columns:18px minmax(0,1fr); align-items:start; gap:7px 10px; padding:12px 0; }
+.daily-connected.daily-cockpit .daily-plan .plan-check { grid-column:1; grid-row:1; margin-top:2px; }
+.daily-connected.daily-cockpit .daily-plan .plan-task-main { grid-column:2; grid-row:1; }
+.daily-connected.daily-cockpit .daily-plan .plan-task-actions { grid-column:2; grid-row:2; flex-wrap:wrap; min-height:28px; }
+.daily-connected.daily-cockpit .daily-plan .plan-task-actions input { font-size:11px !important; min-height:28px; }
+.daily-connected.daily-cockpit .daily-plan .plan-task-actions>button { width:28px; height:28px; }
+@media(min-width:1151px) {
+ .daily-connected.today-cockpit .daily-plan .plan-task { grid-template-columns:18px minmax(0,1fr) auto; align-items:center; }
+ .daily-connected.today-cockpit .daily-plan .plan-task-actions { grid-column:3; grid-row:1; }
+}
+
+/* Each wide column follows its own content height; narrow windows keep the next action first. */
+.daily-connected.home-cockpit .daily-columns,.daily-connected.home-cockpit .daily-columns.has-daily-digest { grid-template-areas:"attention plan"; grid-template-rows:auto; }
+.daily-connected.today-cockpit .daily-columns { grid-template-areas:"plan attention"; grid-template-rows:auto; }
+.daily-connected.daily-cockpit .agenda-content>h2,.daily-connected.daily-cockpit .attention-content>h2 { display:flex; align-items:center; gap:8px; font-size:14px; margin:0 0 12px; line-height:1.4; }
+.daily-connected.daily-cockpit .attention-content>h2 .pill { margin-left:auto; }
+.daily-connected.daily-cockpit .live-inbox { margin:24px 0 0; padding:16px 0 0; border-top:1px solid var(--line); }
+.daily-connected.daily-cockpit .daily-digest { margin-top:24px; }
+.daily-connected.home-cockpit .daily-plan .plan-task.compact-actions { display:flex; align-items:center; gap:8px; min-height:58px; padding:10px 0; }
+.daily-connected.home-cockpit .plan-task.compact-actions .plan-check { margin:0; }
+.daily-connected.home-cockpit .plan-task-compact-meta { display:flex; flex-direction:column; align-items:flex-start; gap:5px; width:56px; flex:0 0 56px; }
+.daily-connected.home-cockpit .plan-task-compact-meta time { margin:0; font-size:11px; color:var(--secondary); }
+.daily-connected.home-cockpit .plan-task.compact-actions .plan-task-main { flex:1; min-width:0; }
+.daily-connected.home-cockpit .plan-task.compact-actions .plan-task-main small { font-size:11px; }
+.daily-connected.home-cockpit .plan-task-compact-controls { display:flex; gap:2px; flex-shrink:0; }
+.daily-connected.home-cockpit .plan-task.compact-actions .plan-task-actions { display:flex; flex-wrap:wrap; min-height:0; gap:3px; }
+@media(max-width:1150px) {
+ .daily-connected.home-cockpit .daily-columns,.daily-connected.home-cockpit .daily-columns.has-daily-digest { grid-template-areas:"attention" "plan" "available" "brief"; }
+ .daily-connected.today-cockpit .daily-columns { grid-template-areas:"plan" "attention" "available"; }
+ .daily-connected.daily-cockpit .daily-brief,.daily-connected.daily-cockpit .daily-plan { display:contents; }
+ .daily-connected.daily-cockpit .attention-content { grid-area:attention; min-width:0; }
+ .daily-connected.daily-cockpit .agenda-content { grid-area:plan; min-width:0; }
+ .daily-connected.daily-cockpit .live-inbox { grid-area:available; margin:0; }
+ .daily-connected.daily-cockpit .daily-digest { grid-area:brief; margin:0; }
+}
+.daily-connected.home-cockpit .plan-task-compact-controls { opacity:1; }
+.daily-connected.home-cockpit .daily-plan .plan-task-actions.plan-actions-popover { position:fixed; z-index:40; display:flex; width:224px; padding:10px; flex-wrap:wrap; gap:6px; background:var(--surface); border:1px solid var(--line-strong); border-radius:5px; box-shadow:0 5px 18px #0002; }
+.daily-connected.home-cockpit .plan-task-actions.plan-actions-popover input[type="time"] { display:block; }
+.daily-connected.home-cockpit .plan-task-compact-meta { flex-direction:row; align-items:center; width:64px; flex-basis:64px; }
+.daily-connected.home-cockpit .plan-task-compact-meta .plan-event-marker { display:grid; place-items:center; min-width:24px; min-height:24px; border-radius:3px; }

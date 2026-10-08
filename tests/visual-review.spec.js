@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from "@playwright/test";
 import { demoSnapshot } from "../src/lib/demo-review.js";
 const demo = demoSnapshot({
@@ -58,6 +59,7 @@ test("Visual review: per-component drafts, source code and posted comments", asy
   await page
     .getByRole("button", { name: "Select source line 7", exact: true })
     .click();
+  await openReviewComposer(page);
   await page
     .getByLabel("Diagram review comment")
     .fill("Check not-found behavior.");
@@ -295,6 +297,7 @@ test("Connected MR: fetches commit source; Claude invoked only by explicit gener
   await page
     .getByRole("button", { name: "Select source line 7", exact: true })
     .click();
+  await openReviewComposer(page);
   await page
     .getByLabel("Diagram review comment")
     .fill("Please verify empty orders.");
@@ -326,6 +329,7 @@ test("Connected review: stale MR keeps draft and shows failure without pretendin
   await liveFixture(page, { stale: true });
   await nav(page, "Code");
   await page.getByRole("button", { name: /Fix order status mapping/ }).click();
+  await openReviewComposer(page);
   await page
     .getByLabel("Diagram review comment")
     .fill("Keep this draft on failure.");

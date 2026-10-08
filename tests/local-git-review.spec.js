@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from "@playwright/test";
 import { installConnected } from "./fixtures/connected.mjs";
 
@@ -43,6 +44,7 @@ test("Local checkout provenance is explicit, keyboard dismissible, and source re
 
 test("Explicit refresh requests a fetch and keeps a pending local review draft", async ({ page }) => {
   await localReview(page);
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Check the local implementation before posting.");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__fixture.calls.filter(call => call.action === "gitlab.mr").length)).toBe(2);
@@ -61,6 +63,7 @@ test("Snapshots without local checkout evidence do not claim local source storag
 
 test("Slow checkout refresh keeps code and editable draft visible while deferring new review submissions", async ({ page }) => {
   await localReview(page);
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Initial checkout review.");
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await expect(page.getByLabel("Component code")).toContainText("PaymentController");
@@ -75,11 +78,11 @@ test("Slow checkout refresh keeps code and editable draft visible while deferrin
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByText("Refreshing checkout and review context… You can keep reading and editing your draft.")).toBeVisible();
   await expect(page.getByLabel("Component code")).toContainText("PaymentController");
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Keep this draft through the fetch.");
   await expect(page.getByRole("button", { name: "Post to GitLab", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Confirm approval", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Generate AI guide", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Generate review guide", exact: true })).toBeDisabled();
   await page.getByLabel("Diagram review comment").press("Control+Enter");
   expect(await page.evaluate(() => window.__fixture.calls.filter(call => ["gitlab.comment", "gitlab.approve", "claude.review"].includes(call.action)))).toHaveLength(0);
   await page.evaluate(() => window.releaseCheckoutRefresh());
@@ -90,6 +93,7 @@ test("Slow checkout refresh keeps code and editable draft visible while deferrin
 
 test("Failed checkout refresh keeps review context and draft available for retry", async ({ page }) => {
   await localReview(page);
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Private draft stays with this commit.");
   await page.evaluate(() => window.__fixture.setFailure("gitlab.mr"));
   await page.getByRole("button", { name: "Refresh", exact: true }).click();

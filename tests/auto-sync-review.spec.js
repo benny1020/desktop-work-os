@@ -1,9 +1,11 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from "@playwright/test";
 import { installConnected } from "./fixtures/connected.mjs";
 async function openReview(page) {
   await page.clock.install();
   await installConnected(page);
   await page.locator(".attention-row").getByRole("button", { name: /Payment retry review/ }).click();
+  await openReviewComposer(page);
   await expect(page.getByLabel("Diagram review comment")).toBeVisible();
 }
 const count = (page, action) => page.evaluate(a => window.__fixture.calls.filter(c => c.action === a).length, action);
@@ -11,6 +13,7 @@ const count = (page, action) => page.evaluate(a => window.__fixture.calls.filter
 test("MR metadata sync preserves selected code and draft, without loading Git again", async ({ page }) => {
   await openReview(page);
   await page.getByRole("button", { name: "Source", exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Keep my review while teammates update metadata.");
   await page.evaluate(() => {
     const invoke = window.orbit.invoke;
@@ -32,6 +35,7 @@ test("MR metadata sync preserves selected code and draft, without loading Git ag
 
 test("New revision is prepared once automatically; switching is explicit and prior draft remains saved", async ({ page }) => {
   await openReview(page);
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("This belongs to the original commit.");
   await page.evaluate(() => {
     const invoke = window.orbit.invoke;
@@ -56,12 +60,14 @@ test("New revision is prepared once automatically; switching is explicit and pri
   expect(await count(page, "gitlab.mr")).toBe(before + 1);
   await page.getByRole("button", { name: "Review new revision" }).click();
   await expect(page.locator(".visual-review-title h1")).toContainText("Next revision");
+  await openReviewComposer(page);
   await expect(page.getByLabel("Diagram review comment")).toHaveValue("");
   expect(await page.evaluate(() => Object.entries(localStorage).some(([k,v]) => k.startsWith("orbit-visual-drafts:") && v.includes("This belongs to the original commit.")))).toBe(true);
 });
 
 test("Offline polling pauses, reconnect syncs once, and failures preserve review context", async ({ page }) => {
   await openReview(page);
+  await openReviewComposer(page);
   await page.getByLabel("Diagram review comment").fill("Network recovery must keep this.");
   await page.evaluate(() => {
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false });
@@ -113,6 +119,7 @@ test("An MR that failed to open recovers automatically when GitLab returns", asy
   await expect(page.locator('.object-panel .connection-error')).toContainText('Fixture service unavailable');
   await page.evaluate(() => window.__fixture.setFailure(''));
   await page.clock.fastForward(61000);
+  await openReviewComposer(page);
   await expect(page.getByLabel('Diagram review comment')).toBeVisible();
 });
 

@@ -44,6 +44,8 @@ test('Create footer remains clickable above long text in light desktop and dark 
     await page.getByLabel('New work title').fill('Retry behavior and incident response');
     await page.getByLabel('New work body').fill('Policy and implementation evidence.\n'.repeat(80));
     await page.getByLabel('New document space').selectOption('s1');
+    await expect(page.getByLabel('New work title')).toHaveValue('Retry behavior and incident response');
+    await expect(page.getByLabel('New work body')).toHaveValue('Policy and implementation evidence.\n'.repeat(80));
     const submit=page.getByRole('button',{name:'Publish to Confluence',exact:true});
     await expect(submit).toBeEnabled();
     expect(await submit.evaluate(el=>{const b=el.getBoundingClientRect();return b.top>=0&&b.bottom<=innerHeight&&el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));})).toBe(true);
@@ -51,4 +53,36 @@ test('Create footer remains clickable above long text in light desktop and dark 
     await page.screenshot({animations:'disabled',path:`artifacts/command-independent-create-${width}.png`});
     await page.keyboard.press('Escape');
   }
+});
+
+test('Changing create kind cannot move focus back to the title after body typing starts',async({page})=>{
+  await installConnected(page);
+  await page.keyboard.press('Meta+n');
+  await expect(page.getByLabel('New work title')).toBeFocused();
+  // Hold the next frame so keyboard input can precede deferred UI work, as on a busy renderer.
+  await page.evaluate(()=>{
+    const scheduled=[];
+    const original=window.requestAnimationFrame;
+    window.requestAnimationFrame=callback=>{scheduled.push(callback);return scheduled.length;};
+    window.releaseCreateFrame=()=>{
+      window.requestAnimationFrame=original;
+      for(const callback of scheduled.splice(0)) callback(performance.now());
+    };
+  });
+  await page.getByRole('button',{name:'Wiki document',exact:true}).click({force:true});
+  await expect(page.getByLabel('New work body')).toBeEnabled();
+  await page.getByLabel('New work body').click({force:true});
+  await page.keyboard.insertText('First paragraph.');
+  await page.evaluate(()=>window.releaseCreateFrame());
+  await expect(page.getByLabel('New work body')).toBeFocused();
+  await page.keyboard.insertText('\nSecond paragraph.');
+  await expect(page.getByLabel('New work title')).toHaveValue('');
+  await expect(page.getByLabel('New work body')).toHaveValue('First paragraph.\nSecond paragraph.');
+  await page.getByLabel('New work title').fill('Exact title');
+  await page.getByLabel('New document space').selectOption('s1');
+  await expect(page.getByRole('button',{name:'Publish to Confluence',exact:true})).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Meta+n');
+  await expect(page.getByLabel('New work title')).toHaveValue('Exact title');
+  await expect(page.getByLabel('New work body')).toHaveValue('First paragraph.\nSecond paragraph.');
 });

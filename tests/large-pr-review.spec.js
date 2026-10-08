@@ -1,3 +1,4 @@
+import { openReviewComposer } from "./fixtures/review-composer.mjs";
 import { test, expect } from '@playwright/test';
 import { openComplexReview } from './fixtures/complex-demo.mjs';
 import { installConnected } from './fixtures/connected.mjs';
@@ -17,6 +18,7 @@ test('Collapsing the composer while posting keeps failures visible and the priva
   await page.locator('nav .nav-item[aria-label="Code"]').click();
   await page.locator('.connected-content button').filter({ hasText: 'PAY-382 Payment retry review' }).click();
   await page.getByRole('button', { name: 'Select new line 2', exact: true }).click();
+  await openReviewComposer(page);
   await page.getByLabel('Diagram review comment').fill('Keep this private draft if posting fails.');
   await page.evaluate(() => {
     const original = window.orbit.invoke;

@@ -9,7 +9,8 @@ async function add(page, title) {
 
 test('Daily summary uses actual personal plan and the suggested review retains Home context', async ({page}) => {
   await expect(page.getByLabel('Daily summary')).toContainText('0 planned items');
-  await expect(page.getByLabel('Daily summary')).toContainText('1 review requested');
+  await expect(page.getByRole('complementary', {name:'Work queue'}).locator('.review-queue-row')).toHaveCount(1);
+  await expect(page.getByRole('complementary', {name:'Work queue'})).toContainText('Review requested');
   await add(page, 'Review the retry behavior');
   await expect(page.getByLabel('Daily summary')).toContainText('1 planned item');
   await page.getByLabel('Complete Review the retry behavior',{exact:true}).click();
@@ -18,7 +19,7 @@ test('Daily summary uses actual personal plan and the suggested review retains H
   await page.getByRole('button',{name:'Review changes',exact:true}).click();
   await expect(page.getByRole('group',{name:'Dependency flow diagram',exact:true})).toBeVisible();
   await page.getByLabel('Close context preview').click();
-  await expect(page.getByRole('heading',{name:'A clear start to your day'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your workday'})).toBeVisible();
   expect(await page.evaluate(()=>window.__fixture.calls.filter(c=>c.action==='claude.review'))).toEqual([]);
 });
 
@@ -43,7 +44,7 @@ test('Undo removal restores the saved record and original order, not unsaved edi
 test('Empty plan gives a keyboard entry point and makes the local-service boundary available on demand', async ({page}) => {
   await page.getByRole('button',{name:'Plan your first item',exact:true}).click();
   await expect(page.getByLabel('Quick add personal work')).toBeFocused();
-  const boundary=page.locator('.plan-boundary').first();
+  const boundary=page.getByRole('region',{name:'Personal agenda'}).locator('.plan-boundary');
   await expect(boundary.locator('p')).toBeHidden();
   await boundary.locator('summary').click();
   await expect(boundary).toContainText('does not change Jira status or due dates');
@@ -71,8 +72,9 @@ test('Without service connections, setup is actionable and no review count is in
   });
   await page.getByLabel('Workspace data mode').selectOption('demo');
   await page.getByLabel('Workspace data mode').selectOption('connected');
-  await expect(page.getByLabel('Daily summary')).toContainText('GitLab not connected');
-  await expect(page.getByLabel('Daily summary')).not.toContainText('0 reviews requested');
+  await expect(page.getByRole('complementary',{name:'Work queue'}).locator('.attention-row')).toHaveCount(0);
+  await expect(page.getByRole('complementary',{name:'Work queue'})).toContainText('Connect your tools');
+  await expect(page.getByRole('complementary',{name:'Work queue'})).not.toContainText('0 reviews requested');
   await page.getByRole('button',{name:'Connect your tools',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Connect your workspace',exact:true})).toBeVisible();
 });
