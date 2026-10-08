@@ -212,11 +212,11 @@ try {
     })
     .click();
   await expect(
-    p.getByRole("img", { name: "Dependency flow diagram" }),
+    p.getByRole("group", { name: "Dependency flow diagram" }),
   ).toBeVisible();
   await expect(p.getByLabel('Local checkout details')).toBeVisible();
   await p.getByRole("tab", { name: "Sequence", exact: true }).click();
-  await expect(p.getByRole("img", { name: "Sequence diagram" })).toBeVisible();
+  await expect(p.getByRole("group", { name: "Sequence diagram" })).toBeVisible();
   await p.screenshot({ path: path.join(out, "electron-sequence-context.png") });
   await p
     .getByRole("button", {

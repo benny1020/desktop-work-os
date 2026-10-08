@@ -109,7 +109,7 @@ test('Graph keyboard traversal and source review remain usable on narrow light a
   for(const theme of ['light','dark']) {
     if(theme==='dark')await page.getByLabel('Toggle theme').click();
     await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();
-    const svg=page.getByRole('img',{name:'Dependency flow diagram',exact:true});
+    const svg=page.getByRole('group',{name:'Dependency flow diagram',exact:true});
     const nodes=svg.locator('[role="button"]');
     await nodes.first().focus();await page.keyboard.press('End');
     await expect(nodes.last()).toBeFocused();

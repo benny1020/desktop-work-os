@@ -39,7 +39,7 @@ try {
   await page.getByRole('button', { name: 'Select source line 18', exact: true }).click();
   await page.getByLabel('Diagram review comment').fill('gatewaySequence < event.sequence 조건으로 갱신하고, refunded → 지연된 captured 순서의 테스트가 필요해 보입니다.');
   await page.getByRole('tab', { name: 'Sequence', exact: true }).click();
-  await expect(page.getByRole('img', { name: 'Sequence diagram' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Sequence diagram' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Step by step', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await shot('webhook-sequence');
   await chooseComplexFlow(page, 'reconciliation');

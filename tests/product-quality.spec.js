@@ -11,7 +11,7 @@ test('Workflow guide starts real issue and review journeys without changing data
   await page.getByLabel('Close inspector').click();
   await page.getByRole('button',{name:'Product guide',exact:true}).click();
   await page.getByRole('button',{name:/See the change before the code/}).click();
-  await expect(page.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();
+  await expect(page.getByRole('group',{name:'Dependency flow diagram'})).toBeVisible();
   await expect(page.getByRole('heading',{name:/Payment retry/})).toBeVisible();
   await expect(page.getByRole('button',{name:'Approve MR',exact:true})).toBeEnabled();
 });

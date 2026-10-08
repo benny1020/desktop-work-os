@@ -46,13 +46,17 @@ async function choose(page, query) {
   await expect(page.getByRole('button', { name: /^Review flow / })).toHaveCount(1);
   await page.getByRole('button', { name: /^Review flow / }).first().click();
 }
-const selectFile = (page, path) => page.locator('.review-component-list').getByRole('button').filter({ hasText: path }).click();
+const selectFile = async (page, path) => {
+  if (await page.locator('.api-source-files').getAttribute('open') === null)
+    await page.locator('.api-source-files summary').click();
+  await page.locator('.review-component-list').getByRole('button').filter({ hasText: path }).click();
+};
 
 test('A small single flow keeps the direct review UI without an extra chooser', async ({ page }) => {
   await installConnected(page);
   await page.locator('.attention-row').getByRole('button', { name: /Payment retry review/ }).click();
   await expect(page.getByLabel('Choose review flow', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Dependency flow diagram' })).toBeVisible();
   await expect(page.locator('.review-component-list button')).toHaveCount(snapshot.files.length);
   await expect(page.getByRole('progressbar', { name: 'Files viewed' })).toHaveAttribute('max', String(snapshot.files.length));
 });
@@ -70,6 +74,8 @@ test('Flow picker searches files, preserves all changed-file coverage, and suppo
   for (const label of labels) {
     await page.getByLabel('Choose review flow', { exact: true }).click();
     await page.getByRole('button', { name: label, exact: true }).click();
+    if (await page.locator('.api-source-files').getAttribute('open') === null)
+      await page.locator('.api-source-files summary').click();
     const text = await page.locator('.review-component-list').innerText();
     for (const item of files) if (text.includes(item.path)) visited.add(item.path);
   }
@@ -160,6 +166,7 @@ test('Flow navigation stays keyboard reachable with diagram, code and AI togethe
   await expect(page.getByLabel('Choose review flow', { exact: true })).toContainText('payments');
   await expect(page.locator('.review-component-list')).toContainText('paymentsAction6');
   await page.getByRole('button', { name: 'Read paymentsAction6.ts', exact: true }).click();
+  await page.getByLabel('Expand AI review', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => {
     const panel = document.querySelector('.visual-map-panel').getBoundingClientRect();
     const node = document.querySelector('.diagram-node.selected').getBoundingClientRect();

@@ -20,7 +20,7 @@ test('Home suggestion fills the composer without requesting Claude, explicit sen
 
 test('MR suggestions show its actual file context and are drafts until explicitly sent', async ({page}) => {
   await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();
-  await expect(page.getByRole('img',{name:'Dependency flow diagram',exact:true})).toBeVisible();
+  await expect(page.getByRole('group',{name:'Dependency flow diagram',exact:true})).toBeVisible();
   await page.keyboard.press('Meta+j');
   const indicator=page.getByLabel('Assistant selected context');
   await expect(indicator).toContainText('MR !7');

@@ -188,6 +188,7 @@ function PlanningWorkspace({
   focusRequestId,
   planningKey,
   configVersion,
+  notificationPreferences = { reviews: true, deadlines: true, digest: true },
 }) {
   const plan = usePlan(),
     today = dayKey();
@@ -492,8 +493,14 @@ function PlanningWorkspace({
   const remainingNoun = remaining.some((task) => task.kind === "event") ? "item" : "task";
   const completed = tasks.filter((t) => t.done);
   const connected = Boolean(configs.jira?.tokenConfigured || configs.gitlab?.tokenConfigured);
-  const nextReview = feed.mrs[0];
-  const nextIssue = !nextReview && due[0];
+  const attentionScope = home || view === "Today";
+  const showReviewAttention = !attentionScope || notificationPreferences.reviews !== false;
+  const showDeadlineAttention = !attentionScope || notificationPreferences.deadlines !== false;
+  const attentionReviews = showReviewAttention ? feed.mrs : [];
+  const attentionDue = showDeadlineAttention ? due : [];
+  const showDigest = home && notificationPreferences.digest !== false;
+  const nextReview = attentionReviews[0];
+  const nextIssue = !nextReview && attentionDue[0];
   const feedPlanDate = weekly ? quickDate || date : today;
   const availableBacklogAction = (object) => <button className="quiet-button" disabled={linkedPlan(object)?.date === ""} onClick={() => planObject(object, "")}>{linkedPlan(object)?.date === "" ? "In Backlog" : linkedPlan(object) ? "Move to Backlog" : "Backlog"}</button>;
   const carryoverRow = (task) => <div className="carryover-row" key={task.id}>
@@ -520,7 +527,7 @@ function PlanningWorkspace({
           </p>
           {home && <div className="daily-day-summary" aria-label="Daily summary">
             <span><span className="summary-dot" />{remaining.length} planned {remaining.length === 1 ? "item" : "items"}</span>
-            <span><GitPullRequest size={12} />{!configs.gitlab?.tokenConfigured ? "GitLab not connected" : loading ? "Checking reviews…" : `${feed.mrs.length} ${feed.mrs.length === 1 ? "review" : "reviews"} requested`}</span>
+            {notificationPreferences.reviews !== false && <span><GitPullRequest size={12} />{!configs.gitlab?.tokenConfigured ? "GitLab not connected" : loading ? "Checking reviews…" : `${attentionReviews.length} ${attentionReviews.length === 1 ? "review" : "reviews"} requested`}</span>}
             <span><CheckCircle2 size={12} />{completed.length} completed locally</span>
           </div>}
 
@@ -754,8 +761,49 @@ function PlanningWorkspace({
           </section>
         </>
       ) : (
-        <div className="daily-columns">
-          <section>
+        <div className={`daily-columns ${showDigest ? "has-daily-digest" : ""}`}>
+          <aside className="daily-brief">
+            <h2>
+              Needs your attention{" "}
+              <span className="pill">{attentionReviews.length + attentionDue.length}</span>
+            </h2>
+            <p className="form-note">{showReviewAttention && showDeadlineAttention ? "Reviews waiting on you and deadlines coming up." : showReviewAttention ? "Reviews waiting on you." : showDeadlineAttention ? "Deadlines coming up." : "Attention notifications are off. Your available work stays below."}</p>
+            {attentionReviews.slice(0, expandedAttention ? undefined : 5).map((m) => (
+              <div key={m.id} className={`attention-row ${home && m === nextReview ? "attention-recommended" : ""}`}>
+                {home && m === nextReview && <span className="attention-kicker">A good place to start <ArrowUpRight size={12} /></span>}
+                <GitPullRequest size={16} />
+                <button onClick={() => onOpen(mrObject(m))}>
+                  <b>
+                    !{m.iid} {m.title}
+                  </b>
+                  <small>Review requested · {m.author?.name || "GitLab"}</small>
+                </button>
+                {home && m === nextReview && <button className="btn primary attention-review" onClick={() => onOpen(mrObject(m))}>Review changes <ArrowUpRight size={12} /></button>}
+                {planningAction(mrObject(m), true)}
+              </div>
+            ))}
+            {attentionDue.slice(0, expandedAttention ? undefined : 5).map((i) => (
+              <div key={i.key} className={`attention-row ${home && i === nextIssue ? "attention-recommended" : ""}`}>
+                {home && i === nextIssue && <span className="attention-kicker">Coming up next <ArrowUpRight size={12} /></span>}
+                <button onClick={() => onOpen(issueObject(i))}>
+                  <b>
+                    {i.key} {i.fields.summary}
+                  </b>
+                  <small>{i.fields.duedate < today ? "Overdue" : "Jira due"} {i.fields.duedate}</small>
+                </button>
+                {planningAction(issueObject(i), true)}
+              </div>
+            ))}
+            {(attentionReviews.length > 5 || attentionDue.length > 5) && <button className="quiet-button attention-expand" onClick={() => setExpandedAttention(!expandedAttention)}>{expandedAttention ? "Show fewer attention items" : `Show ${Math.max(0, attentionReviews.length - 5) + Math.max(0, attentionDue.length - 5)} more attention items`}</button>}
+            {(attentionReviews.length || attentionDue.length) > 0 && <p className="form-note attention-coverage">Loaded attention items · open My Reviews or Projects for all service results.</p>}
+            {!attentionReviews.length && !attentionDue.length && !loading && !feed.errors.length && (
+              <div className="attention-clear"><CheckCircle2 size={20} />
+                <b>{connected ? showReviewAttention || showDeadlineAttention ? "Nothing urgent in loaded work" : "Attention notifications are off" : "Your work, in one place"}</b>
+                <p>{connected ? showReviewAttention || showDeadlineAttention ? "No urgent items in enabled attention categories. Your plan is ready when you are." : "Find issues and reviews in Available work, Projects and My Reviews." : "Connect your tools to surface review requests and upcoming deadlines here."}</p>
+              </div>
+            )}
+          </aside>
+          <section className="daily-plan">
             <h2>
               {home
                 ? date === today
@@ -797,48 +845,7 @@ function PlanningWorkspace({
               </div>
             )}
           </section>
-          <aside className="daily-brief">
-            {home && <AssistantBrief onOpen={onOpen} onNavigate={onNavigate} configVersion={configVersion} />}
-            <h2>
-              Needs your attention{" "}
-              <span className="pill">{feed.mrs.length + due.length}</span>
-            </h2>
-            <p className="form-note">Reviews waiting on you and deadlines coming up.</p>
-            {feed.mrs.slice(0, expandedAttention ? undefined : 5).map((m) => (
-              <div key={m.id} className={`attention-row ${home && m === nextReview ? "attention-recommended" : ""}`}>
-                {home && m === nextReview && <span className="attention-kicker">A good place to start <ArrowUpRight size={12} /></span>}
-                <GitPullRequest size={16} />
-                <button onClick={() => onOpen(mrObject(m))}>
-                  <b>
-                    !{m.iid} {m.title}
-                  </b>
-                  <small>Review requested · {m.author?.name || "GitLab"}</small>
-                </button>
-                {home && m === nextReview && <button className="btn primary attention-review" onClick={() => onOpen(mrObject(m))}>Review changes <ArrowUpRight size={12} /></button>}
-                {planningAction(mrObject(m), true)}
-              </div>
-            ))}
-            {due.slice(0, expandedAttention ? undefined : 5).map((i) => (
-              <div key={i.key} className={`attention-row ${home && i === nextIssue ? "attention-recommended" : ""}`}>
-                {home && i === nextIssue && <span className="attention-kicker">Coming up next <ArrowUpRight size={12} /></span>}
-                <button onClick={() => onOpen(issueObject(i))}>
-                  <b>
-                    {i.key} {i.fields.summary}
-                  </b>
-                  <small>{i.fields.duedate < today ? "Overdue" : "Jira due"} {i.fields.duedate}</small>
-                </button>
-                {planningAction(issueObject(i), true)}
-              </div>
-            ))}
-            {(feed.mrs.length > 5 || due.length > 5) && <button className="quiet-button attention-expand" onClick={() => setExpandedAttention(!expandedAttention)}>{expandedAttention ? "Show fewer attention items" : `Show ${Math.max(0, feed.mrs.length - 5) + Math.max(0, due.length - 5)} more attention items`}</button>}
-            {(feed.mrs.length || due.length) > 0 && <p className="form-note attention-coverage">Loaded attention items · open My Reviews or Projects for all service results.</p>}
-            {!feed.mrs.length && !due.length && !loading && !feed.errors.length && (
-              <div className="attention-clear"><CheckCircle2 size={20} />
-                <b>{connected ? "Nothing urgent in loaded work" : "Your work, in one place"}</b>
-                <p>{connected ? "No pending reviews or imminent deadlines in loaded results. Your plan is ready when you are." : "Connect your tools to surface review requests and upcoming deadlines here."}</p>
-              </div>
-            )}
-          </aside>
+          {showDigest && <div className="daily-digest"><AssistantBrief onOpen={onOpen} onNavigate={onNavigate} configVersion={configVersion} /></div>}
         </div>
       )}
       <section className="live-inbox">

@@ -49,7 +49,7 @@
 .review-flow-import-path {margin:5px 0;font-size:10px;}
 .review-flow-import-path > small {color:var(--secondary);font-size:9px;}
 .review-flow-import-path > div {display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
-.review-flow-import-path button {font-size:10px;color:var(--accent);text-align:left;overflow-wrap:anywhere;}
+.review-flow-import-path button {font-size:10px;color:var(--accent);text-align:left;overflow-wrap:anywhere;min-height:24px;}
 .architecture-layer .architecture-band {fill:var(--bg);stroke:var(--line);stroke-width:1;}
 .architecture-layer[data-role=controller] .architecture-band {fill:var(--accent-soft);}
 .architecture-layer[data-role=service] .architecture-band {fill:var(--surface);}

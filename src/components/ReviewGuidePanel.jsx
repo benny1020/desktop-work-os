@@ -1,8 +1,8 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Sparkles, ArrowRight, MessageSquare, Check} from 'lucide-react';
+import {Sparkles, ArrowRight, MessageSquare, Check, ChevronDown, ChevronUp} from 'lucide-react';
 import {basename} from '../lib/review-model.mjs';
 
-export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guidelines, onGuidelines, busy, analyzing = false, refreshing = false, error, onGenerate, selectedPath, activeFinding, findingKey, canLocate, onSelect, onDraft, decisions, onDecision, flowPaths, flowLabel, apiFlow}) {
+export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guidelines, onGuidelines, busy, analyzing = false, refreshing = false, error, onGenerate, selectedPath, activeFinding, findingKey, canLocate, onSelect, onDraft, decisions, onDecision, flowPaths, flowLabel, apiFlow, canCollapse = false, collapsed = false, onToggle}) {
   const [scope,setScope]=useState(flowPaths ? 'flow' : 'all');
   useEffect(() => { if (!flowPaths && scope === 'flow') setScope('all'); }, [flowPaths, scope]);
   const body = useRef(null);
@@ -25,8 +25,8 @@ export default function ReviewGuidePanel({guide, files, mr, live, endpoint, guid
   const visible=findings.filter(f=>scope==='all'||(scope==='flow' ? flowPaths?.includes(f.path) : f.path===selectedPath));
   const reviewed=findings.filter(f=>['checked','dismissed'].includes(decisions[findingKey(f)])).length;
   return <aside className="ai-review-rail" aria-label="AI review alongside code">
-    <div className="ai-rail-heading"><Sparkles size={16}/><h2>AI review</h2><span className="pill">Suggestions</span></div>
-    <div className="ai-review-guide" ref={body}>
+    <div className="ai-rail-heading"><Sparkles size={16}/><h2>AI review</h2><span className="pill">{busy ? "Analyzing…" : "Suggestions"}</span>{canCollapse && <button className="icon-button" aria-label={collapsed ? "Expand AI review" : "Collapse AI review"} aria-expanded={!collapsed} onClick={onToggle}>{collapsed ? <ChevronDown size={15}/> : <ChevronUp size={15}/>}</button>}</div>
+    <div className="ai-review-guide" hidden={collapsed} ref={body}>
       <p className="ai-review-intro">Inspect the evidence. Make your own call.</p>
       <details className="guideline-settings"><summary>Guidelines & shared context</summary>
         <textarea aria-label="Team review guidelines" value={guidelines} disabled={busy} onChange={e=>onGuidelines(e.target.value)} placeholder="Prioritize idempotency, error handling, and missing tests."/>

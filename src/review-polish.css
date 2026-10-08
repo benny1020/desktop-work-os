@@ -20,7 +20,7 @@
 .visual-review .diagram-toolbar small { max-width: 340px; line-height: 1.5; margin-top: 5px; }
 .diagram-evidence-count { display: inline-block; margin-left: 9px; font-size: 9px; color: var(--secondary); }
 .visual-review .diagram-toolbar .is-fitted { color: var(--accent); }
-.visual-review .diagram-toolbar .quiet-button span { margin-left: 3px; font-size: 9px; opacity: .75; }
+.visual-review .diagram-toolbar .quiet-button span { margin-left: 3px; font-size: 9px; }
 .visual-review .diagram-legend { padding-top: 9px; padding-bottom: 9px; gap: 10px; }
 .visual-review .review-component-list { padding-top: 5px; }
 .visual-review .review-component-list button { padding-top: 8px; padding-bottom: 8px; }

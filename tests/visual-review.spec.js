@@ -18,7 +18,7 @@ test("Visual review: dependency component opens exact code and separate sequence
 }) => {
   await openDemo(page);
   await expect(
-    page.getByRole("img", { name: "Dependency flow diagram" }),
+    page.getByRole("group", { name: "Dependency flow diagram" }),
   ).toBeVisible();
   await page
     .getByRole("button", {
@@ -34,7 +34,7 @@ test("Visual review: dependency component opens exact code and separate sequence
   );
   await page.getByRole("tab", { name: "Sequence", exact: true }).click();
   await expect(
-    page.getByRole("img", { name: "Sequence diagram" }),
+    page.getByRole("group", { name: "Sequence diagram" }),
   ).toBeVisible();
   await page.getByRole("button", { name: /Inspect sequence step 1:/ }).click();
   await expect(page.locator(".code-provenance")).toContainText(

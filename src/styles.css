@@ -23,12 +23,12 @@
   --secondary: #69757d;
   --accent: #267469;
   --accent-soft: #eaf3f0;
-  --purple: #7c6ba9;
+  --purple: #715d9e;
   --purple-soft: #f3f0f8;
-  --red: #c06560;
+  --red: #a94f48;
   --red-soft: #fbefed;
-  --amber: #b48c49;
-  --blue: #5985b4;
+  --amber: #8a672c;
+  --blue: #386ba1;
   --shadow: 0 12px 48px #23353f14;
 }
 :root[data-theme="dark"] {

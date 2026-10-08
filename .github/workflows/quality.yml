@@ -25,6 +25,10 @@ jobs:
       - run: npm run test:adapters
       - run: npm run test:cold-review
       - run: npm test -- --workers=2
+      - name: Install isolated accessibility checker
+        run: npm install --prefix "$RUNNER_TEMP/worklane-axe" axe-core@4.11.1 --no-save --package-lock=false
+      - name: Check rendered design and accessibility
+        run: AXE_SCRIPT_PATH="$RUNNER_TEMP/worklane-axe/node_modules/axe-core/axe.min.js" node scripts/audit-design-quality.mjs
       - name: Preserve failure evidence
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -33,4 +37,5 @@ jobs:
           path: |
             artifacts/test-report/
             test-results/
+            artifacts/design-quality/
           retention-days: 7

@@ -103,7 +103,7 @@ test("Pipeline failure summary filters real jobs and jumps to the failing job wi
   await expect(page.locator('[data-pipeline-job="22"]')).toBeFocused();
   await expect(page.locator('[data-pipeline-job="22"]')).toBeInViewport();
   await page.getByLabel("Back in context").click();
-  await expect(page.getByRole("img", { name: "Dependency flow diagram" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Dependency flow diagram" })).toBeVisible();
 });
 
 test("A deep wiki reading position returns after a searched issue without leaking its scroll into the issue", async ({ page }) => {

@@ -305,6 +305,7 @@ import "./review-code.css";
 import ProductGuide, { WorklaneMark } from "./components/ProductGuide";
 function App() {
   const [showGuide,setShowGuide] = useState(false);
+  const integrationDraftStore = useRef({});
   const [workspaceMode, setWorkspaceMode] = useState(()=>persisted("workspaceMode","demo"));
   const [liveObject,setLiveObject]=useState(null);
   const liveObjectFocus = useRef(null);
@@ -411,9 +412,8 @@ function App() {
   );
   const [prefs, setPrefs] = useState(() =>
     persisted("prefs", {
-      mentions: true,
       reviews: true,
-      alerts: true,
+      deadlines: true,
       digest: true,
     }),
   );
@@ -516,6 +516,7 @@ function App() {
         view || navigation.find((n) => n.name === section)?.views[0] || "Home",
     };
     if (scope?.mrId) next.mrId = scope.mrId;
+    if (scope?.integrationService) next.integrationService = scope.integrationService;
     if (scope?.taskId) {
       next.taskId = scope.taskId;
       next.planDate = scope.planDate;
@@ -540,6 +541,9 @@ function App() {
     setPanelHistory([]);
     setInspectorExpanded(false);
     setActivePop(null);
+  }
+  function openIntegrationSettings(service) {
+    navigate("Settings", "Integrations", typeof service === "string" ? { integrationService: service } : undefined);
   }
   function goHistory(delta) {
     if (reviewNavigationBlocked()) return;
@@ -906,6 +910,7 @@ function App() {
     </button>
   );
   function Brief({ full = false }) {
+    if (prefs.digest === false) return null;
     return (
       <section className={cx("brief", full && "full")}>
         <div className="brief-header">
@@ -913,9 +918,10 @@ function App() {
             <I name="Sparkles" size={17} />
           </span>
           <strong>Assistant brief</strong>
-          <span className="new-label">3 updates</span>
+          <span className="new-label">{1 + (prefs.reviews !== false ? 1 : 0) + (prefs.deadlines !== false ? 1 : 0)} updates</span>
         </div>
         <p className="brief-intro">A little context for your day.</p>
+        {prefs.reviews !== false && <>
         <div className="brief-item">
           <span className="brief-item-icon purple">
             <I name="GitPullRequest" />
@@ -958,6 +964,8 @@ function App() {
             </div>
           </div>
         </div>
+        </>}
+        {prefs.deadlines !== false && <>
         <div className="brief-item">
           <span className="brief-item-icon amber">
             <I name="Clock3" />
@@ -982,6 +990,7 @@ function App() {
             </div>
           </div>
         </div>
+        </>}
         <div className="brief-item">
           <span className="brief-item-icon red">
             <I name="Activity" />
@@ -3420,27 +3429,29 @@ function App() {
           )}
         </div>
         {route.view === "Integrations" ? (
-          <IntegrationSettings
+          <IntegrationSettings initialProvider={route.integrationService} draftStore={integrationDraftStore}
             onChange={() => { advanceAssistantCredentialScope(); advanceCommandCredentialScope(); setConfigVersion((v) => v + 1); }}
           />
         ) : route.view === "Notifications" ? (
-          Object.entries(prefs).map(([k, v]) => (
+          <>
+          {["reviews", "deadlines", "digest"].map(k => {
+            const v = prefs[k] !== false;
+            return (
             <div className="setting-row" key={k}>
               <div>
                 <h3>
                   {
                     {
-                      mentions: "Mentions & comments",
-                      reviews: "Review requests",
-                      alerts: "Production alerts",
-                      digest: "Daily assistant brief",
+                      reviews: "Review requests in attention",
+                      deadlines: "Issue deadlines in attention",
+                      digest: "Assistant brief on Home",
                     }[k]
                   }
                 </h3>
                 <p>
-                  {k === "digest"
-                    ? "Collect non-urgent updates on Home."
-                    : "Group related updates to reduce interruptions."}
+                  {k === "digest" ? "Show a quiet summary of your local plan and reminders."
+                    : k === "reviews" ? "Show pending reviews on Home, Today and in the attention center. Your review list stays available."
+                    : "Show imminent Jira deadlines on Home, Today and in the attention center. Issue lists and your plan stay available."}
                 </p>
               </div>
               <button
@@ -3453,7 +3464,9 @@ function App() {
                 <span />
               </button>
             </div>
-          ))
+          ); })}
+          <p className="form-note">These preferences change what appears in Worklane. They do not mute Jira or GitLab notifications. Desktop reminder notifications are managed in the assistant's memory settings.</p>
+          </>
         ) : route.view === "Workspace" && workspaceMode === "connected" ? (
           <>
             <div className="setting-row"><div><h3>My workspace</h3><p>Your personal plan and connected tools on this device.</p></div><span className="pill">Connected</span></div>
@@ -4422,7 +4435,7 @@ function App() {
                 </span>
               </div>
               <button onClick={() => navigate("Settings", "Integrations")}>
-                <span className="live-dot" />
+                <I name="Plug" size={11} />
                 Integration settings
                 <I name="ChevronRight" size={12} />
               </button>
@@ -4628,10 +4641,11 @@ function App() {
                 focusTaskId={route.taskId}
                 focusRequestId={route.focusRequestId}
                 configVersion={configVersion}
+                notificationPreferences={prefs}
                 onOpen={openLiveObject}
                 onContext={setLiveContext}
                 onReviewPendingChange={onReviewPendingChange}
-                onSettings={() => navigate("Settings", "Integrations")}
+                onSettings={openIntegrationSettings}
                 onNavigate={navigate}
               />
             ) : route.section === "Home" ? (
@@ -4660,7 +4674,7 @@ function App() {
                   JSON.stringify({ section: route.section, view: route.view })
                 }
                 onClose={() => setAssistant(false)}
-                onSettings={() => navigate("Settings", "Integrations")}
+                onSettings={openIntegrationSettings}
               />
             ) : (
               <Assistant
@@ -4679,16 +4693,16 @@ function App() {
         </div>
         <footer className="statusbar">
           <span>
-            <i className="live-dot" />{" "}
+            <I name={workspaceMode === "connected" ? "Plug" : "FlaskConical"} size={11} />{" "}
             {workspaceMode === "connected"
-              ? "Connected workspace"
+              ? "Connected mode"
               : "Demo workspace"}{" "}
             <span className="muted">
               ·{" "}
               {route.section === "Observe"
                 ? "Observe uses mock data"
                 : workspaceMode === "connected"
-                  ? "Service permissions apply"
+                  ? "Configured services only"
                   : "Sample data"}
             </span>
           </span>
@@ -4704,11 +4718,11 @@ function App() {
         </footer>
       </div>
       {showGuide && <ProductGuide onClose={()=>setShowGuide(false)} onPick={id=>{setShowGuide(false);requestAnimationFrame(()=>{if(id==="review")review("381");else if(id==="incident")preview("alert","alert-1");else preview("issue","PAY-382");});}}/>}
-      {notifications && workspaceMode === "connected" && <ConnectedAttention key={`attention-${configVersion}`} onClose={()=>dismissPopover(true)} onOpen={openLiveObject} onSettings={()=>navigate("Settings","Integrations")}/>}
+      {notifications && workspaceMode === "connected" && <ConnectedAttention notificationPreferences={prefs} key={`attention-${configVersion}`} onClose={()=>dismissPopover(true)} onOpen={openLiveObject} onSettings={openIntegrationSettings}/>}
       {notifications && workspaceMode === "demo" && (
         <div className="notification-popover" id="attention-popover" tabIndex={-1}>
           <div className="section-title">
-            <h3>3 things need attention</h3>
+            <h3>{1 + (prefs.reviews !== false ? 1 : 0) + (prefs.deadlines !== false ? 1 : 0)} things need attention</h3>
             <button
               className="icon-button"
               aria-label="Close notifications"
@@ -4717,20 +4731,20 @@ function App() {
               <I name="X" />
             </button>
           </div>
-          <button onClick={() => preview("mr", "391")}>
+          {prefs.reviews !== false && <button onClick={() => preview("mr", "391")}>
             <I name="GitPullRequest" className="purple-text" />
             <div>
               <b>Your review is requested</b>
               <small>!391 · Daniel Lee · 18h ago</small>
             </div>
-          </button>
-          <button onClick={() => preview("issue", "PAY-291")}>
+          </button>}
+          {prefs.deadlines !== false && <button onClick={() => preview("issue", "PAY-291")}>
             <I name="Clock3" className="amber-text" />
             <div>
               <b>One issue is due tomorrow</b>
               <small>PAY-291 · Webhook signatures</small>
             </div>
-          </button>
+          </button>}
           <button onClick={() => preview("alert", "alert-1")}>
             <I name="TriangleAlert" className="danger-text" />
             <div>
@@ -4744,7 +4758,7 @@ function App() {
           </details>
         </div>
       )}
-      {liveObject && workspaceMode === "connected" && <ConnectedObjects key={`objects-${configVersion}`} object={liveObject} returnFocusRef={liveObjectFocus} onSettings={()=>navigate("Settings","Integrations")} onClose={()=>setLiveObject(null)}/>}
+      {liveObject && workspaceMode === "connected" && <ConnectedObjects key={`objects-${configVersion}`} object={liveObject} returnFocusRef={liveObjectFocus} onSettings={openIntegrationSettings} onClose={()=>setLiveObject(null)}/>}
       {palette && workspaceMode === "connected" && <ConnectedCommands mode={palette} onClose={()=>setPalette(null)} onOpen={openLiveObject} onNavigate={navigate}/>}
       {palette && workspaceMode === "demo" && (
         <Palette

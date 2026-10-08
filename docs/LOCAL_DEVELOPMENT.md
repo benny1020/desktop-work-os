@@ -208,3 +208,12 @@ npm run test:desktop
 node scripts/test-connected-desktop.mjs
 node scripts/capture-jira-visual-filters.mjs
 ```
+
+
+## Independent design and interaction release review — 2026-10-08
+
+Three fresh reviewers challenged first use/trust, visual hierarchy and repeated work. Their own fixes were cross-reviewed; root MR layout fixes were independently rechecked until no remaining Critical/P1/P2 was reproduced within the inspected paths. Settings drafts, provider destinations/focus, real notification preference effects, Jira field drafts/conflicts/current priority, narrow header controls, source-file disclosure/Escape, stable diagram fitting and accessible interactive SVG semantics were repaired.
+
+Final browser **377/377**, adapter/model/Git **171/171**, native connected **11/11** (71 synthetic HTTPS requests, no renderer errors/automatic external writes), cold-start **2/2**, production build, legacy profile compatibility, encrypted vault and production parser-worker checks passed. Ten axe-audited app screen/theme/width states recorded zero automated violations and zero page errors. The CI now repeats that rendered audit with axe-core 4.11.1 in an isolated temporary installation.
+
+[Report, reproducible commands and actual screenshots](RELEASE_DESIGN_REVIEW.md). No personal browser sessions, company accounts, store publication or production signing were used. App-store readiness beyond the audited design boundary remains unverified.

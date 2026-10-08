@@ -10,7 +10,7 @@ test('AI evidence and own draft share one flow without automatic posting', async
   await installConnected(page); await open(page);
   expect(await page.evaluate(()=>window.__fixture.calls.filter(c=>c.action==='claude.review').length)).toBe(0);
   await generate(page);
-  await expect(page.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();
+  await expect(page.getByRole('group',{name:'Dependency flow diagram'})).toBeVisible();
   await expect(page.getByLabel('AI review alongside code')).toBeVisible();
   await checkpoint(page,first.title).locator('.guide-finding').click();
   await expect(page.locator('.visual-code-heading')).toContainText(first.path);
@@ -95,8 +95,8 @@ for(const width of [1440,980]) test(`Diagram, code and AI remain accessible toge
   for(const box of boxes){expect(box.width).toBeGreaterThan(180);expect(box.height).toBeGreaterThan(120);expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width+1);}
   const [map,code,ai]=boxes;
   expect(code.x).toBeGreaterThanOrEqual(map.x+map.width-1);
-  if(width===1440) expect(ai.x).toBeGreaterThanOrEqual(code.x+code.width-1);
-  else {expect(ai.y).toBeGreaterThanOrEqual(map.y+map.height-1);expect(code.y).toBeLessThan(ai.y);}
+  expect(ai.x).toBeGreaterThanOrEqual(code.x+code.width-1);
+  expect(Math.abs(ai.y-map.y)).toBeLessThan(2);
   await page.getByRole('button',{name:`Draft comment for ${first.title}`,exact:true}).click();
   await expect(page.getByLabel('Diagram review comment')).toBeFocused();
   await expect.poll(async()=>page.evaluate(()=>{

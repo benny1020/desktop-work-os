@@ -4,7 +4,7 @@ import { invoke } from "../lib/integration-client";
 import { addPlanTask } from "../lib/planning";
 import { useAutoSync } from "../lib/use-auto-sync";
 import SyncStatus from "./SyncStatus";
-export default function ConnectedAttention({ onClose, onOpen, onSettings }) {
+export default function ConnectedAttention({ onClose, onOpen, onSettings, notificationPreferences = {} }) {
   const [items, setItems] = useState([]),
     [configured, setConfigured] = useState(false),
     [errors, setErrors] = useState([]),
@@ -43,6 +43,7 @@ export default function ConnectedAttention({ onClose, onOpen, onSettings }) {
       .finally(() => { if (alive) setBusy(false); });
     return () => { alive = false; };
   }, []);
+  const visibleItems = items.filter(item => item.type === "mr" ? notificationPreferences.reviews !== false : notificationPreferences.deadlines !== false);
   return (
     <aside
       className="connected-attention"
@@ -73,7 +74,7 @@ export default function ConnectedAttention({ onClose, onOpen, onSettings }) {
         Due issues and review requests, up to the first 50 results per service.
       </p>
       {busy && <p>Loading…</p>}
-      {items.map((o, i) => (
+      {visibleItems.map((o, i) => (
         <div className="attention-row" key={i}>
           <button
             onClick={() => {
@@ -99,8 +100,8 @@ export default function ConnectedAttention({ onClose, onOpen, onSettings }) {
           </button>
         </div>
       ))}
-      {!items.length && !busy && !errors.length && (configured
-        ? <p>No urgent work in connected results.</p>
+      {!visibleItems.length && !busy && !errors.length && (configured
+        ? <p>{items.length ? "Attention categories are hidden by your preferences. Your issue and review lists remain available." : "No urgent work in connected results."}</p>
         : <div><p>Connect Jira or GitLab to see due issues and review requests.</p><button className="btn" onClick={onSettings}>Connect tools</button></div>)}
       {!busy && errors.length > 0 && <p>{items.length ? "Some services could not be checked. Results may be incomplete. Last available results are kept." : "Attention could not be checked. Retrying automatically; you can also refresh."}</p>}
       {errors.map((e, i) => (

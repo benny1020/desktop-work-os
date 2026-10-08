@@ -128,8 +128,8 @@ test('Unknown files beside configuration stay explicit and do not gain invented 
   await expect(node(page, 'data.ts')).toContainText('Role unknown');
   await expect(node(page, 'package.json')).toHaveAttribute('data-architecture-role', 'config');
   await expect(page.locator('.dependency-edge')).toHaveCount(0);
-  await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).toContainText('Other / Unclassified');
-  await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).toContainText('Configuration');
+  await expect(page.getByRole('group', { name: 'Dependency flow diagram' })).toContainText('Other / Unclassified');
+  await expect(page.getByRole('group', { name: 'Dependency flow diagram' })).toContainText('Configuration');
   await page.getByText('Why these files?', { exact: true }).click();
   await expect(page.locator('.review-flow-explanation')).toContainText('no execution flow established');
   expect(await page.evaluate(() => window.__architectureCalls.some(call => call.action === 'claude.review'))).toBe(false);
@@ -141,7 +141,7 @@ test('A dependency cycle across Service and Worker layers remains explained with
   await installArchitecture(page, files);
   await expect(node(page, 'PaymentService.ts')).toHaveAttribute('data-architecture-role', 'service');
   await expect(node(page, 'PaymentWorker.ts')).toHaveAttribute('data-architecture-role', 'job');
-  await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).toContainText('Cyclic dependency');
+  await expect(page.getByRole('group', { name: 'Dependency flow diagram' })).toContainText('Cyclic dependency');
   const edge = page.getByRole('button', { name: 'Inspect PaymentWorker.ts imports PaymentService.ts', exact: true });
   const hit = await edge.locator('.edge-hit-area').evaluate(path => {
     const point = path.getPointAtLength(path.getTotalLength() / 2).matrixTransform(path.getScreenCTM());
@@ -186,6 +186,7 @@ test('Narrow dark review keeps selected persistence layer readable alongside cod
   await page.locator('.attention-row').getByRole('button', { name: /Payment retry review/ }).click();
   await choose(page, 'Payment request handling');
   await page.getByRole('button', { name: 'Read PaymentRepository.java', exact: true }).click();
+  await page.getByLabel('Expand AI review', { exact: true }).click();
   await expect.poll(() => selectedVisible(page)).toBe(true);
   for (const selector of ['.visual-map-panel', '.visual-code-panel', '.ai-review-rail']) {
     const bounds = await page.locator(selector).boundingBox();

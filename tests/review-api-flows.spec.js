@@ -14,8 +14,8 @@ test('API default shows request and handler return, with only selected methods i
   await expect(page.getByLabel('Methods in this API flow')).not.toContainText('capture()');
   await expect(page.getByRole('button', { name: 'Select source line 19', exact: true })).toHaveClass(/selected/);
   await expect(page.getByLabel('Current API flow')).toContainText('L17');
-  await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).not.toContainText('saveCapture()');
-  await expect(page.getByRole('img', { name: 'Dependency flow diagram' })).toContainText('saveRefund()');
+  await expect(page.getByRole('group', { name: 'Dependency flow diagram' })).not.toContainText('saveCapture()');
+  await expect(page.getByRole('group', { name: 'Dependency flow diagram' })).toContainText('saveRefund()');
 });
 test('canonical shared-method drafts survive API switching and flow completion stays independent', async ({ page }) => {
   await openApiReview(page);

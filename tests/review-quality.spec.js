@@ -29,9 +29,9 @@ test("Diagram keys select code and fit adapts to assistant while manual zoom is 
   await page.keyboard.press("Meta+j");
   await expect.poll(() => page.locator(".diagram-scroll").evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await page.getByLabel("Zoom in diagram").click();
-  const manualWidth = await page.getByRole("img", { name: "Dependency flow diagram" }).getAttribute("width");
+  const manualWidth = await page.getByRole("group", { name: "Dependency flow diagram" }).getAttribute("width");
   await page.setViewportSize({ width: 1100, height: 900 });
-  await expect(page.getByRole("img", { name: "Dependency flow diagram" })).toHaveAttribute("width", manualWidth);
+  await expect(page.getByRole("group", { name: "Dependency flow diagram" })).toHaveAttribute("width", manualWidth);
   await page.getByLabel("Fit diagram to panel").click();
   await expect.poll(() => page.locator(".diagram-scroll").evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await expect.poll(() => page.locator(".visual-review-grid").evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
@@ -50,7 +50,7 @@ test("Cycles render in one layer without unbounded graph depth", async ({ page }
   await openReview(page);
   await expect(component(page, "PaymentService")).toHaveAttribute("data-dependency-layer", "1");
   await expect(component(page, "RetryQueue")).toHaveAttribute("data-dependency-layer", "1");
-  await expect(page.getByRole("img", { name: "Dependency flow diagram" })).toContainText("Cyclic dependency");
+  await expect(page.getByRole("group", { name: "Dependency flow diagram" })).toContainText("Cyclic dependency");
 });
 
 test("Demo sequence components are keyboard operable and preserve selection", async ({ page }) => {

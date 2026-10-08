@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => installConnected(page));
 test("Back from an MR cancels a pending refresh instead of reopening the review", async ({ page }) => {
   await nav(page, "Code");
   await page.locator(".connected-content button").filter({ hasText: "PAY-382 Payment retry review" }).click();
-  await expect(page.getByRole("img", { name: "Dependency flow diagram" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Dependency flow diagram" })).toBeVisible();
   await page.evaluate(() => {
     const original = window.__fixture.invoke.bind(window.__fixture);
     window.__fixture.invoke = async (action, args) => {

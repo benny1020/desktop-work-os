@@ -16,7 +16,7 @@ test('Daily summary uses actual personal plan and the suggested review retains H
   await expect(page.getByLabel('Daily summary')).toContainText('1 completed locally');
   await expect(page.getByLabel('Daily summary')).toContainText('0 planned items');
   await page.getByRole('button',{name:'Review changes',exact:true}).click();
-  await expect(page.getByRole('img',{name:'Dependency flow diagram',exact:true})).toBeVisible();
+  await expect(page.getByRole('group',{name:'Dependency flow diagram',exact:true})).toBeVisible();
   await page.getByLabel('Close context preview').click();
   await expect(page.getByRole('heading',{name:'A clear start to your day'})).toBeVisible();
   expect(await page.evaluate(()=>window.__fixture.calls.filter(c=>c.action==='claude.review'))).toEqual([]);

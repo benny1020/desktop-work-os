@@ -44,7 +44,7 @@ function Missing({ service, onSettings }) {
       <Plug size={32} />
       <h2>Connect {({ jira: "Jira", gitlab: "GitLab", confluence: "Confluence" })[service] || service}</h2>
       <p>Add your service URL and token, then test the connection.</p>
-      <button className="btn primary" onClick={onSettings}>
+      <button className="btn primary" onClick={() => onSettings(service)}>
         Open integration settings
       </button>
     </div>
@@ -107,6 +107,7 @@ export default function ConnectedWorkspace({
   onNavigate,
   onContext,
   configVersion,
+  notificationPreferences,
   onOpen,
   focusDate,
   focusTaskId,
@@ -130,6 +131,8 @@ export default function ConnectedWorkspace({
   const plan = usePlan();
   const requestId = useRef(0);
   const jiraControls = useRef(null);
+  const issueTrigger = useRef(null);
+  const [configAttempt, setConfigAttempt] = useState(0);
   const loadedPages = useRef(1);
   const appliedFilters = useRef({ query: "", jql: jiraWorkspaceQuery() });
   const [filterVersion, setFilterVersion] = useState(0);
@@ -204,6 +207,7 @@ export default function ConnectedWorkspace({
   });
   useEffect(() => {
     let alive = true;
+    setError("");
     if (isDesktop())
       invoke("config.list")
         .then((c) => {
@@ -217,7 +221,7 @@ export default function ConnectedWorkspace({
       alive = false;
       requestId.current++;
     };
-  }, [configVersion]);
+  }, [configVersion, configAttempt]);
   useEffect(() => {
     if (section !== "Projects" || !selected) onContext?.("");
     setSnapshot(null);
@@ -366,6 +370,22 @@ export default function ConnectedWorkspace({
     setJiraFilters(previous => ({ ...filters, search: includeSearchDraft ? filters.search : previous.search }));
     load(null, "", nextJql, sprintView && filters.project !== jiraFilters.project ? { boardId: "", sprintId: "", backlog: false } : scopeFilters());
   }
+  function inspectIssue(issue) {
+    issueTrigger.current = document.activeElement;
+    setSelected(issue);
+  }
+  useEffect(() => {
+    if (section !== "Projects" || !selected?.key) return;
+    const frame = requestAnimationFrame(() => document.querySelector('.connected-workspace > .live-inspector [aria-label="Close live issue"]')?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [section, selected?.key]);
+  function closeIssue() {
+    setSelected(null); onContext?.("");
+    requestAnimationFrame(() => {
+      if (issueTrigger.current?.isConnected) issueTrigger.current.focus();
+      else document.querySelector('.jira-issue-table .object-key')?.focus();
+    });
+  }
   async function openMR(mr, refresh = false) {
     const ticket = ++requestId.current;
     setLoading(true);
@@ -418,8 +438,12 @@ export default function ConnectedWorkspace({
   }
   if (!configs)
     return error ? (
-      <div className="page connection-error" role="alert">
-        {error}
+      <div className="page connected-empty">
+        <Plug size={28} /><h2>Your connections could not be loaded</h2>
+        <p className="connection-error" role="alert">{error}</p>
+        <p>Your work has not changed. Retry here or check your saved connections.</p>
+        <div className="inline"><button className="btn primary" onClick={() => setConfigAttempt(value => value + 1)}>Retry connections</button>
+        <button className="btn" onClick={() => onSettings(service)}>Integration settings</button></div>
       </div>
     ) : (
       <Pending />
@@ -428,6 +452,7 @@ export default function ConnectedWorkspace({
     return (
       <DailyWorkspace
         configVersion={configVersion}
+        notificationPreferences={notificationPreferences}
         section={section}
         view={view}
         configs={configs}
@@ -801,7 +826,7 @@ export default function ConnectedWorkspace({
                     <button
                       className="live-board-card"
                       key={i.key}
-                      onClick={() => setSelected(i)}
+                      onClick={() => inspectIssue(i)}
                     >
                       <code>{i.key}</code>
                       <b>{i.fields.summary}</b>
@@ -824,7 +849,7 @@ export default function ConnectedWorkspace({
                 ),
               )
               .map((i) => (
-                <button key={i.key} onClick={() => setSelected(i)}>
+                <button key={i.key} onClick={() => inspectIssue(i)}>
                   <time>{i.fields.duedate || "Unscheduled"}</time>
                   <code>{i.key}</code>
                   <b>{i.fields.summary}</b>
@@ -842,7 +867,7 @@ export default function ConnectedWorkspace({
                 {items
                   .filter((i) => (i.fields.project?.key || "Project") === key)
                   .map((i) => (
-                    <button key={i.key} onClick={() => setSelected(i)}>
+                    <button key={i.key} onClick={() => inspectIssue(i)}>
                       <code>{i.key}</code> {i.fields.summary}{" "}
                       <span className="pill">{i.fields.status?.name}</span>
                     </button>
@@ -872,13 +897,13 @@ export default function ConnectedWorkspace({
                     <td>
                       <button
                         className="object-key"
-                        onClick={() => setSelected(i)}
+                        onClick={() => inspectIssue(i)}
                       >
                         {i.key}
                       </button>
                     </td>
                     <td>
-                      <button onClick={() => setSelected(i)}>
+                      <button onClick={() => inspectIssue(i)}>
                         {i.fields.summary}
                       </button>
                     </td>
@@ -928,7 +953,7 @@ export default function ConnectedWorkspace({
           origin={configs.jira?.url}
           onOpen={onOpen}
           configs={configs}
-          onClose={() => { setSelected(null); onContext?.(""); }}
+          onClose={closeIssue}
           onChanged={() => sync.run()}
           onContext={onContext}
         />

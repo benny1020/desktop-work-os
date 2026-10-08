@@ -14,7 +14,7 @@ test("Morning: actual review requests preview without leaving the daily command 
     .getByRole("button", { name: /Payment retry review/ })
     .click();
   await expect(
-    page.getByRole("img", { name: "Dependency flow diagram" }),
+    page.getByRole("group", { name: "Dependency flow diagram" }),
   ).toBeVisible();
   await page.getByLabel("Close context preview").click();
   await expect(
@@ -383,7 +383,7 @@ test("Connected notification grouping adds a real review to Today and recent pre
     .getByRole("button", { name: /Payment retry review/ })
     .click();
   await expect(
-    page.getByRole("img", { name: "Dependency flow diagram" }),
+    page.getByRole("group", { name: "Dependency flow diagram" }),
   ).toBeVisible();
   await page.getByLabel("Close context preview").click();
   await page
@@ -394,7 +394,7 @@ test("Connected notification grouping adds a real review to Today and recent pre
     .getByRole("button", { name: /Payment retry review/ })
     .click();
   await expect(
-    page.getByRole("img", { name: "Dependency flow diagram" }),
+    page.getByRole("group", { name: "Dependency flow diagram" }),
   ).toBeVisible();
 });
 test("Personal work can be edited without losing typing focus and removed locally", async ({
@@ -417,7 +417,7 @@ test("Personal work can be edited without losing typing focus and removed locall
   await expect(page.locator(".plan-task")).toHaveCount(0);
 });
 test('Assistant is available inside an MR preview without hiding behind the context panel',async({page})=>{
- await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();await expect(page.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();await page.keyboard.press('Meta+j');await expect(page.locator('.object-panel').getByLabel('Ask Claude')).toBeVisible();await page.locator('.object-panel').getByLabel('Ask Claude').fill('리뷰할 부분 알려줘');await page.locator('.object-panel').getByRole('button',{name:'Send to Claude'}).click();await expect(page.locator('.object-panel .live-chat-message.assistant')).toContainText('idempotency');const call=await page.evaluate(()=>window.__fixture.calls.find(c=>c.action==='claude.chat'));expect(call.args.context).toContain('PAY-382');
+ await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();await expect(page.getByRole('group',{name:'Dependency flow diagram'})).toBeVisible();await page.keyboard.press('Meta+j');await expect(page.locator('.object-panel').getByLabel('Ask Claude')).toBeVisible();await page.locator('.object-panel').getByLabel('Ask Claude').fill('리뷰할 부분 알려줘');await page.locator('.object-panel').getByRole('button',{name:'Send to Claude'}).click();await expect(page.locator('.object-panel .live-chat-message.assistant')).toContainText('idempotency');const call=await page.evaluate(()=>window.__fixture.calls.find(c=>c.action==='claude.chat'));expect(call.args.context).toContain('PAY-382');
 });
 test('Month overview fits six weeks and diagram fit avoids hidden components',async({page})=>{
  await page.getByRole('button',{name:'Calendar',exact:true}).first().click();await page.getByLabel('Calendar range').selectOption('Month');const bounds=await page.locator('.planning-grid').boundingBox();expect(bounds.height).toBeLessThan(520);await nav(page,'Home');await page.locator('.attention-row').getByRole('button',{name:/Payment retry review/}).click();await page.keyboard.press('Meta+j');await page.getByLabel('Fit diagram to panel').click();const fits=await page.locator('.diagram-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1);expect(fits).toBe(true);

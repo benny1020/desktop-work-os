@@ -14,7 +14,7 @@ test('Complex PR keeps diagram, AI checkpoints, source and private review togeth
   await expect(page.getByRole('button', { name: 'Draft comment for 지연된 이벤트가 최신 상태를 덮어쓰나요?', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Draft comment for pending 결제가 재시도 경로를 막나요?', exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Sequence', exact: true }).click();
-  await expect(page.getByRole('img', { name: 'Sequence diagram' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Sequence diagram' })).toBeVisible();
   await page.getByRole('button', { name: 'Open component PaymentWebhookController.ts', exact: true }).click();
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await page.getByRole('button', { name: 'Select source line 11', exact: true }).click();

@@ -87,10 +87,10 @@ try {
   await p.locator('nav .nav-item[aria-label="Home"]').click();
   await p.getByRole("button", { name: /Review changes/ }).click();
   await expect(
-    p.getByRole("img", { name: "Dependency flow diagram" }),
+    p.getByRole("group", { name: "Dependency flow diagram" }),
   ).toBeVisible();
   await p.getByRole("tab", { name: "Sequence", exact: true }).click();
-  await expect(p.getByRole("img", { name: "Sequence diagram" })).toBeVisible();
+  await expect(p.getByRole("group", { name: "Sequence diagram" })).toBeVisible();
   evidence.diagrams = true;
   await fs.mkdir(root + "artifacts/visual-review", { recursive: true });
   await p.screenshot({

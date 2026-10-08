@@ -36,39 +36,73 @@ const providers = [
     placeholder: "https://api.anthropic.com",
   },
 ];
-export default function IntegrationSettings({ onChange }) {
+const formFields = ["url", "email", "cloudId", "model", "workspaceId"];
+const isProvider = (service) => providers.some((provider) => provider.id === service);
+const changedForm = (form, saved) => Boolean(form?.token) || formFields.some((field) => (form?.[field] || "") !== (saved?.[field] || ""));
+export default function IntegrationSettings({ onChange, initialProvider, draftStore }) {
   const [configs, setConfigs] = useState({});
-  const drafts = useRef({});
+  const localDraftStore = useRef({});
+  // The App owns this ref so navigation keeps drafts only in renderer memory.
+  const drafts = draftStore || localDraftStore;
+  drafts.current.forms ||= {};
   const [loading, setLoading] = useState(isDesktop());
   const [models, setModels] = useState([]);
-  const [selected, setSelected] = useState("gitlab");
-  const [form, setForm] = useState({});
+  const [selected, setSelected] = useState(() => isProvider(initialProvider) ? initialProvider : isProvider(drafts.current.selected) ? drafts.current.selected : "gitlab");
+  const [form, setForm] = useState(() => drafts.current.forms[selected] || {});
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const providerHeading = useRef(null);
   useEffect(() => {
     let active = true;
     if (isDesktop()) invoke("config.list")
-      .then((data) => { if (active) { setConfigs(data); setForm({ ...data.gitlab, token: "" }); } })
+      .then((data) => { if (active) { setConfigs(data); setForm(drafts.current.forms[selected] || { ...data[selected], token: "" }); } })
       .catch((e) => { if (active) setError(e.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (isProvider(initialProvider)) selectProvider(initialProvider);
+  }, [initialProvider, loading]);
+  useEffect(() => { drafts.current.selected = selected; }, [selected]);
   function selectProvider(service) {
-    if (busy || loading || service === selected) return;
-    drafts.current[selected] = form;
+    if (busy || loading) return;
+    requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 980px)").matches) {
+        providerHeading.current?.focus({ preventScroll: true });
+        providerHeading.current?.scrollIntoView({ block: "start", behavior: "auto" });
+      }
+    });
+    if (service === selected) return;
+    drafts.current.forms[selected] = form;
+    drafts.current.selected = service;
     setSelected(service);
-    setForm(drafts.current[service] || { ...configs[service], token: "" });
+    setForm(drafts.current.forms[service] || { ...configs[service], token: "" });
     setError("");
     setMessage("");
   }
   const provider = providers.find((p) => p.id === selected);
-  const update = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+  const dirty = changedForm(form, configs[selected]);
+  function hasChanges(service) {
+    const draft = service === selected ? form : drafts.current.forms[service];
+    return !loading && Boolean(draft && changedForm(draft, configs[service]));
+  }
+  const update = (field, value) => {
+    const next = { ...form, [field]: value };
+    drafts.current.forms[selected] = next;
+    setForm(next); setMessage(""); setError("");
+  };
+  function discard() {
+    delete drafts.current.forms[selected];
+    setForm({ ...configs[selected], token: "" });
+    setError(""); setMessage("Unsaved changes discarded. Saved connection kept.");
+  }
   async function run(kind) {
     if (busy || loading) return;
     setBusy(kind);
     setError("");
     setMessage("");
+    let savedConnection = false;
     try {
       if (kind === "remove") {
         await invoke("config.remove", { service: selected });
@@ -77,7 +111,7 @@ export default function IntegrationSettings({ onChange }) {
           delete n[selected];
           return n;
         });
-        delete drafts.current[selected];
+        delete drafts.current.forms[selected];
         setForm({ token: "" });
         if (selected === "claude") setModels([]);
         onChange?.();
@@ -87,16 +121,17 @@ export default function IntegrationSettings({ onChange }) {
           service: selected,
           config: form,
         });
-        drafts.current[selected] = { ...saved, token: "" };
-        setForm(drafts.current[selected]);
+        savedConnection = true;
+        drafts.current.forms[selected] = { ...saved, token: "" };
+        setForm(drafts.current.forms[selected]);
         setConfigs((c) => ({ ...c, [selected]: saved }));
         onChange?.();
         if (kind === "models") {
           const result = await invoke("claude.models");
           setModels(result.data || []);
           if (result.data?.[0] && !saved.model?.trim()) {
-            drafts.current[selected] = { ...drafts.current[selected], model: result.data[0].id };
-            setForm(drafts.current[selected]);
+            drafts.current.forms[selected] = { ...drafts.current.forms[selected], model: result.data[0].id };
+            setForm(drafts.current.forms[selected]);
           }
           setMessage(
             "Choose a model, then select Save & test connection.",
@@ -112,6 +147,7 @@ export default function IntegrationSettings({ onChange }) {
       }
     } catch (e) {
       setError(e.message);
+      if (savedConnection) setMessage(kind === "test" ? "Connection saved. Verification did not finish; retry Save & test connection." : "Connection saved. Model list could not be loaded; retry Fetch available models.");
     } finally {
       setBusy("");
     }
@@ -147,14 +183,16 @@ export default function IntegrationSettings({ onChange }) {
               <span>
                 <b>{p.name}</b>
                 <small>
-                  {configs[p.id]?.verifiedAt
+                  {hasChanges(p.id)
+                    ? "Unsaved changes"
+                    : configs[p.id]?.verifiedAt
                     ? "Verified"
                     : configs[p.id]?.tokenConfigured
                       ? "Saved · test needed"
                       : "Not configured"}
                 </small>
               </span>
-              {configs[p.id]?.verifiedAt && <CheckCircle2 size={15} />}
+              {configs[p.id]?.verifiedAt && !hasChanges(p.id) && <CheckCircle2 size={15} />}
             </button>
           ))}
           <div className="deferred-provider">
@@ -180,10 +218,11 @@ export default function IntegrationSettings({ onChange }) {
           <div className="provider-heading">
             <Link2 size={21} />
             <div>
-              <h2>{provider.name}</h2>
+              <h2 ref={providerHeading} tabIndex={-1}>{provider.name}</h2>
               <p>{provider.description}</p>
             </div>
           </div>
+          {dirty && !loading && <p className="form-note" role="status">Unsaved changes · kept while you navigate in this session</p>}
           <label>
             Service URL
             <input
@@ -323,6 +362,7 @@ export default function IntegrationSettings({ onChange }) {
             >
               Save
             </button>
+            {dirty && <button className="btn" type="button" disabled={!!busy || loading} onClick={discard}>Cancel changes</button>}
             {configs[selected] && (
               <button
                 className="quiet-button"

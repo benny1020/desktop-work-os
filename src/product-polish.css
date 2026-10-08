@@ -1,5 +1,5 @@
 /* Worklane: quiet surfaces, a clear work trail, and controls that stay reachable. */
-:root { --muted:#697881; --secondary:#5e6e77; --line:#e6ebed; --sidebar:#f5f7f8; }
+:root { --muted:#617078; --secondary:#5e6e77; --line:#e6ebed; --sidebar:#f5f7f8; }
 :root[data-theme="dark"] { --muted:#97a5ad; --secondary:#b0bdc4; --line:#303a42; --sidebar:#171c21; }
 button, a, input, select, textarea { -webkit-tap-highlight-color:transparent; }
 button { touch-action:manipulation; }
@@ -14,8 +14,12 @@ button:not(:disabled) { transition:background-color 120ms ease, border-color 120
 .nav-item { position:relative; }
 .nav-item.active::before { content:""; position:absolute; left:0; height:16px; width:2px; background:var(--accent); border-radius:2px; }
 .topbar { box-shadow:0 1px 0 var(--line); border-bottom:0; }
+.topbar .breadcrumb { min-width:0; overflow:hidden; }
+.topbar .breadcrumb > b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.topbar .breadcrumb > svg,.topbar .breadcrumb > span { flex-shrink:0; }
+.topbar-right { flex-shrink:0; }
 .sidebar-controls { display:flex; align-items:center; position:relative; flex-shrink:0; gap:1px; }
-.sidebar-controls .sidebar-options-trigger { width:17px; min-width:17px; }
+.sidebar-controls .sidebar-options-trigger { width:28px; min-width:28px; }
 .sidebar-options { position:absolute; top:35px; left:0; width:210px; padding:8px; border:1px solid var(--line-strong); border-radius:6px; background:var(--bg); box-shadow:var(--shadow); z-index:20; }
 .sidebar-options>small { display:block; color:var(--secondary); font-size:10px; padding:4px 8px 7px; }
 .sidebar-options>button { display:flex; align-items:center; gap:9px; width:100%; padding:8px; text-align:left; border-radius:4px; font-size:11px; }

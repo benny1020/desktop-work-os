@@ -19,7 +19,7 @@ await screenshot(hero, 'daily-command-center');
 await hero.getByRole('button',{name:'Explore workflows',exact:true}).click();
 await screenshot(hero, 'product-guide');
 await hero.getByRole('button',{name:/See the change before the code/}).click();
-await expect(hero.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();
+await expect(hero.getByRole('group',{name:'Dependency flow diagram'})).toBeVisible();
 await hero.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
 await hero.getByRole('button',{name:'Preview AI guide',exact:true}).click();
 await hero.getByRole('button',{name:/Draft comment for/}).first().click();
@@ -51,7 +51,7 @@ async function scene(name, actions) {
 }
 await scene('visual-review', async p => {
   await p.locator('.attention-row').getByRole('button', { name: /Payment retry review/ }).click();
-  await expect(p.getByRole('img', { name: 'Dependency flow diagram' })).toBeVisible();
+  await expect(p.getByRole('group', { name: 'Dependency flow diagram' })).toBeVisible();
   await pause(1400);
   await p.getByRole('button', { name: 'Open component PaymentService.ts', exact: true }).click();
   await pause(900);
@@ -95,7 +95,7 @@ await scene('connected-context', async p => {
   await screenshot(p, 'wiki-preview');
   await p.getByLabel('Back in context').click();
   await p.getByRole('button', { name: '!7 PAY-382 Payment retry review', exact: true }).click();
-  await expect(p.getByRole('img', { name: 'Dependency flow diagram' })).toBeVisible();await pause(1100);
+  await expect(p.getByRole('group', { name: 'Dependency flow diagram' })).toBeVisible();await pause(1100);
   await p.getByRole('button', { name: 'Pipeline', exact: true }).click();
   await p.getByRole('button', { name: '#482 · success', exact: true }).click();
   await expect(p.locator('.pipeline-stages')).toBeVisible();await pause(1400);

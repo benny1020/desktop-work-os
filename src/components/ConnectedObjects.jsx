@@ -463,7 +463,7 @@ export default function ConnectedObjects({
         <Dialog.Content
           className={`object-panel ${current.type === "mr" || assistant ? "wide" : ""}`}
           onEscapeKeyDown={(event) => {
-            const localDetails = event.target?.closest?.('.review-local-checkout[open], .review-flow-picker[open], .review-draft-navigator[open]');
+            const localDetails = event.target?.closest?.('.review-local-checkout[open], .review-flow-picker[open], .review-draft-navigator[open], .review-workbench details[open]');
             if (localDetails) { event.preventDefault(); localDetails.open = false; localDetails.querySelector('summary')?.focus(); return; }
             if (reviewPending) { event.preventDefault(); return; }
             if (assistant) {

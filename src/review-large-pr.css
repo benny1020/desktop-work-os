@@ -73,9 +73,15 @@
 .sequence-step-navigation button { flex-shrink: 0; min-width: 25px; height: 25px; font-size: 9px; }
 .visual-review .diagram-scroll {
   overscroll-behavior: contain;
-  min-height: 80px;
-  max-height: min(440px, calc(100% - var(--review-progress-height) - var(--review-controls-height, 100px) - 8px));
+  /* The viewport must not inherit SVG height: Fit observes this box. */
+  flex: 1 1 0;
+  min-height: 140px;
+  max-height: none;
 }
+.visual-review .visual-map-panel > .review-flow-context,
+.visual-review .visual-map-panel > .diagram-legend,
+.visual-review .visual-map-panel > .review-flow-boundaries,
+.visual-review .visual-map-panel > .api-source-files { flex-shrink:0; }
 .visual-review .visual-comment-panel { padding: 10px 14px; }
 .visual-review .visual-comment-panel .comment-target { margin-bottom: 6px; }
 .visual-review .your-review-label { margin-top: 8px; }
@@ -153,6 +159,9 @@
   .visual-review .review-file-progress .btn { padding: 4px 5px; font-size: 9px; }
   .visual-review .review-diagram-controls .diagram-toolbar { padding-block: 5px 3px; }
   .visual-review .review-diagram-controls .review-map-mode { padding-bottom: 4px; }
+  .visual-review .review-diagram-controls .review-map-mode { display:inline-flex; padding-inline:8px; vertical-align:top; }
+  .visual-review .review-diagram-controls .review-map-mode small { display:none; }
+  .visual-review .diagram-legend small { display:none; }
   .review-diagram-controls .sequence-scope-controls { padding-bottom: 5px; gap: 2px; }
   .review-diagram-controls .sequence-scope-controls button { padding: 4px 5px; }
   .review-draft-navigator > summary { padding: 5px 6px; }

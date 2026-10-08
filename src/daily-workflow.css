@@ -50,3 +50,25 @@
 .daily-connected .live-inbox .inbox-work>button:first-child{min-width:140px;overflow-wrap:anywhere}
 .daily-connected .live-inbox .available-review>button:first-child{display:flex;align-items:center;gap:6px;text-align:left}
 @media(max-width:1050px){.daily-connected .live-inbox .inbox-work>button:first-child{flex-basis:100%}.daily-connected .plan-deadline{font-size:9px}.daily-connected .linked-plan-action{margin-left:auto}}
+
+/* Surface actionable service work before an empty personal plan in small windows. */
+.daily-connected .daily-columns { grid-template-areas:"plan attention"; align-items:start; row-gap:20px; }
+.daily-connected .daily-columns.has-daily-digest { grid-template-areas:"plan attention" "plan brief"; grid-template-rows:auto 1fr; }
+.daily-connected .daily-plan { grid-area:plan; min-width:0; }
+.daily-connected .daily-brief { grid-area:attention; min-width:0; }
+.daily-connected .daily-digest { grid-area:brief; min-width:0; border-left:1px solid var(--line); padding-left:25px; }
+.daily-connected .daily-digest .assistant-brief { margin:0; }
+.daily-connected .plan-empty { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:start; gap:7px 12px; padding:16px; }
+.daily-connected .plan-empty-icon { grid-column:1; grid-row:1 / 3; margin:0; }
+.daily-connected .plan-empty h3,.daily-connected .plan-empty p,.daily-connected .plan-empty>.btn,.daily-connected .plan-empty>.quiet-button,.daily-connected .plan-empty>small { grid-column:2; margin:0; }
+.daily-connected .plan-empty p { max-width:440px; }
+.daily-connected .plan-empty>.btn,.daily-connected .plan-empty>.quiet-button { justify-self:start; margin-top:3px; }
+.daily-connected .plan-empty>small { margin-top:3px; }
+@media(max-width:1150px) {
+ .daily-connected .daily-columns,.daily-connected .daily-columns.has-daily-digest { grid-template-areas:"attention" "plan" "brief"; grid-template-rows:auto; gap:18px; }
+ .daily-connected .daily-digest { border-left:0; padding-left:0; }
+ .daily-connected .daily-brief>h2 { margin-top:0; }
+ .daily-command-center .daily-columns { margin-top:6px; }
+ .daily-command-center .attention-recommended { padding:10px 12px; gap:7px; margin-top:9px; }
+ .daily-command-center .attention-row:not(.attention-recommended) { padding-block:9px; }
+}

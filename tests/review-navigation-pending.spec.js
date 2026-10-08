@@ -18,7 +18,7 @@ for (const fail of [false,true]) test(`Standalone review keeps one submitted req
   await page.getByLabel('Global search',{exact:true}).click();
   await page.getByLabel('Quick create',{exact:true}).click();
   await page.keyboard.press('Meta+k');await page.keyboard.press('Meta+n');await page.keyboard.press('Escape');
-  await expect(page.getByRole('img',{name:'Dependency flow diagram'})).toBeVisible();
+  await expect(page.getByRole('group',{name:'Dependency flow diagram'})).toBeVisible();
   await expect(page.getByLabel('Connected global search')).toHaveCount(0);
   await expect(page.getByLabel('New work title')).toHaveCount(0);
   expect(await page.evaluate(()=>window.__attempts)).toBe(1);

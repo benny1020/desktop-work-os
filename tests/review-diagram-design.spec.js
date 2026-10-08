@@ -7,7 +7,7 @@ for (const theme of ['light', 'dark']) for (const size of [{ width: 1440, height
     await page.setViewportSize(size);
     await openApiReview(page);
     if (theme === 'dark') await page.getByLabel('Toggle theme', { exact: true }).click();
-    const diagram = page.getByRole('img', { name: 'Dependency flow diagram', exact: true });
+    const diagram = page.getByRole('group', { name: 'Dependency flow diagram', exact: true });
     await expect(diagram).toBeVisible();
     const geometry = await diagram.evaluate(svg => {
       const boxes = [...svg.querySelectorAll('.diagram-node')].map(node => {
@@ -59,7 +59,7 @@ for (const theme of ['light', 'dark']) for (const size of [{ width: 1440, height
 
 test('Shared dependency badges expose distinct parents while preserving exact source inspection', async ({ page }) => {
   await openComplexReview(page);
-  const service = page.getByRole('img', { name: 'Dependency flow diagram' }).getByRole('button', { name: 'Open component PaymentCaptureService.ts', exact: true });
+  const service = page.getByRole('group', { name: 'Dependency flow diagram' }).getByRole('button', { name: 'Open component PaymentCaptureService.ts', exact: true });
   await expect(service.locator('.node-fan-in')).toHaveAttribute('aria-label', '3 incoming components');
   await expect(service.locator('.node-fan-in')).toHaveText('3 in');
   await service.press('Enter');

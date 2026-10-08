@@ -6,6 +6,9 @@ import CrossToolContext from "./CrossToolContext";
 import { useAutoSync } from "../lib/use-auto-sync";
 import SyncStatus from "./SyncStatus";
 import { nextAgilePage, requiredTransitionFields } from "../lib/jira-workspace.mjs";
+// Field edits survive context navigation only in this renderer session.
+// No credentials or field values are written to browser storage.
+const fieldDrafts = new Map();
 function Pending() {
   return <p className="form-note">Loading issue…</p>;
 }
@@ -40,6 +43,9 @@ export default function JiraIssue({
   const membershipRequest = useRef(0);
   const accountRef = useRef("");
   const fieldSnapshot = useRef(null);
+  const loadedScope = useRef("");
+  const skipDraftCapture = useRef(false);
+  const [fieldConflicts, setFieldConflicts] = useState([]), [hasFieldDraft, setHasFieldDraft] = useState(false);
   activeKey.current = scopeKey;
   const isActive = (scope = scopeKey) => mounted.current && activeKey.current === scope;
   useEffect(() => {
@@ -77,17 +83,31 @@ export default function JiraIssue({
     }
   }, [text, draftKey]);
   useEffect(() => {
-    if (issue) {
+    if (issue && loadedScope.current === scopeKey) {
       const previous = fieldSnapshot.current;
       const next = { account: issue.fields.assignee?.accountId || "", due: issue.fields.duedate || "", priority: issue.fields.priority?.id || "" };
-      // A comment/status refresh may finish while another field is being edited.
-      // Only pristine fields follow the server; pending user edits stay intact.
-      setAccount((current) => !previous || current === previous.account ? next.account : current);
-      setDue((current) => !previous || current === previous.due ? next.due : current);
-      setPriority((current) => !previous || current === previous.priority ? next.priority : current);
+      const saved = fieldDrafts.get(scopeKey);
+      // Only untouched fields follow Jira. A restored draft keeps its original
+      // server baseline, so a change made elsewhere can be shown explicitly.
+      for (const [field, setValue] of [["account", setAccount], ["due", setDue], ["priority", setPriority]]) {
+        setValue(current => !previous ? saved?.fields[field]?.value ?? next[field] : current === previous[field] ? next[field] : current);
+      }
       fieldSnapshot.current = next;
+      skipDraftCapture.current = true;
+      setFieldConflicts(Object.entries(saved?.fields || {}).filter(([field, draft]) => draft.base !== next[field] && draft.value !== next[field]).map(([field]) => field));
     }
   }, [issue]);
+  function acceptField(field, value, patch) {
+    const saved = fieldDrafts.get(scopeKey);
+    if (saved) {
+      if (saved.fields[field]?.value === value) delete saved.fields[field];
+      else if (saved.fields[field]) saved.fields[field].base = value;
+      if (!Object.keys(saved.fields).length) fieldDrafts.delete(scopeKey);
+    }
+    if (!isActive()) return;
+    if (fieldSnapshot.current) fieldSnapshot.current[field] = value;
+    setIssue(current => current ? { ...current, fields: { ...current.fields, ...patch } } : current);
+  }
   async function searchPeople() {
     const ticket = ++peopleRequest.current;
     setPeopleBusy(true); setError("");
@@ -119,16 +139,20 @@ export default function JiraIssue({
   }
   async function editField(field) {
     if (!beginMutation()) return;
+    const submitted = field === "assignee" ? account : due;
+    let accepted = false;
     try {
       await invoke("jira.edit", {
         key: item.key,
-        ...(field === "assignee" ? { accountId: account } : { due }),
+        ...(field === "assignee" ? { accountId: submitted } : { due: submitted }),
       });
+      accepted = true;
+      acceptField(field === "assignee" ? "account" : "due", submitted, field === "assignee" ? { assignee: submitted ? people.find(person => person.accountId === submitted) || { accountId: submitted, displayName: submitted } : null } : { duedate: submitted });
       if (!isActive()) return;
       setNotice("Saved in Jira");
       if (await load(() => true, true)) onChanged?.();
     } catch (e) {
-      if (isActive()) setError(e.message);
+      if (isActive()) { if (accepted) setReadError(`Update saved in Jira. Issue refresh failed: ${e.message}`); else setError(e.message); }
     } finally {
       endMutation();
     }
@@ -145,6 +169,10 @@ export default function JiraIssue({
     [membershipError, setMembershipError] = useState(""),
     [membershipLoading, setMembershipLoading] = useState(false),
     [priority, setPriority] = useState("");
+  const priorityOptions = meta?.fields?.priority?.allowedValues || [];
+  const currentPriorityId = String(issue?.fields?.priority?.id || "");
+  const priorityIsAllowed = priorityOptions.some(option => String(option.id) === priority);
+  const invalidPriorityDraft = Boolean(meta && priority && priority !== currentPriorityId && !priorityIsAllowed);
   async function loadPlanning() {
     if (planningBusy) return;
     const ticket = ++planningRequest.current;
@@ -202,13 +230,18 @@ export default function JiraIssue({
   }
   async function savePlanning(kind) {
     const submittedSprint = sprint;
+    const submittedPriority = priority;
     if (kind === "sprint" && (!submittedSprint || String(membership?.sprint?.id) === submittedSprint)) return;
+    if (kind === "priority" && (!priorityIsAllowed || priority === currentPriorityId)) return;
     if (!beginMutation()) return;
     let accepted = false;
     try {
       if (kind === "sprint")
         await invoke("jira.moveSprint", { key: item.key, sprintId: submittedSprint });
-      else await invoke("jira.edit", { key: item.key, priorityId: priority });
+      else {
+        await invoke("jira.edit", { key: item.key, priorityId: submittedPriority });
+        acceptField("priority", submittedPriority, { priority: meta?.fields?.priority?.allowedValues?.find(option => String(option.id) === submittedPriority) || { id: submittedPriority, name: submittedPriority } });
+      }
       if (!isActive()) return;
       accepted = true;
       if (kind === "sprint") {
@@ -250,6 +283,7 @@ export default function JiraIssue({
       if (!isActive() || !isCurrent() || ticket !== requestVersion.current || (mutationBusy.current && !afterMutation)) return false;
       if (issueResult.status === "rejected") throw issueResult.reason;
       const i = issueResult.value;
+      loadedScope.current = scopeKey;
       setIssue(i);
       if (optionTicket === transitionRequest.current) {
         setTransitions(transitionResult.status === "fulfilled" ? transitionResult.value : []);
@@ -290,7 +324,12 @@ export default function JiraIssue({
   });
   useEffect(() => {
     let alive = true;
+    const savedFields = fieldDrafts.get(scopeKey);
     fieldSnapshot.current = null;
+    loadedScope.current = "";
+    setFieldConflicts([]); setHasFieldDraft(Boolean(savedFields));
+    setAccount(""); setDue(""); setPriority("");
+    setPersonQuery(savedFields?.personQuery || "");
     mutationBusy.current = false;
     setBusy(false);
     setInitialSettled(false);
@@ -298,7 +337,7 @@ export default function JiraIssue({
     setTransitions([]);
     setTransitionError(""); setTransitionLoading(false); transitionRequest.current++;
     setTransition("");
-    setPeople([]);
+    setPeople(savedFields?.people || []);
     setPeopleBusy(false); setPlanningBusy(false);
     peopleRequest.current++; planningRequest.current++; sprintRequest.current++;
     setMeta(null);
@@ -320,6 +359,32 @@ export default function JiraIssue({
     });
     return () => { alive = false; requestVersion.current++; };
   }, [scopeKey]);
+  useEffect(() => {
+    if (!issue || loadedScope.current !== scopeKey || !fieldSnapshot.current) return;
+    if (skipDraftCapture.current) { skipDraftCapture.current = false; return; }
+    const previous = fieldDrafts.get(scopeKey);
+    const values = { account, due, priority };
+    const fields = Object.fromEntries(Object.entries(values).filter(([field, value]) => value !== fieldSnapshot.current[field]).map(([field, value]) => [field, { value, base: previous?.fields[field]?.base ?? fieldSnapshot.current[field] }]));
+    if (Object.keys(fields).length) fieldDrafts.set(scopeKey, { fields, people, personQuery, priorityOptions: [...new Map([...(previous?.priorityOptions || []), ...priorityOptions].map(option => [String(option.id), option])).values()] });
+    else fieldDrafts.delete(scopeKey);
+    setHasFieldDraft(Object.keys(fields).length > 0);
+    setFieldConflicts(Object.entries(fields).filter(([field, draft]) => draft.base !== fieldSnapshot.current[field]).map(([field]) => field));
+  }, [scopeKey, issue, account, due, priority, people, personQuery, meta]);
+  function discardFieldChanges() {
+    fieldDrafts.delete(scopeKey);
+    setAccount(fieldSnapshot.current?.account || "");
+    setDue(fieldSnapshot.current?.due || "");
+    setPriority(fieldSnapshot.current?.priority || "");
+    setPersonQuery(""); setPeople([]); setTransition(""); setSprint(""); setBoard("");
+    setFieldConflicts([]); setHasFieldDraft(false);
+    setNotice("Field changes discarded. Showing current Jira values.");
+  }
+  function conflictValues(field) {
+    const saved = fieldDrafts.get(scopeKey);
+    if (field === "due") return [issue.fields.duedate || "No due date", due || "No due date"];
+    if (field === "account") return [issue.fields.assignee?.displayName || "Unassigned", account ? [...people, ...(saved?.people || [])].find(person => person.accountId === account)?.displayName || account : "Unassigned"];
+    return [issue.fields.priority?.name || "No priority", priority ? [...priorityOptions, ...(saved?.priorityOptions || [])].find(option => String(option.id) === priority)?.name || priority : "No priority"];
+  }
   async function update(kind) {
     if (!beginMutation()) return;
     let accepted = false;
@@ -383,6 +448,18 @@ export default function JiraIssue({
             <span>{issue.fields.assignee?.displayName || "Unassigned"}</span>
             <span className="pill">{issue.fields.priority?.name || "No priority"}</span>
           </div>
+          {hasFieldDraft && <div className="form-note" role="status">
+            Field changes kept for this session · not saved in Jira.
+            {fieldConflicts.length > 0 && <div role="alert">
+              <p>Jira changed {fieldConflicts.map(field => ({ account: "assignee", due: "due date", priority: "priority" }[field])).join(", ")} while you were editing. Your changes are retained; check before saving.</p>
+              <ul aria-label="Field conflicts">{fieldConflicts.map(field => {
+                const label = { account: "Assignee", due: "Due date", priority: "Priority" }[field];
+                const [serverValue, draftValue] = conflictValues(field);
+                return <li key={field} aria-label={`${label} conflict`}><b>{label}</b><br />Jira now: {serverValue}<br />Your draft: {draftValue}</li>;
+              })}</ul>
+            </div>}
+            <button className="btn" disabled={busy} onClick={discardFieldChanges}>Discard field changes</button>
+          </div>}
           <PlanObjectButton title={`${item.key} ${issue.fields.summary}`}
             object={{ type: "issue", key: item.key, title: `${item.key} ${issue.fields.summary}`, origin }}
             onNotice={setNotice} onError={setError} />
@@ -495,16 +572,19 @@ export default function JiraIssue({
                     onChange={(e) => setPriority(e.target.value)}
                   >
                     <option value="">Choose priority</option>
-                    {(meta?.fields?.priority?.allowedValues || []).map((p) => (
+                    {currentPriorityId && !priorityOptions.some(option => String(option.id) === currentPriorityId) && <option value={currentPriorityId} disabled>{issue.fields.priority.name || currentPriorityId} · current</option>}
+                    {invalidPriorityDraft && <option value={priority} disabled>{conflictValues("priority")[1]} · unavailable</option>}
+                    {priorityOptions.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                       </option>
                     ))}
                   </select>
                 </label>
+                {invalidPriorityDraft && <p className="form-note" role="status">This priority is no longer available for editing. Choose an available priority or discard field changes.</p>}
                 <button
                   className="btn"
-                  disabled={!priority || busy || priority === issue.fields.priority?.id}
+                  disabled={!priority || busy || planningBusy || !priorityIsAllowed || priority === currentPriorityId}
                   onClick={() => savePlanning("priority")}
                 >
                   Save priority in Jira

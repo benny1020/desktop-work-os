@@ -116,7 +116,7 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
   return (
     <div className="diagram-scroll">
       <svg
-        role="img"
+        role="group"
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-description`}
         width={w * zoom}
@@ -260,7 +260,7 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
   return (
     <div className="diagram-scroll">
       <svg
-        role="img"
+        role="group"
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-description`}
         width={w * zoom}
@@ -530,6 +530,17 @@ export default function ReviewWorkbench({
   const [notice, setNotice] = useState("");
   const [zoom, setZoom] = useState(restored?.zoom || 0.85);
   const [autoFit, setAutoFit] = useState(restored?.autoFit ?? "readable");
+  const [narrowReview, setNarrowReview] = useState(false);
+  const [aiRailOpen, setAiRailOpen] = useState(null);
+  const aiCollapsed = narrowReview && !(aiRailOpen ?? Boolean(guide || guideBusy));
+  useEffect(() => {
+    const panel = reviewRoot.current;
+    if (!panel) return;
+    const resize = () => setNarrowReview(panel.clientWidth <= 1050);
+    resize();
+    const observer = new ResizeObserver(resize); observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
   const mapPanel = useRef(null);
   const [discussions, setDiscussions] = useState(snapshot.discussions || []);
   const [configs, setConfigs] = useState({});
@@ -764,13 +775,16 @@ ${finding.reason}`;
     if (!canvas) return;
     function fit() {
       const svg = canvas.querySelector("svg");
-      if (svg) setZoom(Math.min(1, Math.max(autoFit === true ? 0.15 : 0.65, (canvas.clientWidth - 24) / svg.viewBox.baseVal.width)));
+      if (!svg) return;
+      const widthFit = (canvas.clientWidth - 24) / svg.viewBox.baseVal.width;
+      const heightFit = (canvas.clientHeight - 24) / svg.viewBox.baseVal.height;
+      setZoom(autoFit === true ? Math.min(1, Math.max(0.01, Math.min(widthFit, heightFit))) : Math.min(1, Math.max(0.65, widthFit)));
     }
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [autoFit, tab, layout, sequenceByStep, sequenceStep]);
+  }, [autoFit, tab, layout, sequenceByStep, sequenceStep, aiCollapsed]);
   useEffect(() => {
     const content = source[sourceKey];
     const sourceLines = typeof content === "string" ? content.split("\n") : null;
@@ -1087,7 +1101,11 @@ ${finding.reason}`;
                   <button
                     className={f.path === selected ? "selected" : ""}
                     key={f.path}
-                    onClick={() => select(f.path)}
+                    onClick={(event) => {
+                      const menu = event.currentTarget.closest('details');
+                      if (menu) { menu.open = false; menu.querySelector('summary')?.focus(); }
+                      select(f.path);
+                    }}
                   >
                     {viewed.includes(f.path)
                       ? <Check size={13} className="review-file-viewed" aria-label="Viewed" />
@@ -1114,7 +1132,7 @@ ${finding.reason}`;
       </div>
     );
   return (
-    <div className={`visual-review review-workbench ${activeFlow.methodFlow ? "api-active-review" : ""}`} ref={reviewRoot}>
+    <div className={`visual-review review-workbench ${aiCollapsed ? "ai-folded" : ""} ${activeFlow.methodFlow ? "api-active-review" : ""}`} ref={reviewRoot}>
       <header className="visual-review-heading">
         <div className="inline">
           <button className="quiet-button" disabled={!!busy} onClick={onBack}>
@@ -1179,7 +1197,7 @@ ${finding.reason}`;
             <button
               className="btn primary"
               disabled={guideBusy || refreshing || revisionPending || (flowMode === 'api' && apiAnalysis.busy)}
-              onClick={generate}
+              onClick={() => { setAiRailOpen(true); generate(); }}
             >
               {guideBusy ? (
                 <Loader2 className="spin" size={14} />
@@ -1368,7 +1386,9 @@ ${finding.reason}`;
                 </small>
               </div>
               {boundaryPaths.length > 0 && <div className="review-flow-boundaries"><small>Connected outside this flow</small>{boundaryPaths.slice(0, 8).map(path => <button key={path} className="linked-chip" onClick={() => select(path)} title={path}>{basename(path)} <ArrowRight size={10}/></button>)}{boundaryPaths.length > 8 && <details><summary>{boundaryPaths.length - 8} more connections</summary>{boundaryPaths.slice(8).map(path => <button key={path} className="linked-chip" onClick={() => select(path)} title={path}>{basename(path)} <ArrowRight size={10}/></button>)}</details>}</div>}
-              {activeFlow.methodFlow ? <details className="api-source-files"><summary>{visibleFiles.length} source files · {visibleFiles.filter(file => file.contextOnly).length} unchanged</summary>{componentList}</details> : componentList}
+              <details className="api-source-files" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }} onKeyDown={event => {
+                if (event.key === 'Escape' && event.currentTarget.open) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); }
+              }}><summary>{visibleFiles.length} source files{activeFlow.methodFlow ? ` · ${visibleFiles.filter(file => file.contextOnly).length} unchanged` : ' in this flow'}</summary>{componentList}</details>
           </>
         </section>
         <section className="visual-code-panel" aria-label="Code and your review">
@@ -1625,10 +1645,10 @@ ${finding.reason}`;
             )}
           </div>
         </section>
-        <ReviewGuidePanel guide={guide} files={files} mr={mr} live={live}
+        <ReviewGuidePanel canCollapse={narrowReview} collapsed={aiCollapsed} onToggle={() => setAiRailOpen(aiCollapsed)} guide={guide} files={files} mr={mr} live={live}
           flowPaths={flows.length > 1 ? [...flowPaths] : null} flowLabel={`${activeFlow?.title || activeFlow?.label || 'Changed files'}${activeFlow?.section ? ` · ${activeFlow.section.index}/${activeFlow.section.count}` : ''}`}
           apiFlow={activeFlow.methodFlow ? activeFlow : null} endpoint={configs.claude?.url} guidelines={guidelines} onGuidelines={setGuidelines}
-          busy={guideBusy && guideRequestFlow.current === activeFlow?.id} analyzing={flowMode === 'api' && apiAnalysis.busy} refreshing={refreshing || revisionPending || guideBusy} error={guideError} onGenerate={generate} selectedPath={file.path}
+          busy={guideBusy && guideRequestFlow.current === activeFlow?.id} analyzing={flowMode === 'api' && apiAnalysis.busy} refreshing={refreshing || revisionPending || guideBusy} error={guideError} onGenerate={() => { setAiRailOpen(true); generate(); }} selectedPath={file.path}
           activeFinding={activeFinding} findingKey={findingKey} canLocate={canLocate}
           onSelect={selectFinding} onDraft={draftFinding} decisions={drafts}
           onDecision={(finding,value)=>setDrafts(items=>({...items,[findingKey(finding)]:value}))}/>

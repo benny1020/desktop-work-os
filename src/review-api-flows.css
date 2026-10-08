@@ -53,7 +53,6 @@
 .api-method-map .diagram-legend small { display:none; }
 .api-review-mode > button { white-space:nowrap; }
 @container (max-width:1050px) {
- .visual-review.api-active-review .visual-review-grid { grid-template-columns:minmax(220px,.85fr) minmax(270px,1.3fr) minmax(200px,.9fr); grid-template-areas:"map code ai"; grid-template-rows:minmax(0,1fr); }
  .api-active-review .diagram-toolbar strong { display:none; }
  .api-active-review .diagram-evidence-count { font-size:8px; margin-left:0; }
  .api-active-review .diagram-toolbar { gap:4px; }

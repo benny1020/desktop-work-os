@@ -86,3 +86,12 @@
 }
 .visual-review .visual-code-heading {position:sticky;top:0;z-index:3;background:var(--bg);flex-shrink:0;}
 .visual-review .visual-code-panel {scroll-padding-top:60px;}
+
+/* An empty assistant rail is quiet until requested; narrow reviews keep a usable diagram. */
+.ai-review-rail .ai-review-guide[hidden] { display:none; }
+.ai-rail-heading > .icon-button { flex-shrink:0; }
+@container (max-width:1050px) {
+  .visual-review:not(.ai-folded) .visual-review-grid { grid-template-columns:minmax(200px,.9fr) minmax(270px,1.3fr) minmax(190px,.9fr); grid-template-areas:"map code ai"; grid-template-rows:minmax(0,1fr); }
+  .visual-review.ai-folded .visual-review-grid { grid-template-rows:minmax(0,1fr) 44px; }
+  .visual-review.ai-folded .ai-rail-heading { height:44px; border-bottom:0; }
+}
