@@ -17,9 +17,10 @@ import {
 import { invoke, isDesktop } from "../lib/integration-client";
 import SyncedReview from "./SyncedReview";
 import JiraIssue from "./LiveIssue";
+import JiraProjectPicker from "./JiraProjectPicker";
 import DailyWorkspace from "./DailyWorkspace";
 import { MRLinks } from "./ConnectedObjects";
-import { jiraScopes, jiraWorkspaceQuery, nextAgilePage, requiredTransitionFields } from "../lib/jira-workspace.mjs";
+import { jiraScopes, jiraWorkspaceQuery, jiraFilterDefaults, jiraStatusChoices, jiraAssigneeChoices, jiraDeadlineChoices, nextAgilePage, requiredTransitionFields } from "../lib/jira-workspace.mjs";
 import "../jira-workflow.css";
 import {
   usePlan,
@@ -125,22 +126,17 @@ export default function ConnectedWorkspace({
     [space, setSpace] = useState(""),
     [project, setProject] = useState(""),
     [projects, setProjects] = useState([]),
-    [query, setQuery] = useState(""),
-    [jql, setJql] = useState(
-      section === "My Work"
-        ? "assignee = currentUser() ORDER BY updated DESC"
-        : "updated >= -30d ORDER BY updated DESC",
-    );
+    [query, setQuery] = useState("");
   const plan = usePlan();
   const requestId = useRef(0);
+  const jiraControls = useRef(null);
   const loadedPages = useRef(1);
-  const appliedFilters = useRef({ query: "", jql });
+  const appliedFilters = useRef({ query: "", jql: jiraWorkspaceQuery() });
   const [filterVersion, setFilterVersion] = useState(0);
   const lastView = useRef("");
-  const [jiraFilters, setJiraFilters] = useState({ scope: view === "Sprint" ? "sprint" : "recent", project: "", search: "" });
+  const [jiraFilters, setJiraFilters] = useState({ scope: view === "Sprint" ? "sprint" : "recent", project: "", search: "", status: "", assignee: "", deadline: "" });
   const appliedJiraFilters = useRef(jiraFilters);
-  const [jiraProjects, setJiraProjects] = useState([]), [jiraProjectError, setJiraProjectError] = useState(""),
-    [customJql, setCustomJql] = useState(false), [requestedJiraQuery, setRequestedJiraQuery] = useState("");
+  const [jiraProjects, setJiraProjects] = useState([]);
   const [jiraBoards, setJiraBoards] = useState([]), [jiraSprints, setJiraSprints] = useState([]),
     [jiraBoard, setJiraBoard] = useState(""), [jiraTarget, setJiraTarget] = useState(""),
     [boardMore, setBoardMore] = useState(null), [sprintMore, setSprintMore] = useState(null),
@@ -155,6 +151,14 @@ export default function ConnectedWorkspace({
   const resultScopeMismatch = requestedJiraScope && JSON.stringify(requestedJiraScope) !== JSON.stringify(appliedFilters.current);
   const service =
     section === "Code" ? "gitlab" : section === "Docs" ? "confluence" : "jira";
+  useEffect(() => {
+    if (section !== "Projects") return;
+    const dismiss = event => jiraControls.current?.querySelectorAll(".jira-project-lookup[open], .jira-visual-filters[open]").forEach(popover => {
+      if (!popover.contains(event.target)) popover.open = false;
+    });
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [section]);
   const savedDocsView = section === "Docs" && ["Recent", "Favorites"].includes(view);
   const savedPages = (view === "Recent" ? plan.recent : plan.favorites)
     .filter((object) => object.type === "doc" && object.origin === configs?.confluence?.url)
@@ -232,8 +236,7 @@ export default function ConnectedWorkspace({
         const filters = { ...appliedJiraFilters.current, scope: viewChanged ? view === "Sprint" ? "sprint" : appliedJiraFilters.current.scope === "sprint" ? "recent" : appliedJiraFilters.current.scope : appliedJiraFilters.current.scope };
         appliedJiraFilters.current = filters;
         setJiraFilters(previous => ({ ...filters, search: previous.search }));
-        const nextJql = customJql ? appliedFilters.current.jql : jiraWorkspaceQuery({ ...filters, project: sprintView ? "" : filters.project, scopedSprint: sprintView });
-        if (!customJql) setJql(nextJql);
+        const nextJql = jiraWorkspaceQuery({ ...filters, project: sprintView ? "" : filters.project, scopedSprint: sprintView });
         load(null, "", nextJql);
       } else load(null, "");
   }, [section, view, project, space, configs, jiraBoard, jiraTarget]);
@@ -247,10 +250,6 @@ export default function ConnectedWorkspace({
       invoke("gitlab.projects", {})
         .then(d => { if (alive) setProjects(d.items || []); })
         .catch(e => { if (alive) setError(e.message); });
-    if (configs?.jira?.tokenConfigured && section === "Projects")
-      invoke("jira.projects")
-        .then(d => { if (alive) { setJiraProjects(d.values || []); setJiraProjectError(""); } })
-        .catch(e => { if (alive) setJiraProjectError(e.message); });
     return () => { alive = false; };
   }, [configs, section]);
   useEffect(() => {
@@ -332,11 +331,11 @@ export default function ConnectedWorkspace({
     }
     return { rows: rows || [], more: more || null };
   }
-  async function load(cursor = null, searchQuery = query, queryOverride = jql, scopeOverride = scopeFilters(), displayScope = null) {
+  async function load(cursor = null, searchQuery = query, queryOverride = appliedFilters.current.jql, scopeOverride = scopeFilters(), displayScope = null) {
     const ticket = ++requestId.current;
     const filters = cursor ? { ...appliedFilters.current } : { query: searchQuery, jql: queryOverride, ...scopeOverride };
     const scopeLabel = displayScope || (filters.boardId ? `${jiraBoards.find(board => String(board.id) === String(filters.boardId))?.name || `Board ${filters.boardId}`} / ${filters.backlog ? "Backlog" : jiraSprints.find(sprint => String(sprint.id) === String(filters.sprintId))?.name || `Sprint ${filters.sprintId}`}` : jiraFilters.project ? `Project ${jiraFilters.project}` : "All projects");
-    if (!cursor && section === "Projects") { setRequestedJiraQuery(filters.jql); setRequestedJiraScope(filters); setRequestedJiraScopeLabel(scopeLabel); }
+    if (!cursor && section === "Projects") { setRequestedJiraScope(filters); setRequestedJiraScopeLabel(scopeLabel); }
     if (!cursor) setFilterVersion(version => version + 1);
     setLoading(true);
     setError("");
@@ -360,11 +359,11 @@ export default function ConnectedWorkspace({
     }
   }
   function applyJiraFilters(changes = {}, includeSearchDraft = true) {
-    const filters = { ...jiraFilters, search: includeSearchDraft ? jiraFilters.search : appliedJiraFilters.current.search, ...changes };
+    const filters = { ...jiraFilters, ...(changes.scope ? { status: "", assignee: "", deadline: "" } : {}), search: includeSearchDraft ? jiraFilters.search : appliedJiraFilters.current.search, ...changes };
     if (sprintView && filters.project !== jiraFilters.project) { setJiraBoard(""); setJiraTarget(""); setScopeError(""); }
     appliedJiraFilters.current = filters;
     const nextJql = jiraWorkspaceQuery({ ...filters, project: sprintView ? "" : filters.project, scopedSprint: sprintView });
-    setJiraFilters(previous => ({ ...filters, search: includeSearchDraft ? filters.search : previous.search })); setCustomJql(false); setJql(nextJql);
+    setJiraFilters(previous => ({ ...filters, search: includeSearchDraft ? filters.search : previous.search }));
     load(null, "", nextJql, sprintView && filters.project !== jiraFilters.project ? { boardId: "", sprintId: "", backlog: false } : scopeFilters());
   }
   async function openMR(mr, refresh = false) {
@@ -551,7 +550,7 @@ export default function ConnectedWorkspace({
             </form>
           </div>
         ) : section !== "Code" ? (
-          <div className="jira-filters">
+          <div className="jira-filters" ref={jiraControls}>
             <form className="jira-quick-search" onSubmit={event => { event.preventDefault(); applyJiraFilters(); }}>
               <Search size={14} />
               <input aria-label="Find Jira issues" placeholder="Search issues or PAY-382…" value={jiraFilters.search}
@@ -559,16 +558,26 @@ export default function ConnectedWorkspace({
               <button className="btn" disabled={loading}>Search issues</button>
             </form>
             <div className="jira-filter-controls">
-              <label>Project <select aria-label="Jira project filter" value={jiraFilters.project}
-                onChange={event => applyJiraFilters({ project: event.target.value }, false)}>
-                <option value="">{sprintView ? "Choose project" : "All projects"}</option>
-                {jiraProjects.map(project => <option key={project.id || project.key} value={project.key}>{project.key} · {project.name}</option>)}
-              </select></label>
-              <label>Show <select aria-label="Jira work filter" value={customJql ? "custom" : jiraFilters.scope}
+              <JiraProjectPicker origin={configs.jira.url} configVersion={configVersion} value={jiraFilters.project}
+                onChange={project => applyJiraFilters({ project }, false)} onProjects={setJiraProjects} sprintView={sprintView} />
+              <label>Show <select aria-label="Jira work filter" value={jiraFilters.scope}
                 onChange={event => applyJiraFilters({ scope: event.target.value }, false)}>
-                {customJql && <option value="custom">Custom JQL</option>}
                 {jiraScopes.map(scope => <option key={scope.id} value={scope.id}>{sprintView && scope.id === "sprint" ? "All scoped issues" : scope.label}</option>)}
               </select></label>
+              <details className="jira-visual-filters" onKeyDown={event => {
+                if (event.key === "Escape") { event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
+              }}>
+                <summary>Filters{[jiraFilters.status, jiraFilters.assignee, jiraFilters.deadline].filter(Boolean).length > 0 ? ` · ${[jiraFilters.status, jiraFilters.assignee, jiraFilters.deadline].filter(Boolean).length}` : ""}</summary>
+                <div className="jira-filter-fields">
+                  {[["status", "Status", jiraStatusChoices], ["assignee", "Assignee", jiraAssigneeChoices], ["deadline", "Deadline", jiraDeadlineChoices]].map(([key, label, choices]) => <label key={key}>{label}
+                    <select aria-label={`Jira ${key} filter`} value={jiraFilters[key]} onChange={event => applyJiraFilters({ [key]: event.target.value }, false)}>
+                      <option value="">{choices.find(choice => choice.id === jiraFilterDefaults(jiraFilters.scope)[key])?.label} · from view</option>
+                      {choices.map(choice => <option value={choice.id} key={choice.id}>{choice.label}</option>)}
+                    </select>
+                  </label>)}
+                  <small>Status groups include your project's custom workflow statuses.</small>
+                </div>
+              </details>
               <small aria-label="Jira result coverage">{items.length} loaded{next ? " · More available" : ""}{items.length > 0 && resultScopeMismatch ? " · Previous query results" : ""}</small>
               {requestedJiraScope && resultScopeMismatch && !loading && <button className="btn" onClick={() => load(null, "", requestedJiraScope.jql, requestedJiraScope, requestedJiraScopeLabel)}>Retry selected query</button>}
             </div>
@@ -597,28 +606,13 @@ export default function ConnectedWorkspace({
               {jiraTarget && <p>{jiraTarget === "backlog" ? "Jira board backlog" : (() => { const sprint = jiraSprints.find(sprint => String(sprint.id) === jiraTarget); return [sprint?.goal, sprint?.startDate && new Date(sprint.startDate).toLocaleDateString(), sprint?.endDate && `→ ${new Date(sprint.endDate).toLocaleDateString()}`].filter(Boolean).join(" · ") || "Selected Jira sprint"; })()}
                 <span> · Show and search filters apply within this scope. Personal planning stays separate.</span></p>}
             </div>}
-            {jiraProjectError && <small className="jira-filter-warning" role="status">Project list unavailable. Search and JQL still work.</small>}
-            {jiraProjects.length >= 50 && <small className="jira-filter-warning">Showing up to 50 accessible projects. Use JQL for a project not listed here.</small>}
-            <details className="jira-advanced"><summary>Advanced JQL{customJql ? " · Custom filter" : ""}</summary><form
-            className="jql-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setCustomJql(true);
-              load();
-            }}
-          >
-            <label>
-              JQL
-              <input
-                aria-label="Jira query"
-                value={jql}
-                onChange={(e) => setJql(e.target.value)}
-              />
-            </label>
-            <button className="btn" disabled={loading}>
-              Run query
-            </button>
-          </form></details>
+            <div className="jira-active-filters" aria-label="Selected Jira filters">
+              {jiraFilters.scope !== (sprintView ? "sprint" : "recent") && <button className="jira-filter-chip" aria-label="Remove work view filter" onClick={() => applyJiraFilters({ scope: sprintView ? "sprint" : "recent", status: jiraFilters.status, assignee: jiraFilters.assignee, deadline: jiraFilters.deadline }, false)}>{jiraScopes.find(scope => scope.id === jiraFilters.scope)?.label}<X size={11} /></button>}
+              {!sprintView && jiraFilters.project && <button className="jira-filter-chip" aria-label="Remove project filter" onClick={() => applyJiraFilters({ project: "" }, false)}>{jiraFilters.project}<X size={11} /></button>}
+              {[["status", jiraStatusChoices], ["assignee", jiraAssigneeChoices], ["deadline", jiraDeadlineChoices]].map(([key, choices]) => jiraFilters[key] && <button key={key} className="jira-filter-chip" aria-label={`Remove ${key} filter`} onClick={() => applyJiraFilters({ [key]: "" }, false)}>{choices.find(choice => choice.id === jiraFilters[key])?.label}<X size={11} /></button>)}
+              {appliedJiraFilters.current.search && <button className="jira-filter-chip" aria-label="Clear issue search" onClick={() => applyJiraFilters({ search: "" })}>Search: {appliedJiraFilters.current.search}<X size={11} /></button>}
+              {(jiraFilters.scope !== (sprintView ? "sprint" : "recent") || (!sprintView && jiraFilters.project) || appliedJiraFilters.current.search || jiraFilters.status || jiraFilters.assignee || jiraFilters.deadline) && <button className="quiet-button" onClick={() => applyJiraFilters({ scope: sprintView ? "sprint" : "recent", project: sprintView ? jiraFilters.project : "", search: "", status: "", assignee: "", deadline: "" })}>Clear filters</button>}
+            </div>
           </div>
         ) : null}
         {error && (
@@ -630,7 +624,7 @@ export default function ConnectedWorkspace({
         {section === "Projects" && view !== "Issues" && !items.length && !loading && <div className="connected-empty">
           <h3>{view === "Sprint" ? !jiraFilters.project ? "Choose a project to plan its sprint" : !jiraBoard ? "Choose a Scrum board" : !jiraTarget ? "Choose an active/future sprint or board backlog" : "No issues in this planning scope" : "No matching Jira issues"}</h3>
           <p>{view === "Sprint" ? "Board and sprint define the work to plan. Show and search narrow that scope." : "Try another project or work filter, or clear your search."}</p>
-          <button className="btn" onClick={() => applyJiraFilters({ scope: view === "Sprint" ? "sprint" : "recent", project: sprintView ? jiraFilters.project : "", search: "" })}>Reset issue filters</button>
+          <button className="btn" onClick={() => applyJiraFilters({ scope: view === "Sprint" ? "sprint" : "recent", project: sprintView ? jiraFilters.project : "", search: "", status: "", assignee: "", deadline: "" })}>Reset issue filters</button>
         </div>}
         {section === "Docs" && view === "Spaces" ? (
           <div className="wiki-spaces">
@@ -902,7 +896,7 @@ export default function ConnectedWorkspace({
               <div className="connected-empty">
                 <h3>No matching Jira issues</h3>
                 <p>Try another project or work filter, or clear your search.</p>
-                <button className="btn" onClick={() => applyJiraFilters({ scope: view === "Sprint" ? "sprint" : "recent", project: sprintView ? jiraFilters.project : "", search: "" })}>Reset issue filters</button>
+                <button className="btn" onClick={() => applyJiraFilters({ scope: view === "Sprint" ? "sprint" : "recent", project: sprintView ? jiraFilters.project : "", search: "", status: "", assignee: "", deadline: "" })}>Reset issue filters</button>
               </div>
             )}
           </div>
@@ -921,7 +915,7 @@ export default function ConnectedWorkspace({
           view !== "Issues" &&
           view !== "Today" && (
             <p className="live-mode-note">
-              {resultScopeMismatch ? `Issues from the previous loaded scope (${loadedJiraScopeLabel}). ` : view === "Sprint" && !customJql && jiraFilters.scope === "sprint" ? jiraTarget === "backlog" ? "Issues in the selected board backlog. " : "Issues in the selected sprint. " : "Issues from the current filter. "}
+              {resultScopeMismatch ? `Issues from the previous loaded scope (${loadedJiraScopeLabel}). ` : view === "Sprint" && jiraFilters.scope === "sprint" ? jiraTarget === "backlog" ? "Issues in the selected board backlog. " : "Issues in the selected sprint. " : "Issues from the current filter. "}
               {next ? "These counts cover loaded issues; load more for the remaining results. " : ""}
               {view === "Roadmap" ? "Ordered by issue due date; this is a deadline view." : "Open an issue for details and linked work."}
             </p>

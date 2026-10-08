@@ -19,7 +19,7 @@ test("Project, assigned-to-me, and issue-key search produce server queries witho
   expect(query).toContain('project = "PAY"');
   expect(query).toContain("assignee = currentUser()");
   expect(query).toContain("statusCategory != Done");
-  await expect(page.locator(".jira-advanced")).not.toHaveAttribute("open", "");
+  await expect(page.locator(".jira-advanced")).toHaveCount(0);
   expect(await page.evaluate(() => window.__fixture.calls.filter(call => ["jira.edit", "jira.transition"].includes(call.action)))).toEqual([]);
 });
 
@@ -119,17 +119,14 @@ test("Failed work filter stays visibly unapplied after successful refresh of pre
   expect((await queryCalls(page)).at(-1).args.jql).toContain("assignee = currentUser()");
 });
 
-test("Draft search and advanced JQL never run just because the user changes views", async ({ page }) => {
+test("Draft search never runs just because the user changes views or applies another filter", async ({ page }) => {
   await projects(page);
   await page.getByLabel("Find Jira issues").fill("UNSENT-999");
-  await page.locator(".jira-advanced summary").click();
-  await page.getByLabel("Jira query").fill("key = PAY-382");
-  await page.getByRole("button", { name: "Run query", exact: true }).click();
-  await page.getByLabel("Jira query").fill("key = UNSENT-888");
+  await page.getByLabel("Jira work filter").selectOption("mine");
   await page.getByRole("button", { name: "Board", exact: true }).click();
-  await expect.poll(async () => (await queryCalls(page)).at(-1)?.args.jql).toBe("key = PAY-382");
+  await expect.poll(async () => (await queryCalls(page)).at(-1)?.args.jql).toContain("assignee = currentUser()");
+  expect((await queryCalls(page)).at(-1).args.jql).not.toContain("UNSENT-999");
   await expect(page.getByLabel("Find Jira issues")).toHaveValue("UNSENT-999");
-  await expect(page.getByLabel("Jira query")).toHaveValue("key = UNSENT-888");
 });
 
 test("Inspector disables unchanged edits, exposes subtasks, and loads planning choices on expansion", async ({ page }) => {

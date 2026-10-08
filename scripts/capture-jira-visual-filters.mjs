@@ -1,0 +1,37 @@
+import { chromium, expect } from '@playwright/test';
+import fs from 'node:fs/promises';
+import { createServer } from 'vite';
+import { fileURLToPath } from 'node:url';
+import { installConnected } from '../tests/fixtures/connected.mjs';
+const folder = new URL('../docs/media/', import.meta.url).pathname;
+await fs.mkdir(folder, { recursive: true });
+const root = fileURLToPath(new URL('../', import.meta.url));
+const server = await createServer({ root, configFile: `${root}vite.config.js`, logLevel: 'warn', server: { host: '127.0.0.1', port: 0, strictPort: false } });
+let browser;
+try {
+  await server.listen();
+  browser = await chromium.launch();
+  const page = await browser.newPage({ baseURL: `http://127.0.0.1:${server.httpServer.address().port}`, viewport: { width: 1440, height: 900 }, timezoneId: 'Asia/Seoul' });
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.clock.setFixedTime(new Date('2026-10-08T12:00:00+09:00'));
+  await installConnected(page);
+  await page.locator('nav .nav-item[aria-label="Projects"]').click();
+  await page.getByRole('button', { name: 'Issues', exact: true }).click();
+  await page.getByRole('button', { name: 'PAY-382', exact: true }).click();
+  await page.getByLabel('Live Jira comment').fill('Check the retry budget against the payment policy before moving to review.');
+  await page.getByLabel('Jira work filter').selectOption('mine');
+  await page.locator('.jira-visual-filters summary').click();
+  await page.getByLabel('Jira status filter').selectOption('progress');
+  await page.getByLabel('Jira deadline filter').selectOption('overdue');
+  await expect(page.getByLabel('Remove deadline filter')).toBeVisible();
+  await page.getByLabel('Live issue inspector').evaluate(element => { element.scrollTop = 0; });
+  await page.screenshot({ path: folder + 'jira-visual-filters.png', animations: 'disabled' });
+  await page.getByLabel('Jira deadline filter').press('Escape');
+  await page.getByRole('button', { name: 'Toggle theme', exact: true }).click();
+  await page.setViewportSize({ width: 980, height: 720 });
+  await page.locator('.jira-visual-filters summary').click();
+  await expect(page.getByLabel('Jira status filter')).toBeVisible();
+  await page.screenshot({ path: folder + 'jira-visual-filters-dark.png', animations: 'disabled' });
+  if (errors.length) throw Error(errors.join('\n'));
+  console.log(JSON.stringify({ screenshots: 2, fixtureData: true, errors }));
+} finally { await browser?.close(); await server.close(); }

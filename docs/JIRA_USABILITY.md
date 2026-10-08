@@ -1,8 +1,8 @@
 # Jira workflow usability
 
-The connected workspace now starts with ordinary issue search and compact project/work filters. JQL remains available under **Advanced JQL**. Issue inspection, comments, and linked work stay open when switching project views or filters.
+The connected workspace uses ordinary issue search and visual project/work filters. There is no query editor or advanced-query mode. Issue inspection, comments, and linked work stay open when switching project views or filters.
 
-![Connected Jira issue search and inline status controls](media/jira-issues-workflow.png)
+![Connected Jira issue search and inline status controls](media/jira-visual-filters.png)
 
 This screenshot uses isolated fixture data rendered by the actual app. It is not a company-account connection.
 
@@ -25,7 +25,7 @@ This screenshot uses isolated fixture data rendered by the actual app. It is not
 
 - Filters execute Jira queries; visible counts describe **loaded** results and advertise additional pages. Board counts never claim full-project totals before all pages are loaded.
 - The Roadmap screen describes its implemented behavior as **Issue deadlines**. It orders due dates and does not claim to infer epic dependencies or a full Jira roadmap.
-- Scrum board and sprint options support offset pagination with explicit Load more controls in both the workspace and inspector. Project discovery still shows up to 50 accessible projects and identifies that limit; unlisted projects can be queried with JQL in Issues.
+- Scrum board and sprint options support offset pagination with explicit Load more controls in both the workspace and inspector. Project discovery supports server-side name/key search and offset pagination through **Find project** and **Load more projects**. Selected projects remain available while searching for other projects. Failed searches retain existing options and retry the intended request.
 - Sprint membership comes from the Agile issue endpoint independently of the issue body. Slow or rejected membership reads do not block reading, commenting, or status changes. Accepted sprint moves consume their target selection, including when the follow-up read fails.
 - When a newly selected sprint query fails, cached display labels explicitly identify the previous loaded board/sprint. Refresh and pagination stay on that previous successful scope; Retry selected query retries the intended target.
 - Status transitions that require unsupported Jira screen fields are disabled with an explicit Open in Jira recovery action. No guessed required values are posted.
@@ -36,7 +36,7 @@ This screenshot uses isolated fixture data rendered by the actual app. It is not
 
 ## Verification
 
-`tests/jira-usability-improvements.spec.js` covers 17 browser cases: server filter construction, selected active sprint scope, retained drafts, inline writes/cancellation/retry, failed-query pagination and persistent mismatch disclosure, unsent search/JQL, subtasks, partial planning/status metadata failure, superseded status retry recovery, accepted-write refresh recovery, keyboard comments, narrow dark view, and canonical issue/MR scheduling with guarded undo.
+`tests/jira-usability-improvements.spec.js` covers 17 browser cases: server filter construction, selected active sprint scope, retained drafts, inline writes/cancellation/retry, failed-query pagination and persistent mismatch disclosure, unsent search, subtasks, partial planning/status metadata failure, superseded status retry recovery, accepted-write refresh recovery, keyboard comments, narrow dark view, and canonical issue/MR scheduling with guarded undo.
 
 `tests/jira-planning-review.spec.js` adds 11 practical planning cases: future sprint/backlog intersection, Unknown status, assignee selection consistency, accepted comment after close, accepted sprint move with optional metadata failure, required-screen transitions, canonical date/backlog planning, option pagination, delayed membership, failed-scope loaded-page recovery, and stale board options.
 
@@ -49,3 +49,16 @@ Existing connected workflow, automatic synchronization, comment draft, and retai
 ![Specific sprint and local planning in a retained issue inspector](media/jira-sprint-planning.png)
 
 This screenshot uses the actual renderer at 1440 × 900 with isolated fixture data. The same workflow was inspected at 1100 × 900 in dark mode without document-level horizontal overflow.
+
+## Visual filtering follow-up — 2026-10-08
+
+- Removed the advanced query editor, custom-query state, obsolete styles and query-language recovery instructions from the product UI. The adapter still generates the query required by Jira internally.
+- **Show** offers Recent work, All work, Open work, Assigned to me, Due soon and Active sprint. **Filters** reveals status groups, Anyone/Assigned to me/Unassigned, and overdue/today/next-three-days/current-week/no-deadline choices. A choice applies immediately; it overrides only its corresponding preset dimension, so Done with Assigned to me never produces contradictory open-and-done constraints.
+- Removable condition chips and **Clear filters** show what is selected. Reset keeps the chosen board/sprint on the Sprint screen. Search remains explicit via Enter or **Search issues**; changing another filter, switching views and automatic synchronization never submit unfinished search text.
+- Exact issue-key search bypasses the recent-update cutoff while retaining explicit project/status/assignee/deadline conditions. Ordinary word search keeps the selected view's date scope; use **All work** to include older work.
+- Project lookup follows the [Atlassian paginated project search contract](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-projects/#api-rest-api-3-project-search-get), with query/offset parameters and request-generation protection. Projects outside the first page remain reachable without a query language.
+- Escape closes filter/project disclosure and restores trigger focus; outside click dismisses it. At 980px, the issue inspector stays beside the list so it cannot cover filter controls. Narrow filter content expands inline and preserves readable table columns through table scrolling.
+
+Verification: **40/40** focused browser cases, **171/171** model/adapter/Git tests; final full-suite and native results are recorded in [development history](LOCAL_DEVELOPMENT.md). Six new browser regressions cover combined conditions, independent removal, reset, inspector draft retention, project search/pagination/retry, sprint containment and the 980px dark layout. The two actual app captures use isolated fixtures and record zero page errors. No company-account compatibility is claimed.
+
+![Visual filtering in a narrow dark split view](media/jira-visual-filters-dark.png)

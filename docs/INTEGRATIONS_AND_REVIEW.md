@@ -22,7 +22,7 @@
 
 | 서비스 | 입력 | 현재 실제 구현 |
 |---|---|---|
-| Jira Cloud | 사이트 URL, Atlassian 이메일, API 토큰, 선택적 Cloud ID | JQL 검색/다음 페이지, 이슈/보드/로드맵, 상태·담당자·기한·우선순위·스프린트 변경, 댓글, 이슈 생성 |
+| Jira Cloud | 사이트 URL, Atlassian 이메일, API 토큰, 선택적 Cloud ID | 시각적 이슈 필터/다음 페이지, 이슈/보드/로드맵, 상태·담당자·기한·우선순위·스프린트 변경, 댓글, 이슈 생성 |
 | Confluence Cloud | 별도 사이트 URL, 이메일, API 토큰, 선택적 Cloud ID | Spaces, 문서 목록/커서, 본문 읽기, 본문 검색, 최근/즐겨찾기, 문서 생성 |
 | GitLab Self-Managed | 서비스 기본 URL, Personal Access Token | 저장소 목록, 전체/내 리뷰 MR, 변경 파일, 커밋 고정 원문, 토론 조회, 위치 댓글/파일 댓글, 승인, MR별 Pipeline과 Job 단계 |
 | Claude | Anthropic 호환 기본 URL, API 토큰, Model ID, 선택적 Workspace ID | 모델 목록 조회, 연결 테스트, 구조화된 MR 리뷰 가이드, 현재 선택 맥락·개인 계획을 받는 Assistant |
@@ -85,7 +85,7 @@ Connected workspace의 Home/My Work는 하나의 개인 계획을 Today·Week·B
 
 Global Search는 개인 계획, Jira 이슈, 열린 GitLab MR/저장소, Confluence 본문을 조회합니다. Quick Create는 개인 Task, Jira 이슈, Confluence 문서를 생성합니다. 회사 프로젝트에 미지원 필수 custom field가 있으면 누락한 채 생성하지 않고 해당 필드명을 표시합니다. 문서 생성은 plain text를 escape한 storage body를 게시합니다. 기존 Confluence 페이지의 rich-text 편집·macro·attachment 수정은 지원하지 않습니다.
 
-Projects의 Overview/Board/Sprint/Roadmap은 현재 JQL로 로드한 이슈를 투영합니다. Sprint 화면의 범위는 JQL의 sprint 조건으로 지정합니다. Inspector의 Sprint 변경은 Jira Software의 Scrum board와 active/future sprint를 조회해 명시적으로 실행합니다. Roadmap은 기한순 계획이며 epic dependency Gantt는 아닙니다.
+Projects의 Overview/Board/Sprint/Roadmap은 검색·시각적 필터로 로드한 이슈를 표시합니다. JQL 입력은 제공하지 않습니다. Sprint 화면은 선택한 Scrum board와 특정 active/future sprint 또는 해당 board backlog로 범위를 지정하고 나머지 필터를 그 안에서 조합합니다. Inspector의 Sprint 변경은 Jira Software의 Scrum board와 active/future sprint를 조회해 명시적으로 실행합니다. Roadmap은 기한순 계획이며 epic dependency Gantt는 아닙니다.
 
 이슈 → 관련 MR/위키 → Pipeline/Job을 중첩 미리보기로 탐색하고 뒤로 돌아올 수 있습니다. 이슈 키로 검색한 MR/문서는 검색 후보라는 점을 표시합니다. 전체 자동 연결 그래프나 검증된 관계로 가장하지 않습니다. Assistant의 로컬 내일 이동은 명령을 인식한 뒤 구체적인 날짜 제안/Confirm을 거칩니다. 다른 답변은 읽기/제안이며 외부 실행 도구는 없습니다.
 

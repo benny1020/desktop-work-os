@@ -2,6 +2,14 @@
 
 All screens below use synthetic data. The connected-mode images are rendered against test fixtures, not a live company environment.
 
+## Visual Jira filtering
+
+![Visual filters and retained issue context](media/jira-visual-filters.png)
+
+![Narrow dark Jira filters beside the issue inspector](media/jira-visual-filters-dark.png)
+
+Search and select project, work view, status group, assignee and deadline with no query editor. [Jira usability](JIRA_USABILITY.md) records behavior and verification.
+
 ## Latest upstream-informed UX pass
 
 ![Five-day workweek with wide readable task columns and visible weekend work count](media/todo-workweek.png)

@@ -719,3 +719,15 @@ test('unchanged context posts an explicit MR-level source reference, never a fak
   await assert.rejects(engine.invoke('gitlab.comment', { ...args, line: 999 }), /source line/);
   assert.equal(calls.filter(call => call.path.endsWith('/discussions') && call.method === 'POST').length, 1);
 });
+
+test("Jira project discovery supports search, offset pagination and rejects invalid offsets", async t => {
+  const { engine, calls } = await fixture(t);
+  await engine.invoke("jira.projects", { query: "Platform & API", startAt: 100 });
+  assert.match(calls.at(-1).path, /\/project\/search$/);
+  assert.equal(calls.at(-1).query.get("query"), "Platform & API");
+  assert.equal(calls.at(-1).query.get("startAt"), "100");
+  assert.equal(calls.at(-1).query.get("maxResults"), "100");
+  const count = calls.length;
+  await assert.rejects(engine.invoke("jira.projects", { startAt: -1 }), /Invalid planning page/);
+  assert.equal(calls.length, count);
+});

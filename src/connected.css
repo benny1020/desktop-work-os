@@ -892,25 +892,6 @@
 .connected-content .search-field {
   min-width: 240px;
 }
-.jql-search {
-  display: flex;
-  gap: 12px;
-  margin: 23px 0;
-}
-.jql-search label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  font-size: 11px;
-}
-.jql-search input {
-  flex: 1;
-  padding: 9px 12px;
-  font:
-    11px "IBM Plex Mono",
-    monospace;
-}
 .live-inspector {
   width: 420px;
   flex-shrink: 0;

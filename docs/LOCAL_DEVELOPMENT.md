@@ -190,3 +190,21 @@ npm run test:desktop
 node scripts/test-connected-desktop.mjs
 node scripts/capture-planning-ux.mjs
 ```
+
+
+## Visual Jira filtering — 2026-10-08
+
+Removed user-facing advanced/custom query entry and its state/styles. The issue workspace now composes status-group, assignee and deadline choices into server queries, with removable condition chips and reset. Exact issue-key lookup searches past the recent-update cutoff. Project lookup supports server search, offset pagination, retained options and retry; it no longer directs users to a query language when a project is outside the first page. Sprint reset retains board/sprint membership scope, and filters preserve inspector/comment drafts. At 980px the inspector no longer covers filter controls.
+
+Focused browser **40/40**, full browser **351/351**, adapter/model/Git **171/171** passed. Production build, native profile compatibility, encrypted vault and production parser-worker checks passed. Actual Electron connected workflows **11/11** passed with **71 synthetic HTTPS requests**, **zero renderer/console errors** and **zero automatic external writes**. The two current app screenshots use isolated fixture data; the capture owns an ephemeral Vite server and fresh Chromium profile. Company accounts and permissions remain unverified.
+
+The first focused run found a real 980px inspector overlap, which was repaired and retested. An adapter assertion depended on conjunction order; it now verifies both unchanged semantic constraints independently. A capture retry after Playwright stopped its server failed with connection refused; the script now owns its server and closes it in finally. No personal browser state or credentials were used.
+
+```sh
+npx playwright test tests/jira-visual-filters.spec.js tests/jira-usability-improvements.spec.js tests/jira-planning-review.spec.js tests/auto-sync-workspace.spec.js --workers=4
+npm test -- --workers=5
+npm run test:adapters
+npm run test:desktop
+node scripts/test-connected-desktop.mjs
+node scripts/capture-jira-visual-filters.mjs
+```

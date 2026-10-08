@@ -114,7 +114,7 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 
 Personal planning changes stay local. Checking a task or moving its date does **not** change a Jira status or deadline.
 
-Jira issue search supports project, personal work, due-soon and active-sprint filters without writing JQL. Sprint planning selects a Scrum board and a specific active/future sprint or the board's backlog. Status changes are available inline; the inspector retains comment and field drafts when changing views. Required transition screens offer an explicit Open in Jira recovery action. [Jira usability](docs/JIRA_USABILITY.md) · [Planning usability](docs/TODO_USABILITY.md).
+Jira issue search uses visual project, personal work, status, assignee and deadline filters; there is no query editor. Search projects by name/key and load further project pages directly. Selected conditions are individually removable. Sprint planning selects a Scrum board and a specific active/future sprint or the board's backlog. Status changes are available inline; the inspector retains comment and field drafts when changing views. Required transition screens offer an explicit Open in Jira recovery action. [Jira usability](docs/JIRA_USABILITY.md) · [Planning usability](docs/TODO_USABILITY.md).
 
 Daily and weekly planning surface every loaded review request, show Jira deadline conflicts, and share canonical linked tasks with guarded undo. Exact loaded Jira keys in quick entry schedule the existing work. [Practical review: three rounds](docs/PLANNING_PRACTICAL_REVIEW.md).
 
@@ -184,7 +184,7 @@ There are no signed installers or automatic updates yet. The desktop command bui
 
 | Service | Configuration | Implemented |
 | --- | --- | --- |
-| Jira Cloud | Site URL, account email, API token; optional Cloud ID | JQL, issue previews, status, assignee, priority, due date, sprint changes, comments, issue creation |
+| Jira Cloud | Site URL, account email, API token; optional Cloud ID | Visual issue search, issue previews, status, assignee, priority, due date, sprint changes, comments, issue creation |
 | Confluence Cloud | Separate site URL, email, API token; optional Cloud ID | Spaces, pages, search, recent/favorites, plain-text document publication |
 | GitLab Self-Managed | Instance URL, personal access token with repository-read access | Local Git checkouts/diffs/source; MR/review lists, discussions, approvals, pipelines and jobs |
 | Claude / Anthropic-compatible API | Endpoint URL, token, model ID; optional workspace ID | Model discovery, contextual assistant, durable memory, confirmed local task/reminder suggestions, structured MR review guides |
@@ -231,7 +231,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Latest validation: **345 browser tests**, **168 adapter/model/Git tests** and **11 native connected workflow checks** passed in the [todo/planning design follow-up](docs/TODO_DESIGN_REFERENCES.md). Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Additional API/mixed-flow native checks are recorded in the [preceding team UX audit](docs/UPSTREAM_UX_REVIEW.md). Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+Latest validation: **351 browser tests**, **171 adapter/model/Git tests** and **11 native connected workflow checks** passed in the [visual Jira filtering follow-up](docs/JIRA_USABILITY.md#visual-filtering-follow-up--2026-10-08). Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Additional API/mixed-flow native checks are recorded in the [preceding team UX audit](docs/UPSTREAM_UX_REVIEW.md). Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 The subsequent [code readability follow-up](docs/CODE_READABILITY.md) passed **42 affected browser checks**, **124 adapter/model checks** and **11 native connected workflows**, plus production build. It did not rerun the complete browser suite.
 

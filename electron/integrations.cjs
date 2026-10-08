@@ -799,9 +799,11 @@ function createIntegrationService({ vault, assistantMemory, localGit, openExtern
       ]);
       return { ...pipeline.data, jobs: jobs.items, truncated: jobs.truncated };
     },
-    "jira.projects": async () =>
-      (await request("jira", "/project/search?maxResults=100&orderBy=name"))
-        .data,
+    "jira.projects": async (a) => {
+      const q = new URLSearchParams({ maxResults: "100", orderBy: "name", startAt: String(planningOffset(a.startAt)) });
+      if (a.query?.trim()) q.set("query", String(a.query).trim().slice(0, 200));
+      return (await request("jira", "/project/search?" + q)).data;
+    },
     "jira.issueTypes": async (a) =>
       (
         await request(

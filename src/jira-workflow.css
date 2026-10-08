@@ -9,10 +9,6 @@
 .jira-filter-controls select { max-width: 210px; font-size: 11px; padding: 6px 9px; }
 .jira-filter-controls small { margin-left: auto; font-size: 10px; color: var(--secondary); }
 .jira-filter-warning { display: block; font-size: 11px; color: var(--amber); margin: 8px 0; }
-.jira-advanced { font-size: 11px; color: var(--secondary); }
-.jira-advanced summary { cursor: pointer; width: fit-content; padding: 4px 0; }
-.jira-advanced .jql-search { margin: 10px 0; }
-.jira-advanced input { min-width: 0; width: 100%; }
 .jira-status-popover { position: relative; width: fit-content; }
 .jira-status-popover summary { list-style: none; cursor: pointer; border-radius: 4px; }
 .jira-status-popover summary::-webkit-details-marker { display: none; }
@@ -41,8 +37,6 @@
   .connected-workspace.has-selection .connected-content { padding: 20px 16px; }
   .jira-filter-controls { gap: 8px; }
   .jira-filter-controls small { margin-left: 0; width: 100%; }
-  .jira-advanced .jql-search { flex-wrap: wrap; }
-  .jira-advanced .jql-search label { min-width: 200px; }
 }
 
 .jira-sprint-scope { border-top: 1px solid var(--line); padding-top: 3px; margin-bottom: 12px; }
@@ -58,3 +52,29 @@
 .jira-scope-mismatch { color: var(--amber); background: var(--surface); border-left: 2px solid var(--amber); padding: 8px 10px; font-size: 11px; line-height: 1.6; }
 .plan-object-action .plan-object-popover label { flex-direction: row; margin: 0; justify-content: space-between; }
 .plan-object-action .plan-object-popover .inline { margin: 0; }
+
+.jira-visual-filters summary, .jira-project-lookup summary { cursor: pointer; font-size: 11px; padding: 6px 9px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text); background: var(--surface); }
+.jira-visual-filters, .jira-project-lookup { position: relative; }
+.jira-filter-fields, .jira-project-options { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; width: 320px; max-width: calc(100vw - 48px); padding: 12px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); box-shadow: 0 10px 25px #0002; display: grid; gap: 12px; }
+.jira-filter-fields label { justify-content: space-between; }
+.jira-filter-fields select { width: 220px; max-width: 70%; }
+.jira-filter-fields small, .jira-project-options small { margin: 0; font-size: 10px; line-height: 1.5; }
+.jira-project-options { width: 360px; }
+.jira-project-results { display: grid; max-height: 230px; overflow: auto; gap: 2px; }
+.jira-project-results button { display: flex; gap: 12px; text-align: left; align-items: center; padding: 8px; color: var(--text); }
+.jira-project-results button:hover { background: var(--hover); }
+.jira-project-results b { min-width: 42px; font-size: 11px; }
+.jira-project-results span { font-size: 12px; overflow-wrap: anywhere; }
+.jira-project-options [role="alert"] { color: var(--amber); font-size: 11px; line-height: 1.6; }
+.jira-active-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.jira-active-filters:empty { display: none; }
+.jira-filter-chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--secondary); font-size: 10px; padding: 4px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.jira-filter-chip:hover { color: var(--text); border-color: var(--line-strong); }
+.jira-active-filters .quiet-button { font-size: 10px; }
+@media (max-width: 1100px) {
+  .jira-project-options, .jira-filter-fields { position: static; margin-top: 6px; box-shadow: none; }
+}
+
+@media (min-width: 900px) and (max-width: 980px) {
+  .connected-workspace.has-selection > .live-inspector { position: relative; inset: auto; width: 380px; max-width: 50%; }
+}

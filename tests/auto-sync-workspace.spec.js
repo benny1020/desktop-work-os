@@ -22,7 +22,7 @@ test("Home automatically updates successful services while keeping failed servic
   await expect(page.locator(".daily-connected")).toContainText("Fixture service unavailable");
 });
 
-test("Periodic Jira sync refreshes all loaded pages and never applies unfinished JQL", async ({ page }) => {
+test("Periodic Jira sync refreshes all loaded pages and never applies unfinished search", async ({ page }) => {
   await page.evaluate(() => {
     const original = window.orbit.invoke;
     window.listRevision = "Initial";
@@ -41,14 +41,13 @@ test("Periodic Jira sync refreshes all loaded pages and never applies unfinished
   await page.getByRole("button", { name: "Issues", exact: true }).click();
   await page.getByRole("button", { name: "Load more", exact: true }).click();
   await expect(page.locator(".connected-content")).toContainText("Initial page 2");
-  const applied = await page.getByLabel("Jira query").inputValue();
-  await page.locator(".jira-advanced summary").click();
-  await page.getByLabel("Jira query").fill("unfinished JQL that must not run");
+  const applied = await page.evaluate(() => window.__fixture.calls.filter(call => call.action === "jira.issues").at(-1).args.jql);
+  await page.getByLabel("Find Jira issues").fill("unfinished search that must not run");
   await page.evaluate(() => { window.listRevision = "Updated"; window.startOfSyncCalls = window.__fixture.calls.length; });
   await page.clock.runFor(61_000);
   await expect(page.locator(".connected-content")).toContainText("Updated page 1");
   await expect(page.locator(".connected-content")).toContainText("Updated page 2");
-  await expect(page.getByLabel("Jira query")).toHaveValue("unfinished JQL that must not run");
+  await expect(page.getByLabel("Find Jira issues")).toHaveValue("unfinished search that must not run");
   const calls = await page.evaluate(() => window.__fixture.calls.slice(window.startOfSyncCalls).filter(call => call.action === "jira.issues"));
   expect(calls).toHaveLength(2);
   expect(calls.map(call => call.args.jql)).toEqual([applied, applied]);
