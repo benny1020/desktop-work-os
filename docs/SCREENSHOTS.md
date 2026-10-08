@@ -4,6 +4,10 @@ All screens below use synthetic data. The connected-mode images are rendered aga
 
 ## Latest upstream-informed UX pass
 
+![Five-day workweek with wide readable task columns and visible weekend work count](media/todo-workweek.png)
+
+[The follow-up todo design review](TODO_DESIGN_REFERENCES.md) compared Super Productivity, WeekToDo, Planify and Vikunja source. Workweek/full-week selection preserves task data and reveals hidden weekend items directly.
+
 ![Distinct source operations beside the diagram and sample AI review](media/upstream-review-calls.png)
 
 The selected component's Calls list distinguishes reads, writes and message dispatch, with exact source line links. Flow details opens contracts without shrinking the diagram.

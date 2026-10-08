@@ -40,6 +40,12 @@
 .daily-connected .attention-expand{display:block;color:var(--accent);padding:9px 0;font-size:11px}
 .daily-connected .attention-coverage{font-size:9px;line-height:1.6;margin-top:8px}
 .daily-connected .available-plan-date{margin:-3px 0 12px;font-size:10px}
+.planning-week-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px;font-size:11px}
+.planning-week-toolbar p{margin:0;color:var(--text)}
+.planning-week-toolbar p span{color:var(--secondary)}
+.planning-week-toolbar>div{display:flex;align-items:center;gap:10px}
+.planning-week-toolbar select{font-size:11px;min-height:30px;background:var(--surface);color:var(--text);border:1px solid var(--line-strong);border-radius:4px;padding:5px 8px}
+.planning-week-toolbar+.planning-grid{margin-top:10px}
 .daily-connected .live-inbox .inbox-work{flex-wrap:wrap;gap:8px}
 .daily-connected .live-inbox .inbox-work>button:first-child{min-width:140px;overflow-wrap:anywhere}
 .daily-connected .live-inbox .available-review>button:first-child{display:flex;align-items:center;gap:6px;text-align:left}

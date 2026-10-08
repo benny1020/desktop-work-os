@@ -239,6 +239,7 @@ function PlanningWorkspace({
   const [quickDate, setQuickDate] = useState(() => planningSession?.quickDate || null);
   const [backlogQuery, setBacklogQuery] = useState(() => planningSession?.backlogQuery || "");
   const [showCompleted, setShowCompleted] = useState(() => planningSession?.showCompleted || false);
+  const [weekLayout, setWeekLayout] = useState(() => planningSession?.weekLayout || "full");
   const [date, setDate] = useState(() => focusDate || (view === "Today" ? today : rememberedRange?.date || planningSession?.date || today)),
     [mode, setMode] = useState(() => rememberedRange?.mode || planningSession?.mode || "Week"),
     [quick, setQuick] = useState(() => planningSession?.quick || ""),
@@ -263,9 +264,9 @@ function PlanningWorkspace({
   useEffect(() => {
     const currentRange = lastRange.current;
     ranges.current[view] = { date: currentRange.date, mode: currentRange.mode };
-    planningSessions.set(planningKey, { ...currentRange, ranges: { ...ranges.current }, quick, kind, quickDate, returnRange, backlogQuery, showCompleted });
+    planningSessions.set(planningKey, { ...currentRange, ranges: { ...ranges.current }, quick, kind, quickDate, returnRange, backlogQuery, showCompleted, weekLayout });
     planningUndo = { removed, scheduleUndo, completionUndo };
-  }, [planningKey, view, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo, completionUndo, backlogQuery, showCompleted]);
+  }, [planningKey, view, date, mode, quick, kind, quickDate, returnRange, removed, scheduleUndo, completionUndo, backlogQuery, showCompleted, weekLayout]);
   useEffect(() => {
     if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) setDate(focusDate);
     if (!focusTaskId) return;
@@ -455,6 +456,9 @@ function PlanningWorkspace({
   }
   const weekday = (new Date(date + "T12:00:00").getDay() + 6) % 7;
   let days = Array.from({ length: 7 }, (_, i) => shiftDay(date, i - weekday));
+  const weekItems = plan.tasks.filter(task => days.includes(task.date));
+  const weekendItems = weekItems.filter(task => days.slice(5).includes(task.date));
+  if (view === "This Week" && weekLayout === "workweek") days = days.slice(0, 5);
   if (view === "Calendar" && mode === "Day") days = [date];
   if (view === "Calendar" && mode === "Month") {
     const first = date.slice(0, 8) + "01",
@@ -691,8 +695,25 @@ function PlanningWorkspace({
         </div>
       ) : weekly ? (
         <>
+          {view === "This Week" && <div className="planning-week-toolbar">
+            <p>Whole week <span>· {weekItems.length} planned · {weekItems.filter(task => task.done).length} completed</span></p>
+            <div>
+              {weekLayout === "workweek" && weekendItems.length > 0 && <button className="quiet-button" onClick={() => {
+                setWeekLayout("full");
+                requestAnimationFrame(() => {
+                  const heading = rootRef.current?.querySelector(`[data-plan-day="${weekendItems[0].date}"]`);
+                  heading?.focus({preventScroll:true}); heading?.scrollIntoView({block:"nearest",inline:"nearest"});
+                });
+              }} aria-label={`Show ${weekendItems.length} weekend ${weekendItems.length === 1 ? "item" : "items"}`}>{weekendItems.length} on weekend</button>}
+              <select aria-label="Week layout" value={weekLayout} onChange={event => setWeekLayout(event.target.value)}>
+                <option value="workweek">Workweek · 5 days</option>
+                <option value="full">Full week · 7 days</option>
+              </select>
+            </div>
+          </div>}
           <div
             className={`planning-grid ${mode === "Month" && view === "Calendar" ? "month" : ""} ${mode === "Day" && view === "Calendar" ? "day" : ""}`}
+            style={view === "This Week" ? { gridTemplateColumns: `repeat(${days.length}, minmax(125px, 1fr))` } : undefined}
           >
             {days.map((d) => (
               <section

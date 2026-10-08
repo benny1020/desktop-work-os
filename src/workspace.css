@@ -235,7 +235,8 @@
   flex-wrap: wrap;
 }
 .planning-grid .plan-task-actions input[type="time"] {
-  max-width: 66px !important;
+  width: 100px;
+  max-width: 100px !important;
 }
 .planning-grid:not(.day):not(.month) .plan-task {
   min-height: 52px;

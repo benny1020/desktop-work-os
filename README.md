@@ -101,6 +101,7 @@ Today, This Week, Backlog and Calendar share **one local task dataset**. Add a r
 - Linked issues and reviews show their planned date. Moving an existing task is explicit and reversible, without duplicates.
 - Personal tasks and events, with Day / Week / Month calendar views.
 - Stable weekly cards with keyboard-accessible Edit/More actions, explicit event completion and guarded completion Undo.
+- Five-day workweek or full seven-day display, with hidden-weekend counts and direct recovery; Calendar keeps all seven days. [Todo/planning design references](docs/TODO_DESIGN_REFERENCES.md).
 - Personal editor drafts survive incidental Escape/outside dismissal during the app session; explicit Cancel discards them.
 - Drag-to-schedule, keyboard reordering, and editable linked personal plans.
 - Click a calendar date to focus quick add without losing the current month.
@@ -230,7 +231,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Latest validation: **343 browser tests**, **168 adapter/model/Git tests** and **23 native connected workflow checks** passed in the [upstream-informed team UX audit](docs/UPSTREAM_UX_REVIEW.md). Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
+Latest validation: **345 browser tests**, **168 adapter/model/Git tests** and **11 native connected workflow checks** passed in the [todo/planning design follow-up](docs/TODO_DESIGN_REFERENCES.md). Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Additional API/mixed-flow native checks are recorded in the [preceding team UX audit](docs/UPSTREAM_UX_REVIEW.md). Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Earlier memory lifecycle checks and planning reviews are recorded in [the practical planning review](docs/PLANNING_PRACTICAL_REVIEW.md) and [validation history](docs/LOCAL_DEVELOPMENT.md).
 
 The subsequent [code readability follow-up](docs/CODE_READABILITY.md) passed **42 affected browser checks**, **124 adapter/model checks** and **11 native connected workflows**, plus production build. It did not rerun the complete browser suite.
 

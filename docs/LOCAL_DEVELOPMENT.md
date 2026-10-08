@@ -176,3 +176,17 @@ node scripts/capture-upstream-ux.mjs
 node scripts/capture-planning-ux.mjs
 node scripts/capture-business-flow-review.mjs
 ```
+
+## Todo/planner design follow-up — 2026-10-08
+
+[Four additional task-management references](TODO_DESIGN_REFERENCES.md): Super Productivity, WeekToDo, Planify and Vikunja were cloned and relevant source inspected at pinned commits. Worklane now offers a five-day workweek with visible hidden-weekend count/recovery, truthful whole-week counts and readable native time fields. Full-week default and canonical task data remain intact; the layout preference survives navigation within the renderer session. No upstream code, assets or new dependency was imported.
+
+After the final app edits, full browser **345/345** and adapter/model/Git **168/168** passed. Affected planning checks **15/15** passed; the final tighter workweek check with expanded navigation at 980px **2/2** passed. Production build, native profile/vault/production parser-worker checks and **11/11** native connected workflows passed with 71 synthetic service requests and zero renderer errors. Three actual planning captures passed geometry checks and recorded zero page errors. No live company services were used. No agent-team delegation is claimed for this follow-up; the prior independent review remains documented separately.
+
+```sh
+npm test -- --workers=5
+npx playwright test tests/planning-workweek.spec.js tests/upstream-planning-ux.spec.js tests/usability-planning.spec.js
+npm run test:desktop
+node scripts/test-connected-desktop.mjs
+node scripts/capture-planning-ux.mjs
+```
