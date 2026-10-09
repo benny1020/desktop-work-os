@@ -7,6 +7,7 @@
 .review-flow-menu input { width:100%; margin-bottom:8px; }
 .review-flow-menu > small { display:block; color:var(--muted); font-size:10px; margin-bottom:8px; }
 .review-flow-options { max-height:300px; overflow:auto; }
+.review-flow-section-heading { position:sticky; top:0; z-index:1; display:flex; justify-content:space-between; padding:7px 9px; background:var(--surface); border-bottom:1px solid var(--line); font-size:10px; font-weight:600; color:var(--secondary); }
 .review-flow-options button { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; text-align:left; padding:9px; border-radius:4px; }
 .review-flow-options button[aria-pressed=true], .review-flow-options button:hover { background:var(--accent-soft); }
 .review-flow-options button span { min-width:0; }

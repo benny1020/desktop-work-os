@@ -36,13 +36,13 @@
 .visual-review.review-cockpit.ai-folded .visual-review-grid { grid-template-columns:minmax(280px, .4fr) minmax(350px,.6fr); grid-template-areas:"map code" "ai ai"; grid-template-rows:minmax(0,1fr) 34px; }
 .visual-review.review-cockpit .visual-map-panel { min-height:0; overflow:visible; display:flex; flex-direction:column; border-right:1px solid var(--line-strong); }
 .visual-review.review-cockpit .review-flow-context { position:relative; flex:none; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 8px; padding:7px 10px; }
-.visual-review.review-cockpit .review-flow-context-heading { grid-column:1; grid-row:1; min-width:0; }
-.visual-review.review-cockpit .review-flow-context-heading strong { font-size:12px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.visual-review.review-cockpit .review-flow-context-heading { grid-column:1 / -1; grid-row:1; min-width:0; }
+.visual-review.review-cockpit .review-flow-context-heading strong { font-size:12px; line-height:1.4; min-width:0; overflow-wrap:anywhere; }
 .visual-review.review-cockpit .review-flow-import-path,.visual-review.review-cockpit .review-flow-context-route { grid-column:1 / -1; margin:0; }
 .visual-review.review-cockpit .review-flow-import-path > div { flex-wrap:nowrap; overflow:auto; }
 .visual-review.review-cockpit .review-flow-import-path button { white-space:nowrap; font-size:10px; }
-.visual-review.review-cockpit .review-flow-context-meta { min-width:0; gap:6px; font-size:9px; overflow:hidden; grid-column:2; grid-row:1; }
-.visual-review.review-cockpit .review-flow-explanation { margin:0; align-self:center; font-size:10px; grid-column:2; grid-row:2; }
+.visual-review.review-cockpit .review-flow-context-meta { min-width:0; gap:6px; font-size:9px; overflow:hidden; grid-column:1; grid-row:3; justify-content:flex-start; }
+.visual-review.review-cockpit .review-flow-explanation { margin:0; align-self:center; font-size:10px; grid-column:2; grid-row:3; }
 .visual-review.review-cockpit .review-flow-explanation > p,.visual-review.review-cockpit .review-flow-explanation > ul { position:absolute; top:100%; left:8px; right:8px; z-index:20; background:var(--surface); border:1px solid var(--line); padding:9px; margin:0; }
 .visual-review.review-cockpit .review-flow-explanation > ul { top:calc(100% + 56px); max-height:180px; overflow:auto; }
 .visual-review.review-cockpit .review-diagram-controls { position:relative; top:auto; z-index:10; flex:none; display:grid; grid-template-columns:minmax(0,1fr) auto; }
@@ -110,8 +110,8 @@
 .visual-review.review-cockpit .review-flow-trigger-text small { display:none; }
 .visual-review.review-cockpit .review-reading-path .review-change-summary { flex:none; }
 .visual-review.review-cockpit .review-flow-context-meta > span { display:none; }
-.visual-review.review-cockpit .review-flow-import-path { grid-column:1; grid-row:2; min-width:0; }
-.visual-review.review-cockpit .review-flow-context-route { grid-column:1; grid-row:2; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.visual-review.review-cockpit .review-flow-import-path { grid-column:1 / -1; grid-row:2; min-width:0; }
+.visual-review.review-cockpit .review-flow-context-route { grid-column:1 / -1; grid-row:2; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .visual-review.review-cockpit .review-layer-context { border:0; padding:0; font-size:10px; gap:6px; }
 .visual-review.review-cockpit .review-layer-context > span { display:none; }
 .visual-review.review-cockpit .review-layer-context details[open] { position:absolute; top:100%; right:10px; z-index:20; padding:10px; max-width:300px; background:var(--surface); border:1px solid var(--line); border-radius:5px; box-shadow:var(--shadow); }
@@ -121,6 +121,7 @@
 .visual-review.review-cockpit .review-diagram-controls .sequence-step-navigation { grid-column:1 / -1; grid-row:3; }
 .visual-review.review-cockpit .api-flow-context { z-index:20; }
 .visual-review.review-cockpit .sequence-step .node-meta { font-size:12px; }
+.visual-review.review-cockpit .diagram-toolbar .quiet-button { min-width:24px; min-height:24px; }
 .visual-review.review-cockpit .api-flow-title > label { display:inline-flex; align-items:center; min-width:24px; min-height:24px; padding:3px 4px; line-height:16px; }
 @container (max-width:1050px) {
  .review-all-files { position:static; }
@@ -138,7 +139,6 @@
  .visual-review.review-cockpit .diagram-evidence-count { display:block; }
  .visual-review.review-cockpit.focus-diagram .visual-review-grid { grid-template-columns:1fr; grid-template-areas:"map" "ai"; }
  .visual-review.review-cockpit.focus-code .visual-review-grid { grid-template-columns:1fr; grid-template-areas:"code" "ai"; grid-template-rows:minmax(0,1fr) 34px; }
- .visual-review.review-cockpit .review-flow-context-heading strong { font-size:11px; }
  .visual-review.review-cockpit .review-code-directory { display:none; }
  .visual-review.review-cockpit .visual-review-title > .inline { flex-wrap:nowrap; gap:6px; }
  .visual-review.review-cockpit .visual-review-title .btn { padding:5px 7px; font-size:10px; }

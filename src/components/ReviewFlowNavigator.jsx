@@ -7,6 +7,11 @@ const displayTitle = flow => `${flow?.title || flow?.label || 'Changed files'}${
 export function ReviewFlowPicker({ flows, activeFlow, viewed, reviewedFlows = [], query, onQuery, onChoose, pickerRef }) {
   if (flows.length < 2) return <span className="review-single-flow" title={activeFlow?.reason}>1 review flow</span>;
   const matches = flows.filter(flow => searchText(flow).includes(query.toLowerCase()));
+  const executionCount = flows.filter(flow => flow.methodFlow).length;
+  const groups = executionCount ? [
+    { label: 'Execution flows', items: matches.filter(flow => flow.methodFlow) },
+    { label: 'Supporting changes', items: matches.filter(flow => !flow.methodFlow) },
+  ] : [{ label: 'File groups', items: matches }];
   return <details className="review-flow-picker" ref={pickerRef}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
     onToggle={event => { if (event.currentTarget.open) requestAnimationFrame(() => pickerRef.current?.querySelector('input')?.focus()); }}
@@ -20,7 +25,7 @@ export function ReviewFlowPicker({ flows, activeFlow, viewed, reviewedFlows = []
       <span className="review-flow-trigger-count">{flows.findIndex(flow => flow.id === activeFlow?.id) + 1}/{flows.length}</span><ChevronDown size={12}/>
     </summary>
     <div className="review-flow-menu">
-      <div className="review-flow-menu-heading"><b>What do you want to review?</b><small>{flows.length} review scopes · all changed files included</small></div>
+      <div className="review-flow-menu-heading"><b>What do you want to review?</b><small>{executionCount ? `${executionCount} execution flows · ${flows.length - executionCount} supporting groups` : `${flows.length} file groups`} · all changed files included</small></div>
       <input aria-label="Search review flows" placeholder="Search a change, component or file…" value={query} onChange={event => onQuery(event.target.value)}
         onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); pickerRef.current?.querySelector('.review-flow-options button')?.focus(); } }}/>
       <div className="review-flow-options" onKeyDown={event => {
@@ -28,7 +33,9 @@ export function ReviewFlowPicker({ flows, activeFlow, viewed, reviewedFlows = []
         const buttons = [...event.currentTarget.querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
         event.preventDefault(); buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
       }}>
-        {matches.map(flow => {
+        {groups.filter(group => group.items.length).map(group => <div key={group.label} role="group" aria-label={group.label}>
+        {executionCount > 0 && <div className="review-flow-section-heading">{group.label}<span>{group.items.length}</span></div>}
+        {group.items.map(flow => {
           const completed = flow.methodFlow ? Number(reviewedFlows.includes(flow.id)) : flow.paths.filter(path => viewed.includes(path)).length;
           const total = flow.methodFlow ? 1 : flow.paths.length;
           const accessibleTitle = flows.filter(item => item.label === flow.label).length > 1 ? displayTitle(flow) : flow.label;
@@ -37,7 +44,7 @@ export function ReviewFlowPicker({ flows, activeFlow, viewed, reviewedFlows = []
               <small className="review-flow-option-meta">{flow.paths.length} files{flow.sharedPaths.length ? ` + ${flow.sharedPaths.length} shared` : ''} · {flow.methodFlow ? ({api:'API',kafka:'Kafka consumer',message:'Message handler',scheduled:'Scheduled job',job:'Queue job',core:'Core change'}[flow.kind] || 'Method flow') : flow.kind === 'flow' ? 'Linked code' : 'File group'}</small></span>
             <span className="review-flow-option-progress">{completed === total ? <Check size={13}/> : null}{flow.methodFlow ? completed ? 'Reviewed' : 'To review' : `${completed}/${flow.paths.length}`}<small>{flow.methodFlow ? `${flow.ranges.length} methods` : 'viewed'}</small></span>
           </button>;
-        })}
+        })}</div>)}
         {!matches.length && <p className="review-flow-empty">No matching scopes. Try a file or component name.</p>}
       </div>
       <p className="review-flow-menu-note">{flows.some(flow => flow.methodFlow) ? 'Business flows follow one declared entry or changed core method to its completion. Shared classes may appear in multiple flows; comments stay attached to their code.' : 'File groups follow source links and directory context. Shared files keep one canonical comment draft.'}</p>

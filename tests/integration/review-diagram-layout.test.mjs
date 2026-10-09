@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dependencyRoutes, dependencyView, crossesBox, sequenceMessage, roundedRail, fitDiagramText } from '../../src/lib/review-diagram-layout.mjs';
+import { dependencyRoutes, dependencyView, crossesBox, sequenceMessage, roundedRail, fitDiagramText, wrapDiagramText } from '../../src/lib/review-diagram-layout.mjs';
 import { mixedDemoFiles } from '../../src/lib/mixed-demo-review.js';
 import { analyzeApiFlows } from '../../src/lib/review-api-flows.mjs';
 import { annotateReviewGraph } from '../../src/lib/review-architecture.mjs';
@@ -79,6 +79,16 @@ test('Korean, mixed identifiers and combining characters keep a readable size wi
   assert.equal(fitDiagramText('결제 v2.1', 100, 12), '결제 v2.1');
   assert.equal(fitDiagramText('Cafe\u0301', 29, 12), 'Cafe\u0301');
   assert.equal(fitDiagramText('PaymentService', 140), 'PaymentService');
+});
+
+test('Wrapped identifiers preserve complete names, including acronyms, CJK and combining marks', () => {
+  for (const name of ['PaymentCaptureController', 'SettlementPersistenceAdapter', 'HTTPPaymentAuthorizationController', '결제승인요청검증및처리서비스', 'Cafe\u0301PaymentController', 'a'.repeat(70)]) {
+    const lines = wrapDiagramText(name, 174, 13);
+    assert.equal(lines.join(''), name);
+    assert.ok(lines.every(line => fitDiagramText(line, 174, 13) === line));
+    assert.ok(lines.every(line => !/^\p{Mark}/u.test(line)), 'Combining marks stay with their preceding character');
+  }
+  assert.deepEqual(wrapDiagramText('PaymentCaptureController', 174, 13), ['PaymentCapture', 'Controller']);
 });
 
 function assertIndependentRails(routes) {

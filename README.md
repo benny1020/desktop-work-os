@@ -30,6 +30,8 @@ Search stays in the toolbar even when the workspace rail is hidden. In review, a
 
 [Design direction, measured changes and independent verification](docs/FLAGSHIP_DESIGN_REVIEW.md).
 
+Large PRs keep complete component names at the reading scale, with execution flows and supporting changes identified in the chooser. [Complex PR readability review and screenshots](docs/COMPLEX_PR_READABILITY_REVIEW.md) cover 30-file recovery, mixed Kafka/API/job changes and 125-file navigation.
+
 ## Review the change, not just the files
 
 Keep the **dependency or sequence diagram**, **code**, and **AI review** together. Select an AI checkpoint to highlight its component and exact diff line, inspect the evidence, then write your own review in the same workspace.
@@ -241,7 +243,7 @@ npm run test:assistant-memory-desktop # Encrypted memory across native restarts
 npm run build                   # Production renderer build
 ```
 
-Latest validation: **393 browser tests**, **171 adapter/model/Git tests**, **11 native connected workflow checks** and **2 cold-start checks** passed in the [flagship design review](docs/FLAGSHIP_DESIGN_REVIEW.md). Twenty-three rendered screen/theme/width states had zero automated accessibility violations. Native profile compatibility, encrypted-vault checks, production parser-worker checks and build also passed. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Live organization access, manual assistive-technology testing, packaging and signing remain separate release requirements. Earlier validation is recorded in [development history](docs/LOCAL_DEVELOPMENT.md).
+Latest validation: **396 browser tests**, **172 adapter/model/Git tests** and **25 rendered accessibility states** passed in the [complex PR review](docs/COMPLEX_PR_READABILITY_REVIEW.md). The rendered states had zero automated accessibility violations. The earlier [flagship design review](docs/FLAGSHIP_DESIGN_REVIEW.md) also passed **11 native connected workflow checks**, **2 cold-start checks**, native profile compatibility, encrypted-vault checks and production parser-worker checks. Native checks use an isolated profile, real temporary Git repositories and HTTPS protocol fixtures; no real company records are modified. Live organization access, manual assistive-technology testing, packaging and signing remain separate release requirements. Earlier validation is recorded in [development history](docs/LOCAL_DEVELOPMENT.md).
 
 The subsequent [code readability follow-up](docs/CODE_READABILITY.md) passed **42 affected browser checks**, **124 adapter/model checks** and **11 native connected workflows**, plus production build. It did not rerun the complete browser suite.
 

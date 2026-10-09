@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import "../review-polish.css";
 import "../review-diagram-design.css";
-import { dependencyRoutes, dependencyView, sequenceMessage, fitDiagramText } from "../lib/review-diagram-layout.mjs";
+import { dependencyRoutes, dependencyView, sequenceMessage, fitDiagramText, wrapDiagramText } from "../lib/review-diagram-layout.mjs";
 import ReviewGuidePanel from "./ReviewGuidePanel";
 import ApiFlowContext from "./ApiFlowContext";
 import ReviewCallContext from "./ReviewCallContext";
@@ -81,7 +81,9 @@ function dependencyLayout(graph) {
   }
   const layers = [];
   graph.nodes.forEach((node) => { const d = depth(groupOf.get(node.id)); (layers[d] ||= []).push(node); });
-  const nodeW = 204, nodeH = 76, gap = 40;
+  const nodeW = 204, gap = 40;
+  const nameExtra = Math.max(0, ...graph.nodes.map(node => wrapDiagramText(node.label, nodeW - 30, 12).length - 1)) * 16;
+  const nodeH = 76 + nameExtra, rowStep = nodeH + 36;
   const columns = 2;
   const width = Math.max(480, ...layers.map((layer) => Math.min(columns, layer.length) * (nodeW + gap) + gap));
   const positions = new Map();
@@ -91,11 +93,11 @@ function dependencyLayout(graph) {
     layerOffsets.push(offset);
     layer.forEach((node, j) => positions.set(node.id, {
       x: (width - (Math.min(columns, layer.length - Math.floor(j / columns) * columns) * (nodeW + gap) - gap)) / 2 + (j % columns) * (nodeW + gap),
-      y: 48 + offset + Math.floor(j / columns) * 112,
+      y: 48 + offset + Math.floor(j / columns) * rowStep,
       layer: i,
       cyclic: groups[groupOf.get(node.id)].length > 1,
     }));
-    offset += Math.ceil(layer.length / columns) * 112 + 32;
+    offset += Math.ceil(layer.length / columns) * rowStep + 32;
   });
   return { positions, layers, layerOffsets, nodeW, nodeH, width, height: Math.max(200, offset + 12) };
 }
@@ -173,6 +175,8 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
         })}
         {graph.nodes.map((n) => {
           const p = positions.get(n.id);
+          const nameLines = wrapDiagramText(n.label, nodeW - 30, layout.semantic ? 13 : 12);
+          const nameExtra = (nameLines.length - 1) * 16;
           const fanIn = parents.get(n.id)?.size || 0;
           const methodNames = n.methods?.map(method => method.name + '()').join(', ');
           const meta = n.dataContract ? `Data contract · ${n.change === 'context' ? 'unchanged' : 'changed'}` : methodNames || (p.cyclic ? 'Cyclic dependency' : viewed?.includes(n.path) ? 'Viewed' : n.change === 'context' ? 'Unchanged source' : `${n.change} · ${n.lines} lines`);
@@ -200,17 +204,17 @@ function DependencyDiagram({ graph, selected, onSelect, zoom, layout, dependency
                 y="10"
               />
               <text className="node-label" x="15" y={layout.semantic ? 24 : 28}>
-                {fitDiagramText(n.label, nodeW - 30, layout.semantic ? 13 : 12)}
+                {nameLines.map((line, index) => <tspan key={index} x="15" dy={index ? 16 : 0}>{line}</tspan>)}
               </text>
-              <text className="node-path" x="15" y={layout.semantic ? 40 : 47}>
-                {layout.semantic ? n.role === 'other' ? n.confidence === 'ambiguous' ? 'Role ambiguous' : 'Role unknown' : `${n.roleLabel}${n.confidence === 'code' ? ' · source evidence' : ' · convention'}` : basename(n.path).slice(0, 26)}
+              <text className="node-path" x="15" y={(layout.semantic ? 40 : 47) + nameExtra}>
+                {fitDiagramText(layout.semantic ? n.role === 'other' ? n.confidence === 'ambiguous' ? 'Role ambiguous' : 'Role unknown' : `${n.roleLabel}${n.confidence === 'code' ? ' · source evidence' : ' · convention'}` : basename(n.path), nodeW - 30, 9, true)}
               </text>
-              <text className="node-meta" x="15" y={layout.semantic ? 54 : 62}>
-                {meta.length > (fanIn > 1 ? 22 : 30) ? meta.slice(0, fanIn > 1 ? 21 : 29) + '…' : meta}
+              <text className="node-meta" x="15" y={(layout.semantic ? 54 : 62) + nameExtra}>
+                {fitDiagramText(meta, nodeW - (fanIn > 1 ? 64 : 30), 10)}
               </text>
               {fanIn > 1 && <g className="node-fan-in" aria-label={`${fanIn} incoming components`}>
-                <rect x={nodeW - 45} y={layout.semantic ? 44 : 52} width="36" height="16" rx="3" />
-                <text x={nodeW - 27} y={layout.semantic ? 55 : 63} textAnchor="middle">{fanIn} in</text>
+                <rect x={nodeW - 45} y={(layout.semantic ? 44 : 52) + nameExtra} width="36" height="16" rx="3" />
+                <text x={nodeW - 27} y={(layout.semantic ? 55 : 63) + nameExtra} textAnchor="middle">{fanIn} in</text>
               </g>}
               <title>{n.label} · {n.path}{methodNames ? `\nMethods: ${methodNames}` : ''}{p.cyclic ? '\nCyclic dependency' : ''}{n.evidence?.length ? `\n${n.evidence.map(item => item.detail).join('\n')}` : ''}</title>
             </g>
@@ -240,6 +244,8 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
   const active = graph.sequence.length
     ? graph.nodes.filter((n) => participants.has(n.id))
     : graph.nodes;
+  const participantNames = new Map(active.map(node => [node.id, wrapDiagramText(node.label, 140, 13)]));
+  const headerExtra = Math.max(0, ...[...participantNames.values()].map(lines => lines.length - (compact ? 2 : 1))) * 15;
   const context = stepTransaction(graph, graph.sequence[0]);
   const frames = (graph.transactions?.scopes || []).flatMap(scope => {
     const indices = graph.sequence.flatMap((step, index) => stepTransaction(graph, step).inside.some(item => item.id === scope.id) ? [index] : []);
@@ -247,9 +253,9 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
   });
   let extra = 0;
   const rowY = graph.sequence.map((step, index) => {
-    if (compact) return 145;
+    if (compact) return 145 + headerExtra;
     extra += frames.filter(frame => frame.first === index).length * 32;
-    const y = 125 + index * 78 + extra;
+    const y = 125 + headerExtra + index * 78 + extra;
     extra += frames.filter(frame => frame.last === index).length * 22;
     return y;
   });
@@ -288,8 +294,8 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
         {frames.filter(scope => !compact || scope.id === context.inside[0]?.id).map(scope => {
           const depth = compact ? 0 : frames.filter(parent => parent.id !== scope.id && parent.path === scope.path && parent.startOffset <= scope.startOffset && parent.endOffset >= scope.endOffset).length;
           const children = frames.filter(child => child.id !== scope.id && child.path === scope.path && child.startOffset >= scope.startOffset && child.endOffset <= scope.endOffset);
-          const top = compact ? 98 : rowY[scope.first] - 57 - children.filter(child => child.first === scope.first).length * 32;
-          const bottom = compact ? 205 : rowY[scope.last] + 45 + children.filter(child => child.last === scope.last).length * 22;
+          const top = compact ? 98 + headerExtra : rowY[scope.first] - 57 - children.filter(child => child.first === scope.first).length * 32;
+          const bottom = compact ? 205 + headerExtra : rowY[scope.last] + 45 + children.filter(child => child.last === scope.last).length * 22;
           const actors = graph.sequence.slice(scope.first, scope.last + 1).flatMap(step => [x(step.from), x(step.to)]);
           const left = compact ? 12 : Math.min(...actors) - 98 + depth * 8;
           const frameWidth = compact ? w - 24 : Math.max(...actors) + 98 - left - depth * 8;
@@ -313,14 +319,14 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
           </g>;
         })}
         {compact && context.state !== 'inside' && <g className={`sequence-transaction-context ${context.state}`}>
-          <text x={w / 2} y="114" textAnchor="middle" className="transaction-caption">
+          <text x={w / 2} y={114 + headerExtra} textAnchor="middle" className="transaction-caption">
             {context.state === 'outside' ? 'Outside TX scope · source boundary' : context.state === 'boundary' ? 'TX boundary line · inspect source' : context.state === 'unavailable' ? 'Scope unavailable · open full source' : 'No boundary detected in source'}
           </text>
           {['outside', 'boundary'].includes(context.state) && <g role="button" tabIndex={0}
             aria-label={`Open transaction start ${basename(context.scopes[0].path)}:${context.scopes[0].startLine}`}
             onClick={() => openScope(context.scopes[0])} onKeyDown={event => diagramKeys(event, () => openScope(context.scopes[0]))}>
-            <rect className="transaction-label-hit" x="20" y="174" width={w - 40} height="25" />
-            <text x={w / 2} y="191" textAnchor="middle" className="transaction-caption">Declared scope · L{context.scopes[0].startLine}–{context.scopes[0].endLine} ↗</text>
+            <rect className="transaction-label-hit" x="20" y={174 + headerExtra} width={w - 40} height="25" />
+            <text x={w / 2} y={191 + headerExtra} textAnchor="middle" className="transaction-caption">Declared scope · L{context.scopes[0].startLine}–{context.scopes[0].endLine} ↗</text>
           </g>}
         </g>}
         {active.map((n) => (
@@ -329,7 +335,7 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
               className="lifeline"
               x1={x(n.id)}
               x2={x(n.id)}
-              y1={compact ? 98 : 83}
+              y1={(compact ? 98 : 83) + headerExtra}
               y2={h - 30}
             />
             <g
@@ -341,29 +347,19 @@ function SequenceDiagram({ graph, selected, onSelect, onScopeSelect, zoom, compa
               aria-pressed={selected === n.id}
               onKeyDown={(event) => diagramKeys(event, () => onSelect(n.path, n.methods?.[0]?.line))}
             >
-              <rect x={x(n.id) - 80} y="25" width="160" height={compact ? 72 : 55} rx="5" />
+              <rect x={x(n.id) - 80} y="25" width="160" height={(compact ? 72 : 55) + headerExtra} rx="5" />
               <text
                 className="node-label"
                 x={x(n.id)}
                 y={compact ? 46 : 49}
                 textAnchor="middle"
               >
-                {compact ? (() => {
-                  const parts = n.label.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(' ');
-                  const lines = [];
-                  for (const part of parts) {
-                    const last = lines.at(-1), combined = last ? last + part : part;
-                    if (last && fitDiagramText(combined, 140, 13) !== combined) lines.push(part);
-                    else if (last) lines[lines.length - 1] = combined;
-                    else lines.push(part);
-                  }
-                  return lines.slice(0,2).map((label,index) => <tspan key={index} x={x(n.id)} dy={index ? 15 : 0}>{fitDiagramText(label,140,13)}</tspan>);
-                })() : fitDiagramText(n.label, 140, 13)}
+                {participantNames.get(n.id).map((label,index) => <tspan key={index} x={x(n.id)} dy={index ? 15 : 0}>{label}</tspan>)}
               </text>
               <text
                 className="node-path"
                 x={x(n.id)}
-                y={compact ? 85 : 65}
+                y={(compact ? 85 : 65) + headerExtra}
                 textAnchor="middle"
               >
                 {n.change}
@@ -758,11 +754,11 @@ ${finding.reason}`;
     if (!result || !result.layers.every(layer => layer.length === 1)) return result;
     const positions = new Map(result.positions);
     const layerOffsets = result.layers.map((layer, index) => {
-      const offset = index * 106;
+      const offset = index * (106 + result.nodeH - 64);
       const node = layer[0]; positions.set(node.id, { ...positions.get(node.id), y: offset + 38 });
       return offset;
     });
-    return { ...result, positions, layerOffsets, nodeH:60, height:Math.max(200, result.layers.length * 106 + 12) };
+    return { ...result, positions, layerOffsets, nodeH:result.nodeH - 4, height:Math.max(200, result.layers.length * (106 + result.nodeH - 64) + 12) };
   }, [diagramGraph, mapWidth]);
   const layout = architectureMode && architecture ? architecture : dependency;
   const changeStats = useMemo(() => changedFiles.reduce((stats, item) => {
@@ -823,7 +819,9 @@ ${finding.reason}`;
       if (!svg) return;
       const widthFit = (canvas.clientWidth - 24) / svg.viewBox.baseVal.width;
       const heightFit = (canvas.clientHeight - 24) / svg.viewBox.baseVal.height;
-      setZoom(autoFit === true ? Math.min(1, Math.max(0.01, Math.min(widthFit, heightFit))) : Math.min(1, Math.max(tab === "Sequence" && sequenceByStep ? 1 : 0.65, widthFit)));
+      // Reading keeps text at its authored size; larger flows use native panning.
+      // Only the explicit Fit action shrinks the diagram to an overview.
+      setZoom(autoFit === true ? Math.min(1, Math.max(0.01, Math.min(widthFit, heightFit))) : 1);
     }
     fit();
     const observer = new ResizeObserver(fit);

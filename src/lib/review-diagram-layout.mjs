@@ -2,14 +2,31 @@
 const same = (a, b) => a.x === b.x && a.y === b.y;
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const between = (v, a, b) => v > Math.min(a, b) && v < Math.max(a, b);
+const textAdvance = (char, fontSize, mono = false) => /\p{Mark}/u.test(char) ? 0 : /[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7ff\uff01-\uff60\uffe0-\uffe6]/u.test(char) || char.codePointAt(0) >= 0x1f300 ? fontSize : fontSize * (mono ? .62 : .6);
 // Label budget includes Korean/CJK width. Full values stay in titles and names.
 export function fitDiagramText(value, width, fontSize = 12, mono = false) {
   const characters = [...String(value)];
-  const advance = char => /\p{Mark}/u.test(char) ? 0 : /[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7ff\uff01-\uff60\uffe0-\uffe6]/u.test(char) || char.codePointAt(0) >= 0x1f300 ? fontSize : fontSize * (mono ? .62 : .6);
+  const advance = char => textAdvance(char, fontSize, mono);
   if (characters.reduce((sum, char) => sum + advance(char), 0) <= width) return value;
   let used = fontSize, result = '';
   for (const char of characters) { if (used + advance(char) > width) break; result += char; used += advance(char); }
   return result + '…';
+}
+// Prefer identifier word boundaries, preserving every character and font size.
+export function wrapDiagramText(value, width, fontSize = 13) {
+  const parts = String(value).split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[_./ -])/u);
+  const lines = []; let line = '', used = 0;
+  for (const part of parts) {
+    const size = [...part].reduce((sum, char) => sum + textAdvance(char, fontSize), 0);
+    if (line && used + size > width) { lines.push(line); line = ''; used = 0; }
+    for (const char of part) {
+      const advance = textAdvance(char, fontSize);
+      if (line && used + advance > width) { lines.push(line); line = ''; used = 0; }
+      line += char; used += advance;
+    }
+  }
+  if (line || !lines.length) lines.push(line);
+  return lines;
 }
 export function crossesBox(a, b, box, padding = 0) {
   const left = box.x - padding, right = box.x + box.w + padding;
